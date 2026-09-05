@@ -44,7 +44,8 @@ No dependency ahead of the work that needs it.
 
 ## Working an issue
 
-1. `design` issues resolve to a document under `docs/` before code is written.
+1. `design` issues resolve to a document under `docs/` before code is written. Record the
+   decision, the alternatives rejected, and why.
 2. `Depends on #N` is binding.
 3. Branch as `torabit/<type>/<slug>`.
 4. Open a PR referencing the issue.

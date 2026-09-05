@@ -44,12 +44,6 @@ slots. It renders your templates from your palette. Nothing to conform to.
 It can still import from the [tinted-theming schemes](https://github.com/tinted-theming/schemes)
 collection, so the existing theme library is not lost.
 
-## Naming
-
-**Vanadís** is a byname of Freyja. In 1830 Nils Gabriel Sefström named a new element
-`vanadium` after her, because its compounds show beautiful colours; its earlier discoverer
-had called it *panchromium*, "all colours".
-
 ## Licence
 
 MIT OR Apache-2.0.

@@ -1,0 +1,41 @@
+# 生成物。編集は config.toml.in を直す。
+# Hunk (https://hunk.dev) - review-first terminal diff viewer
+# 色は palette.json から生成する。
+
+mode = "split"        # delta の side-by-side に合わせる
+cursor_line = "row"
+line_numbers = true
+wrap_lines = false
+hunk_headers = true
+theme = "papercolor-light"
+
+# github-light-default をベースに、UI 色だけ PaperColor Light で上書きする。
+# diff の背景ティント (addedBg / removedBg など) はベースの値をそのまま使う。
+[themes.papercolor-light]
+base = "github-light-default"
+label = "PaperColor Light"
+
+background = "#eeeeee"        # bg
+panel = "#e4e4e4"             # hover bg
+border = "#bcbcbc"            # border
+accent = "#d70087"            # accent (pink)
+accentMuted = "#878787"       # inactive
+text = "#444444"              # fg
+muted = "#878787"             # comment
+selectedHunk = "#d7d7af"      # selection bg
+
+addedSignColor = "#008700"    # green
+removedSignColor = "#af0000"  # red
+lineNumberFg = "#b2b2b2"      # linenumber
+
+badgeAdded = "#008700"
+badgeRemoved = "#af0000"
+badgeNeutral = "#878787"
+
+fileNew = "#008700"
+fileModified = "#d75f00"      # accent (orange)
+fileDeleted = "#af0000"
+fileRenamed = "#0087af"       # visual
+fileUntracked = "#878787"
+
+noteBorder = "#bcbcbc"

@@ -1,0 +1,90 @@
+#* 生成物。編集は papercolor-light.theme.in を直す。
+# Btop PaperColor Light theme
+# Based on palette.json
+
+# Main background, empty for terminal default
+theme[main_bg]="#eeeeee"
+
+# Main text color
+theme[main_fg]="#444444"
+
+# Title color for boxes
+theme[title]="#444444"
+
+# Highlight color for keyboard shortcuts
+theme[hi_fg]="#d70087"
+
+# Background color of selected items
+theme[selected_bg]="#d7d7af"
+
+# Foreground color of selected items
+theme[selected_fg]="#444444"
+
+# Color of inactive/disabled text
+theme[inactive_fg]="#878787"
+
+# Color of text appearing on top of graphs
+theme[graph_text]="#878787"
+
+# Misc colors for processes box including mini cpu graphs, details memory graph and details status text
+theme[proc_misc]="#0087af"
+
+# Cpu box outline color
+theme[cpu_box]="#bcbcbc"
+
+# Memory/disks box outline color
+theme[mem_box]="#bcbcbc"
+
+# Net up/down box outline color
+theme[net_box]="#bcbcbc"
+
+# Processes box outline color
+theme[proc_box]="#bcbcbc"
+
+# Box divider line and small boxes line color
+theme[div_line]="#bcbcbc"
+
+# Temperature graph colors
+theme[temp_start]="#008700"
+theme[temp_mid]="#d75f00"
+theme[temp_end]="#af0000"
+
+# CPU graph colors
+theme[cpu_start]="#008700"
+theme[cpu_mid]="#d75f00"
+theme[cpu_end]="#af0000"
+
+# Mem/Disk free meter
+theme[free_start]="#af0000"
+theme[free_mid]="#d75f00"
+theme[free_end]="#008700"
+
+# Mem/Disk cached meter
+theme[cached_start]="#0087af"
+theme[cached_mid]="#005faf"
+theme[cached_end]="#005f87"
+
+# Mem/Disk available meter
+theme[available_start]="#af0000"
+theme[available_mid]="#d75f00"
+theme[available_end]="#5f8700"
+
+# Mem/Disk used meter
+theme[used_start]="#008700"
+theme[used_mid]="#d75f00"
+theme[used_end]="#af0000"
+
+# Download graph colors
+theme[download_start]="#008700"
+theme[download_mid]="#0087af"
+theme[download_end]="#005f87"
+
+# Upload graph colors
+theme[upload_start]="#d70087"
+theme[upload_mid]="#d75f00"
+theme[upload_end]="#af0000"
+
+# Process box color gradient for threads, mem and cpu usage
+theme[process_start]="#008700"
+theme[process_mid]="#d75f00"
+theme[process_end]="#af0000"

@@ -1,0 +1,13 @@
+-- 生成物。編集は palette.lua.in を直す。
+return {
+	bg = "{{role.bg}}",
+	fg = "{{role.fg}}",
+	error = "{{role.error}}",
+	warn = "{{role.warn}}",
+	visual = "{{role.visual}}",
+	comment = "{{role.comment}}",
+	border = "{{role.border}}",
+	accent = "{{role.accent}}",
+	brown = "{{colors.brown}}",
+	slate = "{{colors.slate}}",
+}

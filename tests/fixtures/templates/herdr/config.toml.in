@@ -1,0 +1,154 @@
+# 生成物。編集は config.toml.in を直す。
+
+[keys]
+prefix = "ctrl+a"
+
+# detach は tmux の prefix+d に合わせる。既定の prefix+q は使わない。
+detach = "prefix+d"
+
+# close は tmux の confirm-before に合わせて y を要求する。既定の即時 close を
+# 外し、prefix+x / prefix+shift+x を bin/confirm-close の popup に差し替える。
+close_pane = ""
+close_tab = ""
+
+# 分割の向きの呼び方が tmux と逆になっている。
+# herdr の split_vertical は縦線で割る (tmux の split-window -h)。
+split_vertical = "prefix+|"
+split_horizontal = "prefix+minus"
+
+# タブの並べ替え。既定では未設定。
+move_tab_previous = "ctrl+shift+left"
+move_tab_next = "ctrl+shift+right"
+
+# resize mode に入らずに直接広げる。
+resize_pane_left = "prefix+ctrl+h"
+resize_pane_down = "prefix+ctrl+j"
+resize_pane_up = "prefix+ctrl+k"
+resize_pane_right = "prefix+ctrl+l"
+
+# herdr は未バインドのキーを pane の中のプログラムへ素通しするため、herdr 側で
+# 受け取らないとエージェントや lazygit が動いている pane から抜けられない。
+# nvim の split 移動は nvim 既定の <C-w>hjkl に譲る。
+focus_pane_left = ["prefix+h", "alt+h"]
+focus_pane_down = ["prefix+j", "alt+j"]
+focus_pane_up = ["prefix+k", "alt+k"]
+focus_pane_right = ["prefix+l", "alt+l"]
+
+# navigate mode (prefix+w) の workspace 移動を j/k にする。既定の pane 移動が
+# j/k を使っていて衝突するため、pane 側は ctrl+hjkl へ退避する。
+# このキーは navigate mode 中だけ有効で、通常入力は奪わない。
+navigate_workspace_up = "k"
+navigate_workspace_down = "j"
+navigate_pane_left = "ctrl+h"
+navigate_pane_down = "ctrl+j"
+navigate_pane_up = "ctrl+k"
+navigate_pane_right = "ctrl+l"
+
+# WSL 固有: Windows のクリップボードの画像を ssh 先へ転送し、そのパスを
+# 現在の pane へ挿入する。ssh 先のプロセスは Windows のクリップボードに
+# 触れないため画像を直接貼れない。転送は WSL 側で走らせる必要がある。
+# custom command へ渡る pane ID の環境変数名は herdr の版で変わっている
+# (0.8.2 は HERDR_PANE_ID、新しい版は HERDR_ACTIVE_PANE_ID)。どちらの版でも
+# 動くよう両対応でフォールバックする。
+[[keys.command]]
+key = "alt+v"
+type = "shell"
+command = 'p=$(clip-image) && herdr pane send-text "${HERDR_ACTIVE_PANE_ID:-$HERDR_PANE_ID}" "$p" || herdr notification show "clip-image" --body "クリップボードに画像がありません"'
+description = "clip-image のパスを挿入する"
+
+# 画面上の URL やパスを hint で拾う。tmux-thumbs の既定キー prefix+space を
+# 引き継ぐ。色と大文字 hint の挙動は plugins/config/sd2k.thumbs/config.env。
+# 導入は `herdr plugin install sd2k/herdr-thumbs` (Rust toolchain が必要)。
+[[keys.command]]
+key = "prefix+space"
+type = "plugin_action"
+command = "sd2k.thumbs.pick"
+description = "pick text"
+
+# close の確認モーダル。y だけが閉じる。上の close_pane / close_tab を参照。
+[[keys.command]]
+key = "prefix+x"
+type = "popup"
+command = '"$HOME/.config/herdr/bin/confirm-close" pane'
+description = "close pane (confirm)"
+width = 44
+height = 5
+
+[[keys.command]]
+key = "prefix+shift+x"
+type = "popup"
+command = '"$HOME/.config/herdr/bin/confirm-close" tab'
+description = "close tab (confirm)"
+width = 44
+height = 5
+
+# ── PaperColor Light ──────────────────────────────────────────
+# 既定の基底は暗い。上流がトークンを増やしたときに暗い値が漏れないよう
+# 明るい基底を選び、その上から全トークンを上書きする。
+[theme]
+name = "catppuccin-latte"
+
+[theme.custom]
+accent = "{{role.accent}}"
+panel_bg = "{{role.bg}}"
+sidebar_bg = "{{role.bg}}"
+active_row_bg = "{{role.hover-bg}}"
+selection_bg = "{{role.selection-bg}}"
+surface0 = "{{role.hover-bg}}"
+surface1 = "{{role.border}}"
+surface_dim = "{{role.bg}}"
+overlay0 = "{{role.comment}}"
+overlay1 = "{{role.border}}"
+text = "{{role.fg}}"
+subtext0 = "{{role.comment}}"
+mauve = "{{colors.purple}}"
+green = "{{role.ok}}"
+yellow = "{{colors.brown}}"
+red = "{{role.error}}"
+blue = "{{role.keyword}}"
+teal = "{{role.accent-alt}}"
+peach = "{{role.accent-warm}}"
+
+[ui]
+accent = "{{role.accent}}"
+tab_bar_right = [{ type = "datetime", format = "%H:%M" }]
+
+# git branch は tab_bar_right に置かない。command エントリは herdr サーバ側で
+# 解決されるためフォーカス中 pane の作業ディレクトリを見られない。sidebar の
+# spaces 行が組み込みトークン branch で既定から表示している。
+
+window_title = "{workspace} {tab} @{hostname}"
+
+# tmux では bind c が即座に window を作っていた。名前の入力を挟まない。
+prompt_new_tab_name = false
+
+# claude の行は 2 行目を agent 名からセッション要約に差し替える。
+# terminal_title_stripped は Claude Code が OSC title に書くセッション要約。
+# ディレクトリ名は workspace トークン、git branch は spaces 行の既定表示が担う。
+[ui.sidebar.agents.rows_by_agent]
+# 2 行目は既定スタイルだと薄い theme.custom.overlay 系の前景になり読めないため、
+# fg で本文色を明示して dim を外す。
+claude = [
+  ["state_icon", "workspace", "tab"],
+  [{ token = "terminal_title_stripped", fg = "{{role.fg}}", dim = false }],
+]
+
+# agent の完了/入力待ちを in-app toast で出す (既定は off)。アクティブなタブの
+# 分は抑制される。表示中の toast へは prefix+o (open_notification_target 既定) で
+# 遷移する。
+[ui.toast]
+delivery = "herdr"
+
+[ui.toast.herdr]
+position = "bottom-left"
+
+[session]
+# 値は herdr の既定と同じ true。tmux-resurrect と tmux-continuum の置き換えが
+# この復元挙動に依存しているため、上流の既定が変わっても黙って壊れないよう固定する。
+resume_agents_on_restore = true
+
+[experimental]
+# WSL 固有: tmux の allow-passthrough on を引き継ぐ。chafa -f kitty を手で
+# 指定したときに WSL 側から Windows 側の端末へ画像を通すのに使っていた。
+# herdr 側ではまだ experimental 扱いの機能。描画が乱れたら false に戻す。
+kitty_graphics = true

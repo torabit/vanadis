@@ -1,0 +1,62 @@
+# 生成物。編集は starship.toml.in を直す。
+"$schema" = 'https://starship.rs/config-schema.json'
+
+format = """
+$username\
+$hostname\
+$directory\
+$git_branch\
+$git_state\
+$git_status\
+$cmd_duration\
+$line_break\
+$python\
+$character"""
+
+palette = "papercolor"
+
+[palettes.papercolor]
+accent-alt = "{{role.accent-alt}}"
+accent-warm = "{{role.accent-warm}}"
+comment = "{{role.comment}}"
+error = "{{role.error}}"
+ok = "{{role.ok}}"
+purple = "{{colors.purple}}"
+visual = "{{role.visual}}"
+
+[directory]
+style = "visual"
+
+[character]
+success_symbol = "[❯](purple)"
+error_symbol = "[❯](error)"
+vimcmd_symbol = "[❮](ok)"
+
+[git_branch]
+format = "[$branch]($style)"
+style = "comment"
+
+[git_status]
+format = "[[(*$conflicted$untracked$modified$staged$renamed$deleted)](accent-warm) ($ahead_behind$stashed)]($style)"
+style = "accent-alt"
+conflicted = ""
+untracked = ""
+modified = ""
+staged = ""
+renamed = ""
+deleted = ""
+stashed = "≡"
+
+[git_state]
+format = '\([$state( $progress_current/$progress_total)]($style)\) '
+style = "comment"
+
+[cmd_duration]
+format = "[$duration]($style) "
+style = "accent-alt"
+
+[python]
+format = "[$virtualenv]($style) "
+style = "comment"
+detect_extensions = []
+detect_files = []

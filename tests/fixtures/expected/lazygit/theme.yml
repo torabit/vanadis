@@ -1,0 +1,26 @@
+# 生成物。編集は theme.yml.in を直す。
+gui:
+  theme:
+    activeBorderColor:
+      - "#008700"
+      - bold
+    inactiveBorderColor:
+      - "#878787"
+    optionsTextColor:
+      - "#0087af"
+    selectedLineBgColor:
+      - reverse
+    selectedRangeBgColor:
+      - reverse
+    defaultFgColor:
+      - "#444444"
+    cherryPickedCommitFgColor:
+      - "#0087af"
+    cherryPickedCommitBgColor:
+      - "#eeeeee"
+    unstagedChangesColor:
+      - "#af0000"
+git:
+  diffRenderers:
+    - colorArg: always
+      command: "delta --paging=never --light --syntax-theme=gruvbox-light --minus-style=\"syntax #ffd7d7\" --minus-emph-style=\"syntax #ffafaf\" --plus-style=\"syntax #d7ffd7\" --plus-emph-style=\"syntax #afffaf\" --hunk-header-style=\"file line-number syntax\" --file-style=\"#005f87 bold\" --line-numbers --line-numbers-minus-style=\"#af0000\" --line-numbers-plus-style=\"#008700\""

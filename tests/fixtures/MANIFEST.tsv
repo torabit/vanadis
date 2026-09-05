@@ -1,0 +1,12 @@
+fixture	source_in_dotfiles
+templates/bat/PaperColor-Light.tmTheme.in	bat/.config/bat/themes/PaperColor-Light.tmTheme.in
+templates/btop/papercolor-light.theme.in	btop/.config/btop/themes/papercolor-light.theme.in
+templates/herdr/host-colors.py.in	herdr/.config/herdr/bin/host-colors.py.in
+templates/herdr/config.toml.in	herdr/.config/herdr/config.toml.in
+templates/herdr/config.env.in	herdr/.config/herdr/plugins/config/sd2k.thumbs/config.env.in
+templates/hunk/config.toml.in	hunk/.config/hunk/config.toml.in
+templates/lazygit/theme.yml.in	lazygit/.config/lazygit/theme.yml.in
+templates/neovim/palette.lua.in	neovim/.config/nvim/lua/palette.lua.in
+templates/rio/config.toml.in	rio/config.toml.in
+templates/starship/starship.toml.in	starship/.config/starship.toml.in
+templates/zsh/palette.zsh.in	zsh/.config/zsh/palette.zsh.in

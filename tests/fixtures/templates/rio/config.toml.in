@@ -1,0 +1,151 @@
+# 生成物。編集は config.toml.in を直す。
+# Rio terminal configuration
+#
+# 移植元: alacritty/.config/alacritty.toml
+# 配色は {{role.*}} / {{ansi.*}} で palette.json (PaperColor Light) を参照する。
+# テーマ名では参照しない。
+#
+# 反映方法: rio/sync.sh (Windows 側 %LOCALAPPDATA%\rio\config.toml へコピー)
+# 参照: https://rioterm.com/docs/config
+#
+# 注意: セクションヘッダに属さないキーはファイル先頭に置く必要がある。
+# 後方に置くと無視される。
+
+hide-mouse-cursor-when-typing = true
+scrollback-history-limit = 10000
+
+[shell]
+program = "wsl"
+args = ["~"]
+
+[title]
+# 先頭の半角スペースは意図的なもの。
+# Rio のタブタイトルは文字列の先頭 1 文字だけでフォントを決め、その 1 フォントで
+# 全体をシェーピングする (sugarloaf/src/text.rs の shape_for)。文字単位の
+# フォールバックが無い。Claude Code はタイトルを "✳ ..." と設定するので、先頭の
+# 記号が HackGen に無いと絵文字フォントが選ばれ、そのフォントは日本語グリフを
+# 持たないためタイトルの日本語が全て豆腐になる。
+# ✳ (U+2733) 自体は patch-font.sh で HackGen へ移植済み。このスペースは ✳ 以外の
+# 記号が先頭に来た場合の保険。
+content = " {{ title }}"
+
+[fonts]
+size = 11.25
+
+# patch-font.sh が U+2733 (✳) を移植した HackGen の出力先。
+# Rio は additional-dirs をシステムフォントより先に検索するので
+# (sugarloaf/src/font/loader.rs の Database::query)、ファミリー名が同じでも
+# こちらが選ばれる。インストール済みフォントを直接書き換えると per-user フォントの
+# 登録が壊れて "Font(s) not found" になるため、この経路を使う。
+# Rio は Windows ネイティブアプリなので Windows のパスで書く。%LOCALAPPDATA% は
+# 展開されないため実体を書く。
+additional-dirs = ['C:\Users\rai-t\AppData\Local\rio\fonts']
+
+[fonts.regular]
+family = "HackGen35 Console NF"
+style = "Regular"
+
+[fonts.bold]
+family = "HackGen35 Console NF"
+style = "Bold"
+
+# HackGen35 Console NF は Regular / Bold のフェイスのみ配布されている。
+# italic と bold-italic はフェイスが無いので style を指定せず、Rio 側の合成に任せる。
+[fonts.italic]
+family = "HackGen35 Console NF"
+
+[fonts.bold-italic]
+family = "HackGen35 Console NF"
+
+[cursor]
+shape = "block"
+blinking = true
+
+# BEL でシステム音を鳴らさない。Rio の audio 既定は Windows と macOS では
+# true、Linux と BSD では false。Rio は Windows ネイティブアプリなので
+# 既定では鳴る。visual は既定の false のままにする (画面を光らせない)。
+[bell]
+audio = false
+
+[colors]
+background = "{{role.bg}}"
+foreground = "{{role.fg}}"
+cursor = "{{role.fg}}"
+# vi モードのカーソルは通常カーソルと区別できるようアクセント色にする
+# (Alacritty では CellForeground 反転指定だが Rio は固定色のみ)
+vi-cursor = "{{role.accent-alt}}"
+
+# 選択範囲: Alacritty の CellBackground / CellForeground 反転相当
+selection-foreground = "{{role.bg}}"
+selection-background = "{{role.fg}}"
+
+# ANSI 16 colors
+black = "{{ansi.0}}"
+red = "{{ansi.1}}"
+green = "{{ansi.2}}"
+yellow = "{{ansi.3}}"
+blue = "{{ansi.4}}"
+magenta = "{{ansi.5}}"
+cyan = "{{ansi.6}}"
+white = "{{ansi.7}}"
+
+light-black = "{{ansi.8}}"
+light-red = "{{ansi.9}}"
+light-green = "{{ansi.10}}"
+light-yellow = "{{ansi.11}}"
+light-blue = "{{ansi.12}}"
+light-magenta = "{{ansi.13}}"
+light-cyan = "{{ansi.14}}"
+light-white = "{{ansi.15}}"
+
+# 検索ハイライト
+search-match-foreground = "{{role.bg}}"
+search-match-background = "{{role.error}}"
+search-focused-match-foreground = "{{role.bg}}"
+search-focused-match-background = "{{role.visual}}"
+
+# ヒント (URL 選択)
+hint-foreground = "{{role.bg}}"
+hint-background = "{{role.visual}}"
+
+# UI: Rio 既定はダーク配色のため Light 側に合わせる
+bar = "{{role.bg}}"
+tabs = "{{role.border}}"
+tabs-active = "{{role.accent}}"
+split = "{{role.border}}"
+
+[bindings]
+keys = [
+  # Alt+Enter の ToggleFullscreen を解除し、キーストロークを
+  # 端末上のアプリケーションへ透過させる (Claude Code の submit が Alt+Enter)。
+  # action = "None" は完全な no-op でアプリにも届かないため使わない。
+  { key = "return", with = "alt", action = "ReceiveChar" },
+
+  # Alt+Enter を手放した代わりのフルスクリーン。F11 は Rio の既定バインドに無い
+  # (frontends/rioterm/src/bindings/mod.rs の platform_key_bindings)。
+  # 端末上のアプリへ渡っていた F11 (CSI 23~) は届かなくなる。
+  { key = "F11", action = "ToggleFullscreen" },
+]
+
+[hints]
+alphabet = "jfkdls;ahgurieowpq"
+
+[[hints.rules]]
+regex = "(ipfs:|ipns:|magnet:|mailto:|gemini://|gopher://|https://|http://|news:|file:|git://|ssh:|ftp://)[^\u0000-\u001F\u007F-\u009F<>\"\\s{-}\\^⟨⟩]+"
+hyperlinks = true
+post-processing = true
+persist = false
+
+[hints.rules.action]
+# Rio は Windows ネイティブアプリなので xdg-open (WSL 側) は使えない。
+# explorer が Windows の既定ブラウザで URL を開く。
+command = "explorer"
+
+[hints.rules.binding]
+key = "U"
+mods = ["Control", "Shift"]
+
+# クリックでも URL を開けるようにする。Alacritty 側は mouse.enabled = true のみを
+# 指定していた (mods 未指定なので修飾キーなしでクリック可)。挙動を揃える。
+[hints.rules.mouse]
+enabled = true

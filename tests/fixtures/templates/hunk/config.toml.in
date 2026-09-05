@@ -1,0 +1,41 @@
+# 生成物。編集は config.toml.in を直す。
+# Hunk (https://hunk.dev) - review-first terminal diff viewer
+# 色は palette.json から生成する。
+
+mode = "split"        # delta の side-by-side に合わせる
+cursor_line = "row"
+line_numbers = true
+wrap_lines = false
+hunk_headers = true
+theme = "papercolor-light"
+
+# github-light-default をベースに、UI 色だけ PaperColor Light で上書きする。
+# diff の背景ティント (addedBg / removedBg など) はベースの値をそのまま使う。
+[themes.papercolor-light]
+base = "github-light-default"
+label = "PaperColor Light"
+
+background = "{{role.bg}}"        # bg
+panel = "{{role.hover-bg}}"             # hover bg
+border = "{{role.border}}"            # border
+accent = "{{role.accent}}"            # accent (pink)
+accentMuted = "{{role.inactive}}"       # inactive
+text = "{{role.fg}}"              # fg
+muted = "{{role.comment}}"             # comment
+selectedHunk = "{{role.selection-bg}}"      # selection bg
+
+addedSignColor = "{{role.ok}}"    # green
+removedSignColor = "{{role.error}}"  # red
+lineNumberFg = "{{role.linenr}}"      # linenumber
+
+badgeAdded = "{{role.ok}}"
+badgeRemoved = "{{role.error}}"
+badgeNeutral = "{{role.comment}}"
+
+fileNew = "{{role.ok}}"
+fileModified = "{{role.accent-warm}}"      # accent (orange)
+fileDeleted = "{{role.error}}"
+fileRenamed = "{{role.visual}}"       # visual
+fileUntracked = "{{role.comment}}"
+
+noteBorder = "{{role.border}}"

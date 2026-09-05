@@ -1,0 +1,152 @@
+#!/usr/bin/env python3
+# 生成物。編集は host-colors.py.in を直す。
+"""herdr を pty 越しに起動し、端末の既定色の問い合わせに代わりに答える。
+
+直したい症状:
+  WSL の herdr で pane のカーソルと copy mode の選択が白く塗られる。darwin では
+  端末の色 (#444444) で暗く出る。
+
+原因:
+  herdr は起動時とフォーカス復帰時に外側の端末へ OSC 10 (既定 fg) と OSC 11
+  (既定 bg) を投げて色を得る。返答が無いと fg=白 / bg=黒 の既定に落ち、カーソル
+  セルをそれを反転した RGB 直指定 (bg #ffffff / fg #000000) で塗る。SGR 7 では
+  ないため端末側の色は効かない。
+  Rio は OSC 10/11 に答える実装を持つが、問い合わせが届いていない。WSL の
+  herdr から見た外側は Rio ではなく Windows の ConPTY で、ConPTY は自分が解釈
+  できる問い合わせ (DA1 など) には自分で答え、OSC 10/11 は Rio まで通さない。
+  素の Rio タブで OSC 11 を投げても無音で、DA1 の応答が Rio ではなく conhost の
+  ものになることで確認した。
+
+なぜ shim なのか:
+  ConPTY で落ちているため Rio を直しても届かない。herdr 側には既定色を教える
+  設定も環境変数も無い (config の theme.custom は herdr 自身の UI 色だけを持つ)。
+  返答を herdr の入力へ入れるには pty の master を握る必要がある。TIOCSTI は
+  dev.tty.legacy_tiocsti=0 で塞がっている。
+  herdr が RGB 直指定ではなく SGR 7 で塗るようになればこの shim は不要になる。
+
+代償:
+  herdr の入出力が Python のコピーループを 1 段通る。
+"""
+
+import errno
+import fcntl
+import os
+import pty
+import select
+import signal
+import struct
+import sys
+import termios
+
+FG = "{{role.fg}}"
+BG = "{{role.bg}}"
+
+# 問い合わせは分割して届きうるため、境界をまたぐぶんだけ前回の尾を残して走査する。
+TAIL = 32
+
+
+def osc_color(index, hex_color):
+    r, g, b = (int(hex_color[i : i + 2], 16) for i in (1, 3, 5))
+    return ("\x1b]%d;rgb:%02x%02x/%02x%02x/%02x%02x\x1b\\" % (index, r, r, g, g, b, b)).encode()
+
+
+def dsr_2031(hex_color):
+    # CSI ?997;1n が dark、;2n が light。sRGB の相対輝度で決める。
+    r, g, b = (int(hex_color[i : i + 2], 16) / 255 for i in (1, 3, 5))
+    luma = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    return b"\x1b[?997;2n" if luma > 0.5 else b"\x1b[?997;1n"
+
+
+ANSWERS = (
+    (b"\x1b]10;?", osc_color(10, FG)),
+    (b"\x1b]11;?", osc_color(11, BG)),
+    (b"\x1b[?996n", dsr_2031(BG)),
+)
+
+
+def winsize(fd):
+    try:
+        return fcntl.ioctl(fd, termios.TIOCGWINSZ, b"\0" * 8)
+    except OSError:
+        return struct.pack("HHHH", 24, 80, 0, 0)
+
+
+def main(argv):
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        os.execvp("herdr", ["herdr"] + argv)
+
+    pid, master = pty.fork()
+    if pid == 0:
+        os.execvp("herdr", ["herdr"] + argv)
+        os._exit(127)
+
+    fcntl.ioctl(master, termios.TIOCSWINSZ, winsize(0))
+
+    def on_winch(_sig, _frame):
+        try:
+            fcntl.ioctl(master, termios.TIOCSWINSZ, winsize(0))
+        except OSError:
+            pass
+
+    signal.signal(signal.SIGWINCH, on_winch)
+
+    saved = termios.tcgetattr(0)
+    try:
+        import tty
+
+        tty.setraw(0)
+        pump(master)
+    finally:
+        termios.tcsetattr(0, termios.TCSADRAIN, saved)
+
+    _, status = os.waitpid(pid, 0)
+    if os.WIFSIGNALED(status):
+        return 128 + os.WTERMSIG(status)
+    return os.WEXITSTATUS(status)
+
+
+def pump(master):
+    tail = b""
+    while True:
+        try:
+            readable, _, _ = select.select([0, master], [], [])
+        except InterruptedError:
+            continue  # SIGWINCH
+        if 0 in readable:
+            try:
+                data = os.read(0, 65536)
+            except OSError:
+                data = b""
+            if not data:
+                os.close(master)
+                return
+            write_all(master, data)
+        if master in readable:
+            try:
+                data = os.read(master, 65536)
+            except OSError as exc:
+                if exc.errno == errno.EIO:
+                    return  # 子が終了して pty が閉じた
+                raise
+            if not data:
+                return
+            write_all(1, data)
+            window = tail + data
+            for query, reply in ANSWERS:
+                if query in window:
+                    write_all(master, reply)
+            tail = window[-TAIL:]
+
+
+def write_all(fd, data):
+    while data:
+        try:
+            data = data[os.write(fd, data) :]
+        except OSError as exc:
+            if exc.errno in (errno.EAGAIN, errno.EINTR):
+                continue
+            raise
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

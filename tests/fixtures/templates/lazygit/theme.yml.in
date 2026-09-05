@@ -1,0 +1,26 @@
+# 生成物。編集は theme.yml.in を直す。
+gui:
+  theme:
+    activeBorderColor:
+      - "{{role.ok}}"
+      - bold
+    inactiveBorderColor:
+      - "{{role.comment}}"
+    optionsTextColor:
+      - "{{role.visual}}"
+    selectedLineBgColor:
+      - reverse
+    selectedRangeBgColor:
+      - reverse
+    defaultFgColor:
+      - "{{role.fg}}"
+    cherryPickedCommitFgColor:
+      - "{{role.visual}}"
+    cherryPickedCommitBgColor:
+      - "{{role.bg}}"
+    unstagedChangesColor:
+      - "{{role.error}}"
+git:
+  diffRenderers:
+    - colorArg: always
+      command: "delta --paging=never --light --syntax-theme=gruvbox-light --minus-style=\"syntax {{diff.removed-bg}}\" --minus-emph-style=\"syntax {{diff.removed-emph}}\" --plus-style=\"syntax {{diff.added-bg}}\" --plus-emph-style=\"syntax {{diff.added-emph}}\" --hunk-header-style=\"file line-number syntax\" --file-style=\"{{role.accent-alt}} bold\" --line-numbers --line-numbers-minus-style=\"{{role.error}}\" --line-numbers-plus-style=\"{{role.ok}}\""

@@ -1,0 +1,90 @@
+#* 生成物。編集は papercolor-light.theme.in を直す。
+# Btop PaperColor Light theme
+# Based on palette.json
+
+# Main background, empty for terminal default
+theme[main_bg]="{{role.bg}}"
+
+# Main text color
+theme[main_fg]="{{role.fg}}"
+
+# Title color for boxes
+theme[title]="{{role.fg}}"
+
+# Highlight color for keyboard shortcuts
+theme[hi_fg]="{{role.accent}}"
+
+# Background color of selected items
+theme[selected_bg]="{{role.selection-bg}}"
+
+# Foreground color of selected items
+theme[selected_fg]="{{role.fg}}"
+
+# Color of inactive/disabled text
+theme[inactive_fg]="{{role.comment}}"
+
+# Color of text appearing on top of graphs
+theme[graph_text]="{{role.comment}}"
+
+# Misc colors for processes box including mini cpu graphs, details memory graph and details status text
+theme[proc_misc]="{{role.visual}}"
+
+# Cpu box outline color
+theme[cpu_box]="{{role.border}}"
+
+# Memory/disks box outline color
+theme[mem_box]="{{role.border}}"
+
+# Net up/down box outline color
+theme[net_box]="{{role.border}}"
+
+# Processes box outline color
+theme[proc_box]="{{role.border}}"
+
+# Box divider line and small boxes line color
+theme[div_line]="{{role.border}}"
+
+# Temperature graph colors
+theme[temp_start]="{{role.ok}}"
+theme[temp_mid]="{{role.accent-warm}}"
+theme[temp_end]="{{role.error}}"
+
+# CPU graph colors
+theme[cpu_start]="{{role.ok}}"
+theme[cpu_mid]="{{role.accent-warm}}"
+theme[cpu_end]="{{role.error}}"
+
+# Mem/Disk free meter
+theme[free_start]="{{role.error}}"
+theme[free_mid]="{{role.accent-warm}}"
+theme[free_end]="{{role.ok}}"
+
+# Mem/Disk cached meter
+theme[cached_start]="{{role.visual}}"
+theme[cached_mid]="{{role.keyword}}"
+theme[cached_end]="{{role.accent-alt}}"
+
+# Mem/Disk available meter
+theme[available_start]="{{role.error}}"
+theme[available_mid]="{{role.accent-warm}}"
+theme[available_end]="{{role.string}}"
+
+# Mem/Disk used meter
+theme[used_start]="{{role.ok}}"
+theme[used_mid]="{{role.accent-warm}}"
+theme[used_end]="{{role.error}}"
+
+# Download graph colors
+theme[download_start]="{{role.ok}}"
+theme[download_mid]="{{role.visual}}"
+theme[download_end]="{{role.accent-alt}}"
+
+# Upload graph colors
+theme[upload_start]="{{role.accent}}"
+theme[upload_mid]="{{role.accent-warm}}"
+theme[upload_end]="{{role.error}}"
+
+# Process box color gradient for threads, mem and cpu usage
+theme[process_start]="{{role.ok}}"
+theme[process_mid]="{{role.accent-warm}}"
+theme[process_end]="{{role.error}}"

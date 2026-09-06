@@ -9,6 +9,19 @@ use thiserror::Error;
 
 use crate::theme::{Theme, ThemeError, ThemeId};
 
+/// Reads the one theme `id` names, without touching the rest of `directory`.
+///
+/// The filename is the identifier, so a scan is not needed to find it. Skipping the scan is
+/// what keeps a command that reads a single value out of a theme from parsing every other
+/// theme, and from reporting a broken one that has nothing to do with what was asked for.
+///
+/// # Errors
+///
+/// Returns the read error when there is no such file, or every problem the file has.
+pub fn load(directory: &Path, id: &ThemeId) -> Result<Theme, ThemeError> {
+    Theme::load(&directory.join(format!("{id}.toml")))
+}
+
 /// Every theme a directory holds, and every file in it that is not one.
 #[derive(Debug)]
 pub struct Catalog {
@@ -132,6 +145,20 @@ mod tests {
         let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/nowhere");
         assert!(Catalog::scan(&directory).is_err());
     }
+    #[test]
+    fn loads_one_theme_without_reading_the_rest_of_the_directory() {
+        let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config/themes");
+        let theme = load(&directory, &ThemeId::parse("gruvbox-dark").unwrap()).unwrap();
+        assert_eq!(theme.name(), "Gruvbox Dark");
+    }
+
+    #[test]
+    fn names_the_file_a_theme_it_cannot_find_would_be_in() {
+        let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config/themes");
+        let error = load(&directory, &ThemeId::parse("nope").unwrap()).unwrap_err();
+        assert!(error.to_string().contains("nope.toml"), "{error}");
+    }
+
     #[test]
     fn finds_a_theme_by_its_identifier() {
         let catalog = catalog();

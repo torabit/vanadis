@@ -26,6 +26,18 @@ vanadis apply nord --diff       # what would change?
 vanadis get role.bg             # for a tool that would rather ask than read a file
 ```
 
+## The skill
+
+`init` removes the mechanical half of adoption. The half it cannot remove is judgement: where a
+tool keeps its config, which lines carry colour, whether a colour is `role.accent` or
+`role.accent-alt`, what goes in `reload`, and whether a failing `check` means the template is
+wrong or the theme is.
+
+[`skills/vanadis/SKILL.md`](skills/vanadis/SKILL.md) carries that judgement. An agent reads it
+and does the work; a person reads the same file and does the work by hand. It ships as a plugin
+under both the [Agent Plugins](https://agent-plugins.org/specification) manifest and Claude
+Code's, over the one `skills/` tree.
+
 ## What this is not
 
 A theme distribution system. If you want to browse hundreds of ready-made themes for tools

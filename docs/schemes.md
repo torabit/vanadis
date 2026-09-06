@@ -1,12 +1,16 @@
 # Remote schemes
 
 This document decides where vanadis gets the tinted-theming scheme collection, how it is
-cached, and how `vanadis search` finds a scheme in it. It builds on
-[docs/config.md](config.md), which decides every other path vanadis uses.
+cached, how `vanadis search` finds a scheme in it, and what `vanadis import` writes when it
+turns one into a theme. It builds on [docs/config.md](config.md), which decides every other
+path vanadis uses.
 
-The collection is the reason a new user has anything to apply on the first day. Converting a
-scheme into a theme is a separate decision and is not made here; this document stops at
-having the upstream files on disk and being able to find one.
+The collection is the reason a new user has anything to apply on the first day. The mapping
+from a scheme's palette onto a theme's tokens is not decided here:
+[docs/core-vocabulary.md](core-vocabulary.md#base16-onto-the-core) decides it for base16 and
+base24, and the module documentation of `src/scheme/convert/tinted8.rs` for tinted8. This
+document stops at having the upstream files on disk, finding one, and putting the result
+somewhere `apply` can reach it.
 
 ```
 $ vanadis remote update
@@ -16,6 +20,10 @@ $ vanadis search nord
   base16/nord        dark   Nord        arcticicestudio
   base16/nord-light  light  Nord Light  threddast, based on fuxialexander's doom-nord-light-theme (Doom Emacs)
   tinted8/nord       dark   Nord        Tinted Theming (https://github.com/tinted-theming)
+
+$ vanadis import nord
+imported base16/nord as nord
+  ~/.config/vanadis/themes/nord.toml  dark  Nord  arcticicestudio
 ```
 
 ## The source
@@ -177,6 +185,141 @@ A query nothing matches prints nothing and exits non-zero, which is what `grep` 
 lets a script ask whether a scheme is there without parsing output. It is not an error and
 prints no message: an empty result is an answer.
 
+## import
+
+```
+vanadis import <SOURCE> [--force]
+```
+
+Converts one upstream scheme and writes it as a theme file under `themes/`, which
+[docs/config.md](config.md#layout) decides the location of. After it, `apply` reaches the
+theme by the name `import` printed and nothing else has to be done.
+
+### What SOURCE names
+
+Four shapes, tried in this order.
+
+| shape | what it names |
+| --- | --- |
+| begins `http://` or `https://` | a scheme to fetch |
+| `<system>/<id>`, `<system>` one of the three | one cached scheme |
+| a single token segment | a cached scheme of that identifier, in any system |
+| anything else | a file on disk |
+
+A bare identifier takes the first system that holds it, searched `base16`, `base24`,
+`tinted8`. `nord` is a base16 scheme and a tinted8 one, and `base16/nord` is how the loser is
+said out loud. It is the same qualified form `search` prints, and this is the only command
+other than `search` that reads it, because it is the only other command that names a scheme.
+
+**A single segment always means the cache**, even when a file of that name sits in the
+working directory. The other way round would make `import nord` depend on where it was run
+from. A file is reached by writing a path to it, `./nord`, which is one character and is
+already how a shell disambiguates a command from a file.
+
+The cached lookup is by filename, not a scan. The identifier is the file stem, which
+[Reading a scheme](#reading-a-scheme) decides, so six paths answer what reading 538 files
+would. Both extensions are tried, for the reason [What is extracted](#what-is-extracted)
+gives.
+
+### The system of a file that is not in the cache
+
+[Reading a scheme](#reading-a-scheme) decides that a cached scheme's system is the directory
+it sits in and that the file's own `system` key is not read. That decision is about the
+cache, where a directory exists. A path and a URL have none, so the file's own declaration is
+the only evidence there is, and it is read: `system` at the top level, or `scheme.system`
+when the file nests its header.
+
+**There is no flag to override it.** A file that declares no system is not imported. The
+alternative is guessing from the shape of the palette, which would read a base24 scheme
+missing a slot as a base16 one and say nothing, and a wrong guess writes a theme whose bright
+colours silently equal its normal ones.
+
+### What the theme is called
+
+The source's filename, minus its extension. For a cached scheme that is the identifier, for a
+path it is the file's own name, and for a URL it is the last segment of the path. It has to
+be a single token segment, because [docs/config.md](config.md#layout) makes the filename the
+identifier; a source that gives anything else is refused rather than rewritten into one.
+
+There is no flag to name it something else. Adding one is a change to make when somebody
+wants two imports of the same scheme side by side; `--force` covers re-importing over one.
+
+### A theme that is already there
+
+`import` refuses, names the file, and exits non-zero. `--force` writes over it.
+
+Refusing is the default because a theme file is a file a person edits. It is where a
+per-target override's colours live and where a hand-written extra namespace goes, and
+`docs/theme-format.md` treats those as the point of the format. Overwriting by default would
+lose that work to a command whose failure mode is a typo in an identifier.
+
+It is also not an edge case. `nord` is in base16 and in tinted8, and both want `nord.toml`.
+Refusing turns that collision into a message; overwriting would turn it into whichever import
+ran last.
+
+The write is staged beside the destination and renamed over it, the way every other write in
+vanadis is. A `--force` that fails part way through leaves the theme that was there intact.
+
+### Provenance
+
+`meta.author` comes across from the scheme, which
+[docs/theme-format.md](theme-format.md#metadata) already calls provenance and already expects
+a converter to fill. Where the file itself came from is the first line of the file, as a
+comment.
+
+```toml
+# imported by vanadis from base16/nord
+[meta]
+format = 1
+name = "Nord"
+variant = "dark"
+```
+
+A cached scheme is named the way `search` prints it, which is the form that reaches it again.
+A path is named by its absolute path and a URL by itself.
+
+**A comment and not a field.** `[meta]`'s keys are fixed and an unknown one is an error, and
+every table other than `[meta]` and `[text]` holds colour. There is nowhere to put it without
+widening the format for something nothing reads.
+
+`[text]` was the one place it would fit and is rejected. It is the author's namespace, a
+template can read it as `{{text.source}}`, and a `text.source` somebody writes later would
+collide with a value the tool wrote into a theme it does not own.
+
+Nothing reads the line back. Re-importing is `--force`, which rewrites the whole file.
+
+### Failure
+
+The cache does not hold it:
+
+```
+error: the cache holds no scheme called `solarised`
+run `vanadis search` to find one
+```
+
+Nothing has been cached and the source names a cached scheme:
+
+```
+error: no scheme cache under /home/ada/.cache/vanadis/schemes
+run `vanadis remote update` to fetch it
+```
+
+A path and a URL reach neither of those: neither reads the cache, so neither needs one.
+
+The theme is already there:
+
+```
+error: /home/ada/.config/vanadis/themes/nord.toml already exists
+pass `--force` to write over it
+```
+
+The file is not a scheme this converts:
+
+```
+error: /home/ada/nord.yaml: cannot be converted
+  caused by: the base16 palette does not carry `base0F`
+```
+
 ## Failure
 
 Nothing has been cached yet:
@@ -241,8 +384,6 @@ checks for it.
 
 ## Left open
 
-- Converting a cached scheme into a theme, and what `import` writes. base16 and base24 map
-  onto the core through [docs/core-vocabulary.md](core-vocabulary.md#base16-onto-the-core);
-  tinted8 has no mapping written yet.
-- Whether a scheme identifier of the form `base16/nord` is accepted anywhere other than
-  `search` output.
+- Importing more than one scheme in a run. `import` takes one `SOURCE` and there is no
+  `--all`. Somebody who wants the collection as themes wants a different command, with an
+  answer for the 538 files it would write and for what `list` then looks like.

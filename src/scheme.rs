@@ -125,6 +125,9 @@ pub enum Problem {
     /// `variant` holds something that is neither `dark` nor `light`.
     #[error("`variant` is `{0}`, which is neither `dark` nor `light`")]
     Variant(String),
+    /// `system` names a system vanadis does not read.
+    #[error("`system` is `{0}`, which is not a scheme system vanadis reads")]
+    System(String),
 }
 
 /// A scheme file could not be loaded.
@@ -272,6 +275,34 @@ impl Scheme {
         .iter()
         .any(|cell| cell.to_lowercase().contains(&query))
     }
+}
+
+/// The system a scheme file declares itself written for.
+///
+/// `docs/schemes.md` decides that a cached scheme's system is the directory it sits in, and
+/// that the file's own `system` key is not read there. A file named by a path or a URL has no
+/// directory, so its own declaration is the only evidence there is, and this is the one place
+/// it is read.
+///
+/// tinted8 nests the key as `scheme.system`. A document whose `scheme` key holds a mapping is
+/// read there and nowhere else, so both spellings report the same absent key. The test is on
+/// the block and not on the key: a base16 scheme written for the 0.9 spec carries `scheme` as
+/// a string holding the display name, and one of those is in the collection today.
+///
+/// # Errors
+///
+/// Returns [`Problem::Missing`] when the file declares no system, [`Problem::System`] when it
+/// declares one vanadis does not read, and whatever the YAML layer reports for a file that
+/// does not parse or does not hold a mapping.
+pub fn declared_system(source: &str) -> Result<System, Problem> {
+    let root = yaml::document(source)?;
+    let (head, key) = if yaml::nests(&root, "scheme") {
+        (yaml::nested(&root, "scheme")?, "scheme.system")
+    } else {
+        (&root, "system")
+    };
+    let written = yaml::optional(head, "system")?.ok_or(Problem::Missing(key))?;
+    System::parse(written).ok_or_else(|| Problem::System(written.to_owned()))
 }
 
 /// The display name a tinted8 file writes under `scheme`, or `None` when it writes neither
@@ -649,5 +680,50 @@ palette:
     #[test]
     fn parses_no_system_from_a_name_that_is_not_one() {
         assert_eq!(System::parse("base8"), None);
+    }
+
+    #[test]
+    fn reads_the_system_a_base16_file_declares() {
+        assert_eq!(declared_system(BASE16).unwrap(), System::Base16);
+    }
+
+    #[test]
+    fn reads_the_system_a_tinted8_file_nests_under_scheme() {
+        assert_eq!(declared_system(TINTED8_NAME).unwrap(), System::Tinted8);
+    }
+
+    /// A 0.9-spec base16 scheme writes `scheme` as its display name, not as a block, so the
+    /// top-level `system` is still where its system is read.
+    #[test]
+    fn reads_the_system_of_a_file_whose_scheme_key_holds_a_string() {
+        let source = "scheme: \"Nord\"\nsystem: \"base16\"\n";
+        assert_eq!(declared_system(source).unwrap(), System::Base16);
+    }
+
+    #[test]
+    fn reports_a_file_that_declares_no_system() {
+        let source = "name: \"Nord\"\nvariant: \"dark\"\n";
+        assert_eq!(
+            declared_system(source).unwrap_err(),
+            Problem::Missing("system")
+        );
+    }
+
+    #[test]
+    fn reports_a_nested_header_that_declares_no_system() {
+        let source = "scheme:\n  name: \"Nord\"\nvariant: \"dark\"\n";
+        assert_eq!(
+            declared_system(source).unwrap_err(),
+            Problem::Missing("scheme.system")
+        );
+    }
+
+    #[test]
+    fn reports_a_system_vanadis_does_not_read() {
+        let source = "system: \"base8\"\n";
+        assert_eq!(
+            declared_system(source).unwrap_err(),
+            Problem::System("base8".to_owned())
+        );
     }
 }

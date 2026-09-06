@@ -28,7 +28,7 @@ fn applied(state_home: &Path, theme: &str) {
     .unwrap();
 }
 
-/// The fixture cache directory, whose `schemes/` holds four schemes and one broken file.
+/// The fixture cache directory, whose `schemes/` holds five schemes and one broken file.
 fn cache() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/cache")
 }

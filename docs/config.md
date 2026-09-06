@@ -241,16 +241,30 @@ Writes happen in the order targets appear. Reloads run after every write, also i
 ## Checking
 
 `vanadis check` renders every target in memory and compares the result against the file on
-disk. It reports four things, and any of them exits non-zero:
+disk. It reports five things, and any of them exits non-zero:
 
 | finding | what it means |
 | --- | --- |
+| incomplete | a theme the run resolves to does not define the whole core vocabulary |
 | drift | the output no longer holds what its template renders |
 | missing | the output has not been written yet, or has been deleted |
 | unreadable | the output exists and cannot be read |
 | unrenderable | the target does not render, so an apply would fail on it |
 
 Findings go to stdout, one per finding. A clean run prints the number of targets checked.
+
+The first is about a theme rather than a target, so it is reported once however many targets
+are on that theme, and before them: a theme short of the core is why some of the target
+findings under it exist.
+
+**The core is enforced against the themes the run resolves to, not against everything in
+`themes/`.** That is the applied theme, and the theme each target with a `themes` table names
+for the mode being applied. `check` asks whether this machine is consistent, and a theme no
+target is on is not part of that answer. Auditing the whole directory instead would mean one
+unfinished file failing every run, which is the shape
+[docs/core-vocabulary.md](core-vocabulary.md#a-missing-core-token-is-not-a-load-error) rejects
+for the loader and for the same reason. A theme that is not applied yet is asked the same
+question by naming it: `vanadis check <theme>`.
 
 A target that cannot be checked costs that target and nothing else. The remaining targets are
 still checked, which is the call

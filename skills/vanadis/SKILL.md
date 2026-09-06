@@ -93,8 +93,9 @@ Thirty-three tokens. A template that reads only these plus `meta.*` renders agai
 that defines the core, which is what a converter from an upstream scheme must emit and what a
 hand-written theme is aiming at. That portability is the whole return on the core.
 
-An incomplete theme is not an error, and nothing refuses to load it. A core token it omits
-surfaces the first time a template being rendered reads it.
+An incomplete theme is not an error and nothing refuses to load it. `vanadis check` is the one
+place the core is enforced: it names every core token the themes a run resolves to leave
+undefined, and exits non-zero. `vanadis init` prints the same list when it finishes.
 
 `[role]`, seventeen:
 
@@ -251,10 +252,11 @@ still asserting the old value.
 
 ## Diagnose a failing check
 
-`vanadis check` prints one line per finding and exits non-zero. Four shapes:
+`vanadis check` prints one finding per line and exits non-zero. Five shapes:
 
 | line | finding | what it means |
 | --- | --- | --- |
+| `<theme>: N core tokens undefined` | incomplete | a theme the run is on is short of the core |
 | `<name>: <output> does not match <template>` | drift | the file no longer holds what the template renders |
 | `<name>: <output> does not exist` | missing | never applied, or deleted |
 | `<name>: <output>: <io error>` | unreadable | permissions, or a broken symlink. A filesystem problem, not a vanadis one |
@@ -298,10 +300,25 @@ Work through them by asking whether the token path is one the theme should have:
 `vanadis get <token> --theme <other-theme>` answers whether some other theme defines it, and
 gives you the value to copy.
 
-**`check` does not enumerate the core tokens a theme is missing.** It reports a missing token
-only when a template being rendered actually reads it. To see a theme's whole gap, compare it
-against the core table above; `vanadis init` also prints the core tokens still undefined when it
-finishes a run.
+### incomplete
+
+Printed once per theme, before the target findings it explains:
+
+```
+papercolor-dark: 3 core tokens undefined
+  role.linenr role.accent-warm ansi.7
+```
+
+The theme is short of the core. Add the tokens; see [Fill in what a theme is
+missing](#fill-in-what-a-theme-is-missing).
+
+It is asked of the themes the run resolves to — the applied theme, and whatever a target with
+its own `themes` table names — so a half-written theme sitting in `themes/` does not fail a
+check of a machine that is not on it. `vanadis check <that-theme>` is how you ask about one
+before switching to it.
+
+An incomplete theme is not otherwise an error. It loads, it lists, and it applies cleanly to
+any target whose templates never read what it is short of.
 
 ## Fill in what a theme is missing
 

@@ -41,7 +41,7 @@ enum Command {
         #[arg(long)]
         diff: bool,
     },
-    /// Report the outputs that have drifted and the tokens no theme defines.
+    /// Report the outputs that have drifted and the core tokens a theme leaves undefined.
     Check {
         /// The theme to check against, instead of the one that was applied.
         theme: Option<String>,

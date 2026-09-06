@@ -322,7 +322,11 @@ pub(crate) fn select<'a>(
 }
 
 /// The theme `target` takes: its own for this mode, or the one being applied.
-fn pinned(target: &Target, applied: &ThemeId, variant: Variant) -> Result<ThemeId, ApplyError> {
+pub(crate) fn pinned(
+    target: &Target,
+    applied: &ThemeId,
+    variant: Variant,
+) -> Result<ThemeId, ApplyError> {
     let Some(themes) = target.themes() else {
         return Ok(applied.clone());
     };

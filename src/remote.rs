@@ -231,10 +231,13 @@ mod tests {
 
     /// An empty directory to install into, named after the test.
     ///
-    /// `CARGO_TARGET_TMPDIR` is only set for integration test and bench targets, not for a
-    /// library's own unit tests, so this falls back to the OS temp directory instead.
+    /// `CARGO_TARGET_TMPDIR` is set only for integration and bench targets, so a unit test
+    /// has to find its own. The process id is in the path because two `cargo test` runs at
+    /// once would otherwise share it, and the first thing this does is delete it.
     fn target(test: &str) -> PathBuf {
-        let directory = std::env::temp_dir().join("vanadis-remote-tests").join(test);
+        let directory = std::env::temp_dir()
+            .join(format!("vanadis-remote-{}", std::process::id()))
+            .join(test);
         let _ = std::fs::remove_dir_all(&directory);
         std::fs::create_dir_all(&directory).unwrap();
         directory.join("schemes")

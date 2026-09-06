@@ -100,18 +100,18 @@ impl State {
     ///
     /// Returns the write error, naming the file it happened on.
     pub fn store(&self, path: &Path) -> Result<(), StateError> {
-        let write = |path: &Path, source: std::io::Error| StateError::Write {
-            path: path.to_owned(),
-            source,
+        let write = |path: &Path| {
+            let path = path.to_owned();
+            move |source| StateError::Write { path, source }
         };
 
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|source| write(parent, source))?;
+            std::fs::create_dir_all(parent).map_err(write(parent))?;
         }
 
         let staged = path.with_extension("toml.new");
-        std::fs::write(&staged, self.to_toml()).map_err(|source| write(&staged, source))?;
-        std::fs::rename(&staged, path).map_err(|source| write(path, source))
+        std::fs::write(&staged, self.to_toml()).map_err(write(&staged))?;
+        std::fs::rename(&staged, path).map_err(write(path))
     }
 
     /// Parses `source` as the state stored at `path`.

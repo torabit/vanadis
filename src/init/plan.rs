@@ -128,7 +128,7 @@ pub fn plan(draft: Draft<'_>) -> Result<Plan, InitError> {
             .join(format!("{}.toml", draft.id)),
         contents: match draft.existing {
             Some(existing) => emit::merged(existing, draft.tokens)?,
-            None => emit::theme(&display_name(draft.id), draft.variant, draft.tokens),
+            None => emit::theme(&display_name(draft.id), draft.variant, draft.tokens)?,
         },
     };
     let relative = relative(draft.name, draft.output);

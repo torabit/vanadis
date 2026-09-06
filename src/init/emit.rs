@@ -14,6 +14,9 @@ use crate::config::TargetName;
 use crate::theme::Variant;
 use crate::token::TokenPath;
 
+/// The `[meta]` keys [`theme`] writes itself, which a token may not write again.
+const HEADER: [&str; 3] = ["meta.format", "meta.name", "meta.variant"];
+
 /// A file could not be written out.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum EmitError {
@@ -40,10 +43,24 @@ pub enum EmitError {
 /// upstream scheme carries and would otherwise discard.
 ///
 /// A `meta.*` token in `tokens` is written under the header rather than opening a second
-/// `[meta]` table, which is how `meta.author` reaches the file. `format`, `name` and
-/// `variant` are the header's, so a token must not repeat them.
-#[must_use]
-pub fn theme(name: &str, variant: Variant, tokens: &BTreeMap<TokenPath, String>) -> String {
+/// `[meta]` table, which is how `meta.author` reaches the file.
+///
+/// # Errors
+///
+/// Returns [`EmitError::Occupied`] for a token naming `meta.format`, `meta.name` or
+/// `meta.variant`. The header already writes those three, so emitting them again would be a
+/// duplicate TOML key and a file the loader rejects.
+pub fn theme(
+    name: &str,
+    variant: Variant,
+    tokens: &BTreeMap<TokenPath, String>,
+) -> Result<String, EmitError> {
+    for path in tokens.keys() {
+        if HEADER.contains(&path.as_str()) {
+            return Err(EmitError::Occupied { path: path.clone() });
+        }
+    }
+
     let mut file = String::new();
     let _ = writeln!(file, "[meta]");
     let _ = writeln!(file, "format = 1");
@@ -61,7 +78,7 @@ pub fn theme(name: &str, variant: Variant, tokens: &BTreeMap<TokenPath, String>)
             let _ = writeln!(file, "{key} = {}", quoted(value));
         }
     }
-    file
+    Ok(file)
 }
 
 /// `source`, a theme file, with `tokens` added to it.
@@ -170,7 +187,7 @@ mod tests {
     }
 
     fn written(pairs: &[(&str, &str)]) -> String {
-        theme("Papercolor Light", Variant::Light, &tokens(pairs))
+        theme("Papercolor Light", Variant::Light, &tokens(pairs)).unwrap()
     }
 
     #[test]
@@ -200,6 +217,18 @@ mod tests {
     fn writes_the_ansi_slots_in_numeric_order() {
         let file = written(&[("ansi.10", "#eeeeee"), ("ansi.2", "#444444")]);
         assert!(file.contains("2 = \"#444444\"\n10 = \"#eeeeee\""), "{file}");
+    }
+
+    #[test]
+    fn refuses_a_token_that_would_write_a_header_key_twice() {
+        for key in ["meta.format", "meta.name", "meta.variant"] {
+            assert_eq!(
+                theme("Papercolor Light", Variant::Light, &tokens(&[(key, "x")])),
+                Err(EmitError::Occupied {
+                    path: TokenPath::parse(key).unwrap()
+                })
+            );
+        }
     }
 
     #[test]

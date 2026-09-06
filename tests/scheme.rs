@@ -4,17 +4,15 @@
 //! scheme has to emit, load back, and answer `vocabulary::missing` with nothing. It also has
 //! to render the templates the core exists for.
 //!
-//! The fixtures under `tests/fixtures/schemes/` are upstream files, copied verbatim from
-//! `tinted-theming/schemes` (`base16/gruvbox-dark-hard.yaml`, `base16/solarized-light.yaml`,
-//! `base24/dracula.yaml`, `base24/papercolor-light.yaml`). They are not listed in
-//! `MANIFEST.tsv`, which maps a fixture to the file in the dotfiles it came from; these came
-//! from a scheme repository instead.
+//! The fixtures under `tests/fixtures/schemes/` are upstream files, copied verbatim from the
+//! `spec-0.11` branch of `tinted-theming/schemes`, which is that repository's default
+//! branch. They are not listed in `MANIFEST.tsv`, which maps a fixture to the file in the
+//! dotfiles it came from; these came from a scheme repository instead.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use vanadis::init::emit;
-use vanadis::{Template, Theme, ThemeId, Variant, convert, vocabulary};
+use vanadis::{Template, Theme, ThemeId, TokenPath, Variant, convert, vocabulary};
 
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).to_owned()
@@ -29,7 +27,8 @@ fn theme(scheme: &str, id: &str) -> Theme {
     let bytes = fs::read(fixtures().join("schemes").join(scheme)).unwrap();
     let converted = convert(&bytes).unwrap();
     let id = ThemeId::parse(id).unwrap();
-    let file = emit::theme(converted.name(), converted.variant(), converted.tokens());
+    let file =
+        vanadis::init::theme(converted.name(), converted.variant(), converted.tokens()).unwrap();
     Theme::parse(&root().join("themes").join(format!("{id}.toml")), &file).unwrap()
 }
 
@@ -52,6 +51,41 @@ fn fills_the_whole_core_from_every_upstream_scheme() {
             Vec::new(),
             "{scheme} leaves core tokens undefined"
         );
+    }
+}
+
+/// Every core role against the colour `base16/gruvbox-dark-hard.yaml` writes.
+///
+/// The expected column is written out rather than read back off the converter's own table,
+/// so a wrong row there fails here instead of agreeing with itself. Each pair is taken from
+/// `docs/core-vocabulary.md`, "base16 onto the core".
+#[test]
+fn resolves_every_core_role_to_the_colour_the_mapping_names() {
+    let theme = theme("base16/gruvbox-dark-hard.yaml", "gruvbox-dark-hard");
+    let expected = [
+        ("bg", "#1d2021"),           // base00
+        ("fg", "#d5c4a1"),           // base05
+        ("comment", "#665c54"),      // base03
+        ("keyword", "#d3869b"),      // base0E
+        ("string", "#b8bb26"),       // base0B
+        ("error", "#fb4934"),        // base08
+        ("ok", "#b8bb26"),           // base0B
+        ("warn", "#fabd2f"),         // base0A
+        ("visual", "#83a598"),       // base0D
+        ("linenr", "#bdae93"),       // base04
+        ("accent", "#83a598"),       // base0D
+        ("accent-alt", "#8ec07c"),   // base0C
+        ("accent-warm", "#fe8019"),  // base09
+        ("inactive", "#665c54"),     // base03
+        ("border", "#504945"),       // base02
+        ("selection-bg", "#504945"), // base02
+        ("hover-bg", "#3c3836"),     // base01
+    ];
+    assert_eq!(expected.len(), 17, "the core names seventeen roles");
+
+    for (role, colour) in expected {
+        let path = TokenPath::parse(&format!("role.{role}")).unwrap();
+        assert_eq!(theme.tokens().get(&path), Some(colour), "role.{role}");
     }
 }
 
@@ -95,7 +129,7 @@ fn points_the_terminal_slots_at_the_palette_a_base24_scheme_carries() {
     let slot = |slot: &str| {
         theme
             .tokens()
-            .get(&vanadis::TokenPath::parse(slot).unwrap())
+            .get(&TokenPath::parse(slot).unwrap())
             .unwrap()
             .to_owned()
     };
@@ -115,7 +149,7 @@ fn repeats_the_normal_colours_in_the_bright_half_of_a_base16_scheme() {
     let slot = |slot: &str| {
         theme
             .tokens()
-            .get(&vanadis::TokenPath::parse(slot).unwrap())
+            .get(&TokenPath::parse(slot).unwrap())
             .unwrap()
             .to_owned()
     };

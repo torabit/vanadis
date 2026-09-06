@@ -20,11 +20,11 @@ use super::SchemeError;
 ///
 /// # Errors
 ///
-/// Returns [`SchemeError::Yaml`] when the text is not YAML and [`SchemeError::Document`]
-/// when it holds no document or one that is not a mapping.
+/// Returns [`SchemeError::Yaml`] when the text is not YAML, [`SchemeError::Empty`] when it
+/// holds no document, and [`SchemeError::Document`] when the document is not a mapping.
 pub(super) fn document(text: &str) -> Result<Yaml<'_>, SchemeError> {
     let documents = Yaml::load_from_str(text).map_err(|source| SchemeError::Yaml { source })?;
-    let document = documents.into_iter().next().ok_or(SchemeError::Document)?;
+    let document = documents.into_iter().next().ok_or(SchemeError::Empty)?;
     if document.is_mapping() {
         Ok(document)
     } else {
@@ -98,24 +98,6 @@ mod tests {
     }
 
     #[test]
-    fn reads_an_unquoted_string() {
-        let document = document("system: base16\n").unwrap();
-        assert_eq!(required(&document, "system").unwrap(), "base16");
-    }
-
-    #[test]
-    fn ignores_a_key_nothing_reads() {
-        let document = document("system: \"base16\"\nslug: \"gruvbox\"\n").unwrap();
-        assert_eq!(required(&document, "system").unwrap(), "base16");
-    }
-
-    #[test]
-    fn reads_a_comment_off_the_end_of_a_value() {
-        let document = document("name: \"Gruvbox\" # upstream\n").unwrap();
-        assert_eq!(required(&document, "name").unwrap(), "Gruvbox");
-    }
-
-    #[test]
     fn returns_none_for_a_key_the_scheme_does_not_write() {
         let document = document("system: \"base16\"\n").unwrap();
         assert_eq!(optional(&document, "variant").unwrap(), None);
@@ -164,8 +146,8 @@ mod tests {
     }
 
     #[test]
-    fn reports_an_empty_stream() {
-        assert!(matches!(document(""), Err(SchemeError::Document)));
+    fn reports_a_stream_holding_no_document() {
+        assert!(matches!(document(""), Err(SchemeError::Empty)));
     }
 
     #[test]

@@ -32,7 +32,7 @@ use std::fmt;
 
 use saphyr::Yaml;
 
-use super::{Converted, SchemeError, hex, variant, yaml};
+use super::{Converted, SchemeError, hex, literal, variant, yaml};
 use crate::token::TokenPath;
 
 /// The scheme system a file declares in its own `system` key.
@@ -162,7 +162,7 @@ pub(super) fn convert(document: &Yaml<'_>, system: System) -> Result<Converted, 
     for slot in system.slots() {
         tokens.insert(
             TokenPath::from_segments(["colors", &segment(slot)]),
-            colour(palette, system, slot)?,
+            literal(colour(palette, system, slot)?),
         );
     }
 
@@ -172,11 +172,10 @@ pub(super) fn convert(document: &Yaml<'_>, system: System) -> Result<Converted, 
             reference(system.source(slot)),
         );
     }
+    // No role names an extended slot, so no role reaches the fallback table: every slot in
+    // `ROLES` is one both systems carry under its own name.
     for (role, slot) in ROLES {
-        tokens.insert(
-            TokenPath::from_segments(["role", role]),
-            reference(system.source(slot)),
-        );
+        tokens.insert(TokenPath::from_segments(["role", role]), reference(slot));
     }
     if let Some(author) = yaml::optional(document, "author")? {
         tokens.insert(
@@ -186,7 +185,7 @@ pub(super) fn convert(document: &Yaml<'_>, system: System) -> Result<Converted, 
     }
 
     let background = colour(palette, system, BACKGROUND)?;
-    let variant = variant(yaml::optional(document, "variant")?, &background)?;
+    let variant = variant(yaml::optional(document, "variant")?, background)?;
 
     Ok(Converted {
         name,
@@ -195,7 +194,7 @@ pub(super) fn convert(document: &Yaml<'_>, system: System) -> Result<Converted, 
     })
 }
 
-/// The colour `slot` holds, as the hex literal a theme file stores.
+/// The colour `slot` holds, as red, green and blue.
 ///
 /// The styling specifications spell `base0A` with an uppercase letter and every upstream
 /// scheme follows them, so that spelling is looked up first. A scheme that writes `base0a`
@@ -206,7 +205,7 @@ pub(super) fn convert(document: &Yaml<'_>, system: System) -> Result<Converted, 
 ///
 /// Returns [`SchemeError::Slot`] when the palette does not write `slot` and
 /// [`SchemeError::Hex`] when it does not hold `#rrggbb`.
-fn colour(palette: &Yaml<'_>, system: System, slot: &str) -> Result<String, SchemeError> {
+fn colour(palette: &Yaml<'_>, system: System, slot: &str) -> Result<[u8; 3], SchemeError> {
     let written = match yaml::optional(palette, slot)? {
         Some(written) => Some(written),
         None => yaml::optional(palette, &segment(slot))?,
@@ -273,7 +272,7 @@ mod tests {
     fn loaded(text: &str) -> Theme {
         let converted = convert(text).unwrap();
         let file =
-            crate::init::emit::theme(converted.name(), converted.variant(), converted.tokens());
+            crate::init::theme(converted.name(), converted.variant(), converted.tokens()).unwrap();
         Theme::parse(Path::new("themes/test.toml"), &file).unwrap()
     }
 
@@ -317,22 +316,6 @@ mod tests {
     #[test]
     fn points_a_role_at_the_colours_table_rather_than_repeating_the_hex() {
         assert_eq!(token(&base16(), "role.bg"), "{{colors.base00}}");
-    }
-
-    #[test]
-    fn maps_every_role_the_core_names() {
-        let theme = loaded(&base16());
-        for (role, slot) in ROLES {
-            let value = theme
-                .tokens()
-                .get(&TokenPath::from_segments(["role", role]))
-                .unwrap_or_else(|| panic!("role.{role} is not defined"));
-            let expected = theme
-                .tokens()
-                .get(&TokenPath::from_segments(["colors", &segment(slot)]))
-                .unwrap_or_else(|| panic!("colors.{slot} is not defined"));
-            assert_eq!(value, expected, "role.{role} should take {slot}");
-        }
     }
 
     #[test]

@@ -73,6 +73,11 @@ impl Tokens {
     pub fn get(&self, path: &TokenPath) -> Option<&str> {
         self.0.get(path).map(String::as_str)
     }
+
+    /// Every token and its value, in path order.
+    pub fn iter(&self) -> impl Iterator<Item = (&TokenPath, &str)> {
+        self.0.iter().map(|(path, value)| (path, value.as_str()))
+    }
 }
 
 impl FromIterator<(TokenPath, String)> for Tokens {
@@ -157,6 +162,23 @@ mod tests {
         assert_eq!(
             tokens.get(&TokenPath::parse("role.bg").unwrap()),
             Some("#eeeeee")
+        );
+    }
+
+    #[test]
+    fn iterates_every_token_in_path_order() {
+        let tokens: Tokens = [
+            (TokenPath::parse("role.fg").unwrap(), "#111111".to_owned()),
+            (TokenPath::parse("role.bg").unwrap(), "#eeeeee".to_owned()),
+        ]
+        .into_iter()
+        .collect();
+        assert_eq!(
+            tokens
+                .iter()
+                .map(|(path, value)| (path.as_str(), value))
+                .collect::<Vec<_>>(),
+            vec![("role.bg", "#eeeeee"), ("role.fg", "#111111")]
         );
     }
 

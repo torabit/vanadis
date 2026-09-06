@@ -2,13 +2,14 @@
 #![deny(clippy::unwrap_used, clippy::expect_used)]
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
+use std::collections::BTreeMap;
 use std::io::Write as _;
 use std::process::ExitCode;
 
 use anyhow::Context as _;
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{ArgGroup, Parser, Subcommand, ValueEnum};
 use vanadis::{
-    Catalog, Config, Disk, Environment, Plan, State, TargetName, Theme, ThemeId, Variant,
+    Catalog, Config, Disk, Environment, Plan, State, TargetName, Theme, ThemeId, TokenPath, Variant,
 };
 
 #[derive(Parser)]
@@ -56,6 +57,19 @@ enum Command {
     },
     /// Print the theme that was applied last.
     Current,
+    /// Print what a token resolves to, for a tool that can shell out.
+    #[command(group(ArgGroup::new("reads").required(true)))]
+    Get {
+        /// The token path to read.
+        #[arg(value_name = "TOKEN", group = "reads")]
+        token: Option<String>,
+        /// Print every token the theme defines, as JSON.
+        #[arg(long, group = "reads")]
+        json: bool,
+        /// Read this theme instead of the one that was applied.
+        #[arg(long)]
+        theme: Option<String>,
+    },
 }
 
 /// [`Variant`], spelled as a command line argument.
@@ -105,6 +119,9 @@ fn main() -> anyhow::Result<ExitCode> {
         ),
         Command::List { variant } => list(&environment, variant.map(Variant::from)),
         Command::Current => current(&environment),
+        Command::Get { token, json, theme } => {
+            get(&environment, token.as_deref(), json, theme.as_deref())
+        }
     }
 }
 
@@ -333,6 +350,52 @@ fn current(environment: &Environment) -> anyhow::Result<ExitCode> {
     for (name, theme) in state.targets() {
         writeln!(out, "{:width$}  {theme}", name.as_str())?;
     }
+    Ok(ExitCode::SUCCESS)
+}
+
+/// Prints what one token resolves to, or every token the theme defines.
+///
+/// Only the theme asked for is read. Scanning `themes/` would parse every other file and
+/// warn about a broken one, and this is the command a shell prompt hook calls.
+///
+/// Nothing reaches stdout unless the whole lookup succeeded, so `$(vanadis get role.bg)` is
+/// empty exactly when there is no value to substitute.
+fn get(
+    environment: &Environment,
+    token: Option<&str>,
+    json: bool,
+    theme: Option<&str>,
+) -> anyhow::Result<ExitCode> {
+    let id = match theme {
+        Some(name) => {
+            ThemeId::parse(name).with_context(|| format!("`{name}` is not a theme identifier"))?
+        }
+        None => State::load(&environment.state_file()?)?
+            .context("no theme has been applied yet, so pass --theme")?
+            .theme()
+            .clone(),
+    };
+    let theme = vanadis::catalog::load(&environment.themes_dir()?, &id)?;
+
+    let mut out = std::io::stdout().lock();
+    if json {
+        let tokens: BTreeMap<&str, &str> = theme
+            .tokens()
+            .iter()
+            .map(|(path, value)| (path.as_str(), value))
+            .collect();
+        writeln!(out, "{}", serde_json::to_string_pretty(&tokens)?)?;
+        return Ok(ExitCode::SUCCESS);
+    }
+
+    // The `reads` group has already rejected neither being given.
+    let token = token.context("name a token, or pass --json")?;
+    let path = TokenPath::parse(token).with_context(|| format!("`{token}` is not a token path"))?;
+    let value = theme
+        .tokens()
+        .get(&path)
+        .with_context(|| format!("`{id}` does not define `{path}`"))?;
+    writeln!(out, "{value}")?;
     Ok(ExitCode::SUCCESS)
 }
 

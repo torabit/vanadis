@@ -5,3 +5,7 @@ variant = "light"
 
 [colors]
 paper = "#eeeeee"
+
+[role]
+bg = "{{colors.paper}}"
+fg = "#444444"

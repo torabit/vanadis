@@ -58,6 +58,7 @@ theme = "papercolor-light"
 per diverging target, and prints nothing and exits non-zero when the file does not exist yet,
 so a shell hook can tell "not applied" from a theme name without parsing. `list` reads it to
 mark the applied theme, and a state file it cannot read costs that mark and nothing else.
+`get` reads it to know which theme to query.
 
 The file is written beside its destination and renamed over it, so a state file that exists
 is one that was written whole.
@@ -271,7 +272,48 @@ The list `--dry-run` prints is shorter than the one a real apply prints afterwar
 `--dry-run` answers "what would change". An apply writes every target it rendered, whether or
 not the bytes moved.
 
+## Querying
+
+`vanadis get role.bg` prints the value that token resolves to and nothing else, so
+`$(vanadis get role.bg)` is a colour. `vanadis get --json` prints the whole resolved theme.
+Exactly one of the two is required: a single value rendered as JSON is a quoted string with
+nothing to select out of it.
+
+The theme is the one the state file records. `--theme nord` reads that theme instead, and is
+the only way to query before anything has been applied. There is no `--variant`, for the
+reason [below](#rejected-alternatives).
+
+Failure writes nothing to stdout and exits non-zero. An undefined token, a name that is not a
+token path, a theme that will not load and no theme applied all behave that way, so a shell
+hook tests the exit status and otherwise uses the value without inspecting it for a plausible
+shape.
+
+The JSON is a flat object keyed by token path.
+
+```json
+{
+  "meta.id": "gruvbox-dark",
+  "meta.name": "Gruvbox Dark",
+  "meta.variant": "dark",
+  "role.bg": "#282828"
+}
+```
+
+A key is written exactly as a template writes the token, so `{{role.bg}}` and `."role.bg"`
+name the same thing. Nesting the object by namespace was considered and rejected: it shortens
+the `jq` expression, and it costs the one-to-one correspondence between a key and the token a
+template writes.
+
+`get` reads the one theme it was asked for. It does not scan `themes/`. Every other command
+scans, and reports the files that will not load, which is right for a command a person runs
+and wrong for one a prompt hook runs on every line. A broken theme is `list`'s to report.
+
 ## Rejected alternatives
+
+**`--variant` on `get`.** `apply` and `check` take it because they act on the machine, and
+the machine has a background. A query wants the theme that is on now, which is the default,
+or one named outright, which is `--theme`. Reading the value `[auto]` would pick without
+picking it answers no question a tool asks.
 
 **No config: scan for `*.in` and write the sibling path.** This is what the reference
 JavaScript renderer does, and it needs no config file at all. It works there because it scans

@@ -11,8 +11,8 @@ use anyhow::Context as _;
 use clap::{ArgGroup, Parser, Subcommand, ValueEnum};
 use vanadis::init::{Answer, Binding, Colour, Draft};
 use vanadis::{
-    Catalog, Config, Disk, Environment, Plan, State, TargetName, Theme, ThemeId, TokenPath, Tokens,
-    Variant,
+    Cache, Catalog, Config, Disk, Environment, Plan, State, System, TargetName, Theme, ThemeId,
+    TokenPath, Tokens, Variant,
 };
 
 #[derive(Parser)]
@@ -74,6 +74,16 @@ enum Command {
         #[arg(long)]
         variant: Option<Background>,
     },
+    /// Fetch and cache the tinted-theming scheme collection.
+    Remote {
+        #[command(subcommand)]
+        command: RemoteCommand,
+    },
+    /// Find a cached scheme by identifier, variant, name or author.
+    Search {
+        /// What to look for, compared without case against every column printed.
+        query: String,
+    },
     /// Print what a token resolves to, for a tool that can shell out.
     #[command(group(ArgGroup::new("reads").required(true)))]
     Get {
@@ -87,6 +97,12 @@ enum Command {
         #[arg(long)]
         theme: Option<String>,
     },
+}
+
+#[derive(Subcommand)]
+enum RemoteCommand {
+    /// Download the collection, replacing what is cached.
+    Update,
 }
 
 /// [`Variant`], spelled as a command line argument.
@@ -151,6 +167,10 @@ fn main() -> anyhow::Result<ExitCode> {
             name.as_deref(),
             variant.map(Variant::from),
         ),
+        Command::Remote {
+            command: RemoteCommand::Update,
+        } => remote_update(&environment),
+        Command::Search { query } => search(&environment, &query),
     }
 }
 
@@ -542,6 +562,78 @@ fn init(
             writeln!(out, "  {}", paths.join(" "))?;
         }
     }
+    Ok(ExitCode::SUCCESS)
+}
+
+/// Downloads the scheme collection and replaces the cache with it.
+///
+/// This is the one command that prints its own failure. `docs/schemes.md` decides that a
+/// failed fetch closes by saying the cached schemes are still readable, which is only true
+/// when there is a cache, and no other command has a closing line that depends on disk.
+fn remote_update(environment: &Environment) -> anyhow::Result<ExitCode> {
+    let schemes = environment.schemes_dir()?;
+    let installed = match vanadis::remote::update(&schemes) {
+        Ok(installed) => installed,
+        Err(error) => {
+            eprintln!("error: {error}");
+            let mut cause: &dyn std::error::Error = &error;
+            while let Some(next) = cause.source() {
+                eprintln!("  caused by: {next}");
+                cause = next;
+            }
+            if schemes.is_dir() {
+                eprintln!("the cached schemes are unchanged; `vanadis search` still reads them");
+            }
+            return Ok(ExitCode::FAILURE);
+        }
+    };
+
+    let counts: Vec<String> = System::ALL
+        .iter()
+        .filter(|system| installed.count(**system) > 0)
+        .map(|system| format!("{} {system}", installed.count(*system)))
+        .collect();
+    let mut out = std::io::stdout().lock();
+    writeln!(
+        out,
+        "fetched {} schemes: {}",
+        installed.total(),
+        counts.join(", ")
+    )?;
+    Ok(ExitCode::SUCCESS)
+}
+
+/// Prints every cached scheme `query` matches.
+///
+/// A scheme that does not load is reported and skipped, which is what `list` does with a
+/// theme that does not load and for the same reason.
+fn search(environment: &Environment, query: &str) -> anyhow::Result<ExitCode> {
+    let cache = Cache::scan(&environment.schemes_dir()?)?;
+    for error in cache.broken() {
+        eprintln!("warning: {error}");
+    }
+
+    let found = cache.search(query);
+    if found.is_empty() {
+        return Ok(ExitCode::FAILURE);
+    }
+
+    let qualified: Vec<String> = found.iter().map(|scheme| scheme.qualified()).collect();
+    let id = width(qualified.iter().map(String::as_str));
+    let background = width(found.iter().map(|scheme| scheme.variant().as_str()));
+    let name = width(found.iter().map(|scheme| scheme.name()));
+
+    let mut out = std::io::stdout().lock();
+    for (scheme, qualified) in found.iter().zip(&qualified) {
+        writeln!(
+            out,
+            "  {qualified:id$}  {:background$}  {:name$}  {}",
+            scheme.variant().as_str(),
+            scheme.name(),
+            scheme.author()
+        )?;
+    }
+
     Ok(ExitCode::SUCCESS)
 }
 

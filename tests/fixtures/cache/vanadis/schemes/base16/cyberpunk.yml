@@ -1,0 +1,7 @@
+system: "base16"
+name: "Cyberpunk"
+author: "benjujo"
+variant: dark
+palette:
+  base00: "#000000"
+  base05: "#e5e5e5"

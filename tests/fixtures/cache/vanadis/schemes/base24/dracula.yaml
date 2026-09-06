@@ -1,0 +1,6 @@
+system: "base24"
+name: "Dracula"
+author: "clach04 (https://github.com/clach04)"
+variant: "dark"
+palette:
+  base00: "#282a36"

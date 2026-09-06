@@ -1,0 +1,12 @@
+# A config whose second target reads a token no theme defines. Applying it must write
+# nothing at all, including the first target.
+
+[[targets]]
+name = "first"
+template = "templates/ok.in"
+output = "out/first.conf"
+
+[[targets]]
+name = "second"
+template = "templates/undefined.in"
+output = "out/second.conf"

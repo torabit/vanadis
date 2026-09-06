@@ -1,0 +1,7 @@
+# A target whose reload fails. The write still stands.
+
+[[targets]]
+name = "one"
+template = "templates/simple.in"
+output = "out/one.conf"
+reload = ["false"]

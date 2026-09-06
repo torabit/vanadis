@@ -3,17 +3,24 @@
 //! It lives outside the config directory, under `$XDG_STATE_HOME`, because it records what
 //! this machine is showing rather than what the user configured. See `docs/config.md`.
 
+use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use thiserror::Error;
 use toml_edit::{Document, Item};
 
+use crate::config::TargetName;
 use crate::theme::ThemeId;
 
 /// What vanadis last applied.
+///
+/// `theme` is what a whole apply wrote. `targets` holds the targets a later `--only` apply
+/// moved off it, which is the only way the two can disagree.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct State {
     theme: ThemeId,
+    targets: BTreeMap<TargetName, ThemeId>,
 }
 
 /// Reading or writing the state file failed.
@@ -49,7 +56,15 @@ pub enum StateError {
         /// The file the key is missing from.
         path: PathBuf,
     },
-    /// `theme` is not a theme identifier.
+    /// A key under `[targets]` is not a target name.
+    #[error("{}: `{name}` is not a target name", .path.display())]
+    Target {
+        /// The file the name came from.
+        path: PathBuf,
+        /// The key, as the file writes it.
+        name: String,
+    },
+    /// A theme name that is not a theme identifier.
     #[error("{}: `{theme}` is not a theme identifier", .path.display())]
     Id {
         /// The file the identifier came from.
@@ -60,16 +75,37 @@ pub enum StateError {
 }
 
 impl State {
-    /// The state that records `theme` as applied.
+    /// The state that records `theme` as applied to every target.
     #[must_use]
     pub fn new(theme: ThemeId) -> Self {
-        Self { theme }
+        Self {
+            theme,
+            targets: BTreeMap::new(),
+        }
     }
 
     /// The theme that was applied.
     #[must_use]
     pub fn theme(&self) -> &ThemeId {
         &self.theme
+    }
+
+    /// The targets carrying a theme of their own, and which.
+    #[must_use]
+    pub fn targets(&self) -> &BTreeMap<TargetName, ThemeId> {
+        &self.targets
+    }
+
+    /// Records `theme` as applied to `name` alone.
+    ///
+    /// A target brought back to the theme every other target carries stops being recorded,
+    /// so the table holds exactly what diverges.
+    pub fn record(&mut self, name: TargetName, theme: ThemeId) {
+        if theme == self.theme {
+            self.targets.remove(&name);
+        } else {
+            self.targets.insert(name, theme);
+        }
     }
 
     /// Reads the state stored at `path`, or `None` when nothing has been applied yet.
@@ -132,22 +168,52 @@ impl State {
                 path: path.to_owned(),
             })?;
 
-        ThemeId::parse(theme)
-            .map(Self::new)
-            .ok_or_else(|| StateError::Id {
-                path: path.to_owned(),
-                theme: theme.to_owned(),
-            })
+        let theme = ThemeId::parse(theme).ok_or_else(|| StateError::Id {
+            path: path.to_owned(),
+            theme: theme.to_owned(),
+        })?;
+
+        let mut targets = BTreeMap::new();
+        if let Some(table) = document
+            .as_table()
+            .get("targets")
+            .and_then(Item::as_table_like)
+        {
+            for (key, item) in table.iter() {
+                let name = TargetName::parse(key).ok_or_else(|| StateError::Target {
+                    path: path.to_owned(),
+                    name: key.to_owned(),
+                })?;
+                // A value that is not a string cannot be an identifier either, so it is
+                // reported as the type it is.
+                let value = item.as_str().unwrap_or_else(|| item.type_name());
+                let theme = ThemeId::parse(value).ok_or_else(|| StateError::Id {
+                    path: path.to_owned(),
+                    theme: value.to_owned(),
+                })?;
+                targets.insert(name, theme);
+            }
+        }
+
+        Ok(Self { theme, targets })
     }
 
     /// The file's contents.
     ///
-    /// A `ThemeId` is lowercase, digits and hyphens, so it needs no escaping.
+    /// A `ThemeId` and a `TargetName` are lowercase, digits and hyphens, so neither needs
+    /// escaping.
     fn to_toml(&self) -> String {
-        format!(
+        let mut file = format!(
             "# written by vanadis; the theme it last applied\ntheme = \"{}\"\n",
             self.theme.as_str()
-        )
+        );
+        if !self.targets.is_empty() {
+            file.push_str("\n[targets]\n");
+            for (name, theme) in &self.targets {
+                let _ = writeln!(file, "{name} = \"{}\"", theme.as_str());
+            }
+        }
+        file
     }
 }
 
@@ -190,5 +256,59 @@ mod tests {
     fn reads_back_what_it_writes() {
         let state = State::new(ThemeId::parse("gruvbox-dark").unwrap());
         assert_eq!(parse(&state.to_toml()).unwrap(), state);
+    }
+    #[test]
+    fn reads_a_target_applied_on_its_own() {
+        let state = parse("theme = \"paper\"\n[targets]\nnvim = \"nord\"\n").unwrap();
+        assert_eq!(
+            state.targets().get(&TargetName::parse("nvim").unwrap()),
+            Some(&ThemeId::parse("nord").unwrap())
+        );
+    }
+
+    #[test]
+    fn leaves_targets_empty_when_the_file_names_none() {
+        assert!(parse("theme = \"paper\"\n").unwrap().targets().is_empty());
+    }
+
+    #[test]
+    fn records_a_target_that_diverges_from_the_theme() {
+        let mut state = State::new(ThemeId::parse("paper").unwrap());
+        state.record(
+            TargetName::parse("nvim").unwrap(),
+            ThemeId::parse("nord").unwrap(),
+        );
+        assert_eq!(state.targets().len(), 1);
+    }
+
+    #[test]
+    fn drops_a_target_brought_back_to_the_theme() {
+        let mut state = State::new(ThemeId::parse("paper").unwrap());
+        let nvim = TargetName::parse("nvim").unwrap();
+        state.record(nvim.clone(), ThemeId::parse("nord").unwrap());
+        state.record(nvim, ThemeId::parse("paper").unwrap());
+        assert!(state.targets().is_empty());
+    }
+
+    #[test]
+    fn reads_back_the_targets_it_writes() {
+        let mut state = State::new(ThemeId::parse("paper").unwrap());
+        state.record(
+            TargetName::parse("nvim").unwrap(),
+            ThemeId::parse("nord").unwrap(),
+        );
+        assert_eq!(parse(&state.to_toml()).unwrap(), state);
+    }
+
+    #[test]
+    fn reports_a_target_name_that_is_not_an_identifier() {
+        let source = "theme = \"paper\"\n[targets]\n\"Nvim Editor\" = \"nord\"\n";
+        assert!(matches!(parse(source), Err(StateError::Target { .. })));
+    }
+
+    #[test]
+    fn reports_a_target_theme_that_is_not_an_identifier() {
+        let source = "theme = \"paper\"\n[targets]\nnvim = \"Nord\"\n";
+        assert!(matches!(parse(source), Err(StateError::Id { .. })));
     }
 }

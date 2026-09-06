@@ -54,13 +54,27 @@ back to `~/.local/state/vanadis/state.toml` when `XDG_STATE_HOME` is unset.
 theme = "papercolor-light"
 ```
 
-`apply` writes it. `current` prints the identifier it holds, and prints nothing and exits
-non-zero when the file does not exist yet, so a shell hook can tell "not applied" from a
-theme name without parsing. `list` reads it to mark the applied theme, and a state file it
-cannot read costs that mark and nothing else.
+`apply` writes it. `current` prints the identifier it holds on the first line, then one line
+per diverging target, and prints nothing and exits non-zero when the file does not exist yet,
+so a shell hook can tell "not applied" from a theme name without parsing. `list` reads it to
+mark the applied theme, and a state file it cannot read costs that mark and nothing else.
 
 The file is written beside its destination and renamed over it, so a state file that exists
 is one that was written whole.
+
+`vanadis apply --only nvim` writes the targets it names and leaves every other one alone, so
+one theme name stops describing the machine. Those targets are recorded under `[targets]`:
+
+```toml
+theme = "papercolor-light"
+
+[targets]
+nvim = "nord"
+```
+
+The table holds exactly what diverges. A target brought back to the theme every other target
+carries stops being recorded, and a whole apply clears the table. `--only` before any whole
+apply fails, because there is no theme for the targets it does not name to be on.
 
 **`$VANADIS_CONFIG` does not move it.** The config directory holds what the user wrote, and
 is what gets version controlled or copied between machines. The state file records which
@@ -101,15 +115,19 @@ themes = { light = "gruvbox-light", dark = "gruvbox-dark" }
 Optional. `light` and `dark` each name a theme, and both are required when the table is
 present.
 
-It is the table `vanadis apply --light` and `--dark` resolve through, so a shell hook can
-flip the whole set without knowing theme names. Naming a theme directly works with or without
-it. Only a bare `vanadis apply` with no `[auto]` fails, and it fails by saying to add the
-table or name a theme.
+It is the table `vanadis apply --variant dark` resolves through, so a shell hook can flip
+the whole set without knowing theme names. Naming a theme directly works with or without it.
+
+`vanadis apply` with neither a theme nor `--variant` fails, whether or not `[auto]` is
+present. Re-rendering the theme the state file records was considered for that case and
+rejected: an apply overwrites files, and a command that does it with no argument is one
+stray return key away from a write the user did not ask for. `vanadis apply $(vanadis current)`
+says the same thing and says it out loud.
 
 **`[auto]` is a table, not appearance detection.** Reading the desktop's light/dark setting
 was considered and left out: the setting lives on the machine the terminal is on, which over
 SSH is not the machine vanadis runs on. Anything that needs to detect it can call
-`vanadis apply --dark`.
+`vanadis apply --variant dark`.
 
 ### `[[targets]]`
 
@@ -249,8 +267,6 @@ comment character cannot express.
 
 ## Left open
 
-- Whether a bare `vanadis apply` with no `[auto]` re-renders the theme the state file
-  records, rather than failing.
 - Whether `check` verifies that a target's `output` is writable, or only that the render
   succeeds.
 - Rendering one named theme to one path, which export templates need. It reads no

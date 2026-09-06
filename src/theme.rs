@@ -34,6 +34,12 @@ impl ThemeId {
     }
 }
 
+impl fmt::Display for ThemeId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
 /// Which background a theme is written for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Variant {

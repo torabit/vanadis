@@ -1,0 +1,30 @@
+# The tree tests/apply.rs drives. Outputs are relative, so they land in the copy of this
+# directory the test makes rather than anywhere on the machine.
+
+[auto]
+light = "paper-light"
+dark = "ink-dark"
+
+[[targets]]
+name = "one"
+template = "templates/simple.in"
+output = "out/one.conf"
+
+[[targets]]
+name = "two"
+template = "templates/other.in"
+output = "out/two.conf"
+reload = ["true"]
+
+# Pinned to its own themes, the way an editor with a richer plugin is.
+[[targets]]
+name = "pinned"
+template = "templates/simple.in"
+output = "out/pinned.conf"
+themes = { light = "sea-light", dark = "nord" }
+
+# Carries a shebang and is executed, so the output has to stay executable.
+[[targets]]
+name = "script"
+template = "templates/script.in"
+output = "out/host-colors.sh"

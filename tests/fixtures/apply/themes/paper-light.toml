@@ -1,0 +1,7 @@
+[meta]
+format = 1
+name = "Paper Light"
+variant = "light"
+
+[colors]
+bg = "#eeeeee"

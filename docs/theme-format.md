@@ -105,8 +105,9 @@ carries, and a rule its own reference file breaks is not a rule.
 
 **`[ansi]`** — the terminal's 16 slots. Keys are the decimal strings `0` through `15`, no
 leading zeros, no sub-tables. Any other key is an error, so `ansi.N` always means slot N.
-Whether all sixteen must be present belongs to
-[#2](https://github.com/torabit/vanadis/issues/2). Terminals with extended slots put them in
+All sixteen must be present; see
+[docs/core-vocabulary.md](core-vocabulary.md#why-all-sixteen-ansi-slots). Terminals with
+extended slots put them in
 `[colors]` alongside everything else; `[ansi]` stays exactly sixteen.
 
 **`[text]`** — string values that are not colours. See [Values](#values).
@@ -392,7 +393,9 @@ v0.4.2), which tinted-shell's `templates/base16.mustache` implements:
 Slots 9–14 repeat 1–6; base16 has no separate bright set. `base09` and `base0f`, which
 tinted-shell exposes as extended slots 16 and 17, stay in `[colors]`.
 
-`[role]` is where the base16 vocabulary is spent, using the starting point in #2:
+`[role]` is where the base16 vocabulary is spent. The full mapping is in
+[docs/core-vocabulary.md](core-vocabulary.md#base16-onto-the-core), which decides the core;
+the eight tokens this document's own examples use land as:
 
 | token | base16 |
 | --- | --- |
@@ -405,10 +408,9 @@ tinted-shell exposes as extended slots 16 and 17, stay in `[colors]`.
 | `ok` | base0b |
 | `warn` | base0a |
 
-Every core token is filled. Nine slots are used by neither `[ansi]` nor `[role]` and remain in
-`[colors]`. `string` and `ok` land on the same green, which is base16's own conflation.
-
-The final core list, and whether a converter may leave a core token unfilled, are #2's.
+Every core token is filled. Two slots are used by neither `[ansi]` nor `[role]` and remain in
+`[colors]`: `base06` and `base0f`. `string` and `ok` land on the same green, which is
+base16's own conflation.
 
 ### An imported theme cannot drive every template
 
@@ -459,16 +461,14 @@ theme to every target. #3's model writes every target on every apply, which woul
 formats. That is [#22](https://github.com/torabit/vanadis/issues/22), not this document.
 
 Filling base16 from the core vocabulary alone leaves two slots empty. Ten follow from
-`[ansi]`; `base01`, `base02`, `base04` and `base09` have plausible `role` names; `base06` (a
-foreground lighter than `role.fg` in a dark scheme, darker in a light one) and `base0f`
-(brown) do not. Neither appears in the terminal's sixteen slots, so a shell reading the export
-is unaffected.
+`[ansi]`; `base01`, `base02`, `base04` and `base09` carry `role` names in the core
+([docs/core-vocabulary.md](core-vocabulary.md#base16-onto-the-core)); `base06` (a foreground
+lighter than `role.fg` in a dark scheme, darker in a light one) and `base0f` (brown) carry
+none. Neither appears in the terminal's sixteen slots, so a shell reading the export is
+unaffected.
 
 ## Left open
 
-- The core vocabulary, and which `role.*` names every theme must define — #2. How much of
-  base16 a core-only export template can fill is a useful check on that vocabulary, but not a
-  requirement on it. The core follows from what templates need.
 - Where theme files live and how they are discovered — #3.
 - A subcommand for rendering one named theme, which export templates need — [#22](https://github.com/torabit/vanadis/issues/22).
 - **Indexed colour.** Upstream PaperColor stores `['#eeeeee', '255']` — hex and cterm index

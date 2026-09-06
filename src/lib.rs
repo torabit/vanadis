@@ -7,16 +7,20 @@
 
 pub mod apply;
 pub mod catalog;
+pub mod check;
 pub mod config;
+pub mod diff;
 pub mod paths;
 pub mod state;
 pub mod template;
 pub mod theme;
 pub mod token;
 
-pub use apply::{Applied, ApplyError, apply};
+pub use apply::{Applied, ApplyError, Plan, Rendered, apply, plan, render};
 pub use catalog::{Catalog, CatalogError};
+pub use check::{CheckError, Disk, Finding, Report, check, compare};
 pub use config::{Config, ConfigError, Target, TargetName};
+pub use diff::unified;
 pub use paths::{Environment, PathsError};
 pub use state::{State, StateError};
 pub use template::{Template, TemplateError, UndefinedToken};

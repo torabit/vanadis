@@ -173,6 +173,10 @@ identifies a scheme, and it is printed in the form that can be handed to another
 `search` reads the cache and never the network. It works on a machine that has been offline
 since the last `remote update`.
 
+A query nothing matches prints nothing and exits non-zero, which is what `grep` does and what
+lets a script ask whether a scheme is there without parsing output. It is not an error and
+prints no message: an empty result is an answer.
+
 ## Failure
 
 Nothing has been cached yet:

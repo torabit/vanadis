@@ -22,6 +22,7 @@ vanadis apply nord
 vanadis apply --variant dark
 vanadis check                   # do the generated files still match their templates?
 vanadis apply nord --diff       # what would change?
+vanadis get role.bg             # for a tool that would rather ask than read a file
 ```
 
 ## What this is not

@@ -1,0 +1,32 @@
+# A base16 scheme, written out of a vanadis theme.
+#
+# This is the whole of "export" in vanadis: nineteen substitutions and no code. It is not a
+# golden template like the ones in tests/fixtures/templates/, which came out of real dotfiles;
+# it is here because docs/theme-format.md states that a base16 scheme is a template and this
+# file is what that claim costs.
+#
+# `colors.base00` through `colors.base0f` are what the base16 converter writes, lowercased,
+# because a token segment is lowercase. A theme that was not imported from base16 does not
+# carry them, and rendering this against one is an undefined-token error, which is the
+# renderer's answer and not a special case.
+system: "base16"
+name: "{{meta.name}}"
+author: "{{meta.author}}"
+variant: "{{meta.variant}}"
+palette:
+  base00: "{{colors.base00}}"
+  base01: "{{colors.base01}}"
+  base02: "{{colors.base02}}"
+  base03: "{{colors.base03}}"
+  base04: "{{colors.base04}}"
+  base05: "{{colors.base05}}"
+  base06: "{{colors.base06}}"
+  base07: "{{colors.base07}}"
+  base08: "{{colors.base08}}"
+  base09: "{{colors.base09}}"
+  base0A: "{{colors.base0a}}"
+  base0B: "{{colors.base0b}}"
+  base0C: "{{colors.base0c}}"
+  base0D: "{{colors.base0d}}"
+  base0E: "{{colors.base0e}}"
+  base0F: "{{colors.base0f}}"

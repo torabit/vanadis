@@ -372,6 +372,51 @@ template writes.
 scans, and reports the files that will not load, which is right for a command a person runs
 and wrong for one a prompt hook runs on every line. A broken theme is `list`'s to report.
 
+## Rendering one theme, once
+
+```
+vanadis render <TEMPLATE> --theme <ID>
+```
+
+Renders `TEMPLATE` against the named theme and writes the result to stdout. It reads no
+`[[targets]]` entry, writes no file, reloads nothing, and records nothing.
+
+It exists because everything else in this document renders the *active* theme to *every*
+target. [docs/theme-format.md](theme-format.md#import-and-export-are-not-symmetric) states that
+writing a base16 scheme out of a theme is a template and not a feature. Such a template
+registered as a target would have `gruvbox.yaml` overwritten with whatever theme is current the
+next time anything is applied. A per-target `themes` table pins a target to one theme forever,
+which is a different thing from naming a theme for one render.
+
+**stdout, not a `--out` path.** `get` already answers on stdout and nothing else, and a
+redirect is what a person writes anyway:
+
+```
+vanadis render base16.yaml.in --theme nord > nord.yaml
+```
+
+Taking a path would mean deciding whether it may overwrite, whether the write is staged, and
+what mode the file takes — three decisions this command can simply not have. Adding `--out`
+later is not a breaking change; removing it would be.
+
+**`--theme` is required.** Falling back to the applied theme is the one behaviour this command
+exists to avoid, so there is no spelling of it. `apply` is what renders the applied theme.
+
+**`TEMPLATE` is resolved against the working directory**, not the config directory, which is
+what [Paths](#paths) does for a target's `template`. The two rules differ because this command
+does not read `config.toml` at all: a command that never opens the config file has no business
+resolving paths against the directory it sits in. It also means a template that is not part of
+anyone's config — the usual case for an export — is named the way every other program is given
+a file.
+
+Only the named theme is loaded, the way [Querying](#querying) has `get` load one. Scanning
+`themes/` would parse every other file and warn about a broken one, which has nothing to do
+with this render.
+
+The template is rendered whole before anything is printed, so an undefined token leaves stdout
+empty rather than holding the prefix of the file that resolved. That is
+[Order](#order)'s guarantee in the shape a command with no output file can have it.
+
 ## Rejected alternatives
 
 **`--variant` on `get`.** `apply` and `check` take it because they act on the machine, and
@@ -407,8 +452,3 @@ and a disabled entry that still names a template invites the question of whether
 should verify it. The premise is that a target is turned off by hand and stays off; a use
 that turned targets on and off per machine, or per invocation, would need something the
 comment character cannot express.
-
-## Left open
-
-- Rendering one named theme to one path, which export templates need. It reads no
-  `[[targets]]` entry and so decides nothing here.

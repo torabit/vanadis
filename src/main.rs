@@ -11,8 +11,8 @@ use anyhow::Context as _;
 use clap::{ArgGroup, Parser, Subcommand, ValueEnum};
 use vanadis::init::{Answer, Binding, Colour, Draft};
 use vanadis::{
-    Cache, Catalog, Config, Disk, Environment, Plan, State, System, TargetName, Theme, ThemeId,
-    TokenPath, Tokens, Variant,
+    Cache, Catalog, Config, Disk, Environment, Plan, State, System, TargetName, Template, Theme,
+    ThemeId, TokenPath, Tokens, Variant,
 };
 
 #[derive(Parser)]
@@ -96,6 +96,15 @@ enum Command {
         /// Write over a theme of that name that is already there.
         #[arg(long)]
         force: bool,
+    },
+    /// Render one template against one named theme, to stdout.
+    Render {
+        /// The template to render, resolved against the working directory.
+        #[arg(value_name = "TEMPLATE")]
+        template: PathBuf,
+        /// The theme to render it against. Required: this command never reads the applied one.
+        #[arg(long, value_name = "ID")]
+        theme: String,
     },
     /// Find a cached scheme by identifier, variant, name or author.
     Search {
@@ -190,6 +199,7 @@ fn main() -> anyhow::Result<ExitCode> {
             command: RemoteCommand::Update,
         } => remote_update(&environment),
         Command::Import { source, force } => import(&environment, &source, force),
+        Command::Render { template, theme } => render(&environment, &template, &theme),
         Command::Search { query } => search(&environment, &query),
     }
 }
@@ -493,6 +503,29 @@ fn get(
         .get(&path)
         .with_context(|| format!("`{id}` does not define `{path}`"))?;
     writeln!(out, "{value}")?;
+    Ok(ExitCode::SUCCESS)
+}
+
+/// Renders one template against one named theme and writes the result to stdout.
+///
+/// `docs/config.md` decides that the output is stdout and that `TEMPLATE` is resolved against
+/// the working directory rather than the config directory, which this command never reads.
+///
+/// Only the named theme is loaded, the way `get` loads one: scanning `themes/` would parse
+/// every other file and warn about a broken one, which has nothing to do with this render.
+fn render(environment: &Environment, template: &Path, theme: &str) -> anyhow::Result<ExitCode> {
+    let id =
+        ThemeId::parse(theme).with_context(|| format!("`{theme}` is not a theme identifier"))?;
+    let theme = vanadis::catalog::load(&environment.themes_dir()?, &id)?;
+    let source = std::fs::read_to_string(template)
+        .with_context(|| format!("{}: cannot be read", template.display()))?;
+
+    // Rendered whole before anything is printed, so a template with an undefined token writes
+    // nothing to stdout rather than the part of itself that resolved.
+    let rendered = Template::new(template, source).render(theme.tokens())?;
+
+    let mut out = std::io::stdout().lock();
+    write!(out, "{rendered}")?;
     Ok(ExitCode::SUCCESS)
 }
 

@@ -166,6 +166,7 @@ theme, where it can be read.
 | `vanadis check`                    | do the generated files still match their templates?                               |
 | `vanadis list` / `vanadis current` | the themes in `themes/`, and the one applied last                                 |
 | `vanadis get role.bg`              | one resolved colour, for a prompt or a script                                     |
+| `vanadis render <template>`        | one template against one named theme, to stdout — how a theme is exported         |
 | `vanadis init <file>`              | turn a config you already have into a template, a theme and a target              |
 | `vanadis remote update`            | cache the tinted-theming scheme collection                                        |
 | `vanadis search <query>`           | find a scheme in the cache, offline                                               |

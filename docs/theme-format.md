@@ -1,7 +1,7 @@
 # Theme data model
 
-Decides [#1](https://github.com/torabit/vanadis/issues/1). Implemented by
-[#4](https://github.com/torabit/vanadis/issues/4).
+This document decides the theme data model: the file a theme is written in, and how its
+tokens resolve.
 
 A theme is a TOML file. It holds colour in three layers, plus metadata and a small amount of
 non-colour text. Every token resolves before rendering starts, so the renderer never sees a
@@ -55,8 +55,7 @@ foreground colours.
 For completeness, tinted8 is at `0.2.0-beta11`, upstream carries 4 tinted8 schemes against
 338 base16 and 196 base24, and its spec and reference implementation disagree about unknown
 keys (the spec says warn and ignore, the implementation aborts). That is a reason to wait,
-not a reason the design is wrong, and it is recorded in
-[#14](https://github.com/torabit/vanadis/issues/14).
+not a reason the design is wrong.
 
 ## The file
 
@@ -105,9 +104,10 @@ carries, and a rule its own reference file breaks is not a rule.
 
 **`[ansi]`** — the terminal's 16 slots. Keys are the decimal strings `0` through `15`, no
 leading zeros, no sub-tables. Any other key is an error, so `ansi.N` always means slot N.
-Whether all sixteen must be present belongs to
-[#2](https://github.com/torabit/vanadis/issues/2). Terminals with extended slots put them in
-`[colors]` alongside everything else; `[ansi]` stays exactly sixteen.
+All sixteen must be present; see
+[docs/core-vocabulary.md](core-vocabulary.md#why-all-sixteen-ansi-slots). Terminals with
+extended slots put them in `[colors]` alongside everything else; `[ansi]` stays exactly
+sixteen.
 
 **`[text]`** — string values that are not colours. See [Values](#values).
 
@@ -138,9 +138,8 @@ The rule is on keys, not on paths, which also settles two cases TOML does not:
   and quietly remove slot 1. Sub-tables under `[ansi]` are rejected.
 
 **The theme's filename, minus `.toml`, must also be a valid segment.** It is the identifier
-`vanadis apply papercolor-light` takes and the one
-[#3](https://github.com/torabit/vanadis/issues/3) pins in `[auto]`, so it cannot be
-`PaperColor Light.toml`.
+`vanadis apply papercolor-light` takes and the one the config file pins in `[auto]`, so it
+cannot be `PaperColor Light.toml`.
 
 ## Values
 
@@ -166,8 +165,7 @@ needs it yet.
 ### Values that are not colours
 
 `[meta]` and `[text]` hold strings that are never parsed as colours. Everything else holds
-colour, which is what lets `check` ([#8](https://github.com/torabit/vanadis/issues/8)) say
-whether a value is well-formed at all.
+colour, which is what lets `check` say whether a value is well-formed at all.
 
 This is not a theoretical allowance. Five of the eleven golden templates hard-code a value
 that is wrong for any theme but this one, and three of those break outright when the variant
@@ -255,8 +253,8 @@ answer and is the intended implementation.
 Producing a line number for each of these rules out `#[derive(Deserialize)]`. `toml::Spanned`
 does not survive `#[serde(untagged)]` or `#[serde(flatten)]`, both of which a model with
 nested namespaces and open top-level tables would need, and serde does not support `flatten`
-together with `deny_unknown_fields`. #4 should read the file with `toml_edit`, whose items
-carry spans, and walk it by hand.
+together with `deny_unknown_fields`. The parser should read the file with `toml_edit`, whose
+items carry spans, and walk it by hand.
 
 ## Metadata
 
@@ -285,19 +283,18 @@ light/dark pairing in `[auto]` depend on a background colour someone might chang
 unrelated reasons. The variant is a statement of intent, so the author states it.
 
 `author` is optional. It is provenance, and nothing in vanadis reads it. Requiring it would
-mean `vanadis init` ([#10](https://github.com/torabit/vanadis/issues/10)) has to invent a
-value or refuse to finish, for a palette its user wrote themselves. Converters fill it from
-the upstream scheme, so a theme that came from somewhere still says where.
+mean `vanadis init` has to invent a value or refuse to finish, for a palette its user wrote
+themselves. Converters fill it from the upstream scheme, so a theme that came from somewhere
+still says where.
 
 ## Rejected alternatives
 
 **YAML as the native format.** The upstream tinted-theming schemes are YAML, which is the
-argument for it, but that only matters inside the importer
-([#12](https://github.com/torabit/vanadis/issues/12),
-[#13](https://github.com/torabit/vanadis/issues/13)), which converts either way. Against it:
-the config file (#3) is TOML, so an author learns one format, and YAML coerces types where
-TOML does not — an unquoted `no` or `1.0` is a hazard a colour file does not need. The binary
-will still link a YAML parser once #13 lands; that is the importer's cost, not the author's.
+argument for it, but that only matters inside the importer, which converts either way.
+Against it: the config file is TOML, so an author learns one format, and YAML coerces types
+where TOML does not — an unquoted `no` or `1.0` is a hazard a colour file does not need. The
+binary will still link a YAML parser once the importer lands; that is the importer's cost, not
+the author's.
 
 **`{token}` in themes, `{{token}}` in templates.** The current JSON fixture uses single
 braces. Unifying them makes one rule true everywhere: `{{...}}` is vanadis's, `{...}` is the
@@ -323,9 +320,9 @@ Cross-file references would reintroduce resolution order and make a theme file n
 carry every variant in one file behind a runtime switch, Tokyo Night ships a file per variant,
 Solarized shares sixteen colours and inverts the roles. One file per variant duplicates a
 palette across two files, which is a real cost. It is still the right default here, because
-`[auto]` in #3 selects a whole theme by name and a per-target override pins one; both operate
-on themes, and a file holding two would have to be addressed as `papercolor#light`, which is a
-second identifier syntax for one saving.
+`[auto]` in the config file selects a whole theme by name and a per-target override pins one;
+both operate on themes, and a file holding two would have to be addressed as
+`papercolor#light`, which is a second identifier syntax for one saving.
 
 **The Design Tokens Format Module (DTCG).** The W3C Design Tokens Community Group published a
 stable 2025.10 (a Community Group Report, not a W3C Standard) covering much of what this
@@ -340,7 +337,7 @@ Against it as the native format:
   next to the configs they colour.
 - Accepting only the `hex` fallback would implement a fraction of the spec while claiming the
   name.
-- DTCG has no notion of the terminal's sixteen slots, so #2's core vocabulary is still ours to
+- DTCG has no notion of the terminal's sixteen slots, so the core vocabulary is still ours to
   decide. Adopting it removes no decision.
 - Its alias syntax is `{token}`, which this document reserves as literal text, and it also
   requires JSON Pointer `$ref` support.
@@ -355,7 +352,7 @@ one of them arrives.
 
 ## A base16 scheme in this format
 
-The converter (#13) reads an upstream YAML:
+The base16 converter reads an upstream YAML:
 
 ```yaml
 system: "base16"
@@ -392,7 +389,9 @@ v0.4.2), which tinted-shell's `templates/base16.mustache` implements:
 Slots 9–14 repeat 1–6; base16 has no separate bright set. `base09` and `base0f`, which
 tinted-shell exposes as extended slots 16 and 17, stay in `[colors]`.
 
-`[role]` is where the base16 vocabulary is spent, using the starting point in #2:
+`[role]` is where the base16 vocabulary is spent. The full mapping is in
+[docs/core-vocabulary.md](core-vocabulary.md#base16-onto-the-core), which decides the core;
+the eight tokens this document's own examples use land as:
 
 | token | base16 |
 | --- | --- |
@@ -405,26 +404,25 @@ tinted-shell exposes as extended slots 16 and 17, stay in `[colors]`.
 | `ok` | base0b |
 | `warn` | base0a |
 
-Every core token is filled. Nine slots are used by neither `[ansi]` nor `[role]` and remain in
-`[colors]`. `string` and `ok` land on the same green, which is base16's own conflation.
-
-The final core list, and whether a converter may leave a core token unfilled, are #2's.
+Every core token is filled. Two slots are used by neither `[ansi]` nor `[role]` and remain in
+`[colors]`: `base06` and `base0f`. `string` and `ok` land on the same green, which is
+base16's own conflation.
 
 ### An imported theme cannot drive every template
 
 Four of the golden templates read `{{colors.brown}}`, `{{colors.purple}}` or
 `{{colors.slate}}` directly. A theme converted from base16 has `colors.base09` and
-`colors.base0e`; it has no `brown` and no `purple`, and nothing in #2's core supplies them.
-Rendering those templates against it fails with undefined tokens.
+`colors.base0e`; it has no `brown` and no `purple`, and nothing in the core vocabulary
+supplies them. Rendering those templates against it fails with undefined tokens.
 
 That is correct behaviour, not a defect, and the rule it illustrates belongs here:
 **`colors.*` is a theme's private vocabulary. A template that reads it is bound to that
 theme.** A template meant to survive a theme switch uses `role.*`, `ansi.*` and `meta.*`, all
-of which #2 guarantees. `check` (#8) is what reports the mismatch, and #3's per-target theme
-override is what pins a template to the theme it was written for.
+of which the core vocabulary guarantees. `check` is what reports the mismatch, and a
+per-target theme override is what pins a template to the theme it was written for.
 
 Whether the converter should additionally emit appearance-name aliases — `purple` pointing at
-`base0e`, since base16 does assign hues to slots — is #13's to decide.
+`base0e`, since base16 does assign hues to slots — is the converter's to decide.
 
 ## Import and export are not symmetric
 
@@ -448,29 +446,27 @@ that selection and writing it back out is lossless, because the choosing happene
 
 **Export is not a feature. It is a template.** A base16 scheme is YAML with sixteen colours,
 `name`, `author` and `variant` in it, so it is `base16.yaml.in` with sixteen `{{colors...}}`
-and three `{{meta...}}` in it. Putting knowledge of output formats into vanadis is what #5
-exists to prevent, and #13 is an importer: its stated work is reading scheme bytes into this
-model, and nothing in this document extends it.
+and three `{{meta...}}` in it. Putting knowledge of output formats into vanadis is what
+rendering through templates exists to prevent, and the converter is an importer: its stated
+work is reading scheme bytes into this model, and nothing in this document extends it.
 
 What is missing is a way to render one named theme once, rather than rendering the active
-theme to every target. #3's model writes every target on every apply, which would overwrite
-`gruvbox.yaml` with whatever theme is active. Export therefore needs something like
-`vanadis render <template> --theme <name> --out <path>`, which keeps vanadis ignorant of
-formats. That is [#22](https://github.com/torabit/vanadis/issues/22), not this document.
+theme to every target. The config file's model writes every target on every apply, which
+would overwrite `gruvbox.yaml` with whatever theme is active. Export therefore needs something
+like `vanadis render <template> --theme <name> --out <path>`, which keeps vanadis ignorant of
+formats. That is a separate decision, not this document.
 
 Filling base16 from the core vocabulary alone leaves two slots empty. Ten follow from
-`[ansi]`; `base01`, `base02`, `base04` and `base09` have plausible `role` names; `base06` (a
-foreground lighter than `role.fg` in a dark scheme, darker in a light one) and `base0f`
-(brown) do not. Neither appears in the terminal's sixteen slots, so a shell reading the export
-is unaffected.
+`[ansi]`; `base01`, `base02`, `base04` and `base09` carry `role` names in the core
+([docs/core-vocabulary.md](core-vocabulary.md#base16-onto-the-core)); `base06` (a foreground
+lighter than `role.fg` in a dark scheme, darker in a light one) and `base0f` (brown) carry
+none. Neither appears in the terminal's sixteen slots, so a shell reading the export is
+unaffected.
 
 ## Left open
 
-- The core vocabulary, and which `role.*` names every theme must define — #2. How much of
-  base16 a core-only export template can fill is a useful check on that vocabulary, but not a
-  requirement on it. The core follows from what templates need.
-- Where theme files live and how they are discovered — #3.
-- A subcommand for rendering one named theme, which export templates need — [#22](https://github.com/torabit/vanadis/issues/22).
+- Where theme files live and how they are discovered.
+- A subcommand for rendering one named theme, which export templates need.
 - **Indexed colour.** Upstream PaperColor stores `['#eeeeee', '255']` — hex and cterm index
   together — and a Vim template written against it would need the index. A token holds a hex
   literal and there is no conversion function, so those templates cannot be generated.
@@ -483,4 +479,4 @@ is unaffected.
   blend/shade library; catppuccin derives its bright ANSI set by scaling LCH lightness. This
   format stores the computed result, so the relationship is lost on import and the derived
   colour does not follow when its source changes. Adding functions would make this a template
-  language, which #5 rules out, so any answer is a separate design.
+  language, which this format rules out, so any answer is a separate design.

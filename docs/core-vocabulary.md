@@ -144,8 +144,10 @@ templates never mention it.
 
 `list`, `current` and `get` never fail because a theme is incomplete.
 
-`init` writes the whole core into the skeleton it generates, so a hand-written theme starts
-complete and stays complete unless someone deletes a line.
+`init` names the core tokens it could not fill when it finishes, so a theme built up one
+config file at a time says what it is still short of without waiting for a `check`.
+[docs/init.md](init.md#the-core-it-did-not-fill) decides why the list is printed rather than
+written into the theme as commented-out lines.
 
 ### Converters must fill the entire core
 

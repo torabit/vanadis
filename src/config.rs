@@ -54,6 +54,43 @@ impl Auto {
     }
 }
 
+/// The themes `vanadis cycle` steps through, in the order the file writes them.
+///
+/// At least two, and no repeats. Both are the parser's to enforce and both follow from how
+/// [`Cycle::next`] finds where it is: it looks the applied theme up in the list rather than
+/// reading an index out of the state file, and a list that is empty or that writes one theme
+/// twice has no answer to give it.
+///
+/// The head is held apart from the tail so that "at least two" is true of the type. Nothing
+/// here can be asked for an element that is not there.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Cycle {
+    head: ThemeId,
+    tail: Vec<ThemeId>,
+}
+
+impl Cycle {
+    /// Every theme, in the order the file writes them.
+    fn themes(&self) -> impl Iterator<Item = &ThemeId> {
+        std::iter::once(&self.head).chain(&self.tail)
+    }
+
+    /// The theme that follows `current`, wrapping at the end of the list.
+    ///
+    /// `current` is what the state file records, and `None` is a machine that has applied
+    /// nothing yet. Both that and a theme the list does not name answer with the first entry:
+    /// a cycle that cannot say where it is starts at the beginning, which is what a user who
+    /// has just written the table is asking for.
+    #[must_use]
+    pub fn next(&self, current: Option<&ThemeId>) -> &ThemeId {
+        let Some(at) = current.and_then(|theme| self.themes().position(|entry| entry == theme))
+        else {
+            return &self.head;
+        };
+        self.themes().nth(at + 1).unwrap_or(&self.head)
+    }
+}
+
 /// One target's own themes, which win over the theme being applied.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Themes(BTreeMap<Variant, ThemeId>);
@@ -112,6 +149,7 @@ impl Target {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Config {
     auto: Option<Auto>,
+    cycle: Option<Cycle>,
     targets: Vec<Target>,
 }
 
@@ -160,6 +198,20 @@ pub enum Problem {
         /// The line the second one is written on.
         line: usize,
     },
+    /// One theme written twice in the cycle.
+    #[error("line {line}: `{theme}` is written twice in cycle.themes")]
+    Repeated {
+        /// The theme both entries name.
+        theme: String,
+        /// The line the table is written on.
+        line: usize,
+    },
+    /// A cycle of fewer than two themes.
+    #[error("line {line}: cycle.themes names fewer than two themes")]
+    Short {
+        /// The line the table is written on.
+        line: usize,
+    },
     /// A theme name that is not a theme identifier.
     #[error("line {line}: {key} is `{value}`, which is not a theme identifier")]
     Theme {
@@ -190,6 +242,8 @@ impl Problem {
             | Self::Unknown { line, .. }
             | Self::Name { line, .. }
             | Self::Duplicate { line, .. }
+            | Self::Repeated { line, .. }
+            | Self::Short { line, .. }
             | Self::Theme { line, .. }
             | Self::Home { line, .. } => *line,
         }
@@ -293,6 +347,12 @@ impl Config {
         self.auto.as_ref()
     }
 
+    /// The themes `cycle` steps through, when the file names them.
+    #[must_use]
+    pub fn cycle(&self) -> Option<&Cycle> {
+        self.cycle.as_ref()
+    }
+
     /// Every target, in the order the file writes them.
     #[must_use]
     pub fn targets(&self) -> &[Target] {
@@ -312,6 +372,7 @@ impl Parse<'_> {
     /// Reads the whole document.
     fn config(&mut self, table: &Table) -> Config {
         let mut auto = None;
+        let mut cycle = None;
         let mut targets = Vec::new();
         let mut names = BTreeSet::new();
 
@@ -323,6 +384,13 @@ impl Parse<'_> {
                         auto = self.auto(inner, line);
                     } else {
                         self.wrong_type("auto", line, item);
+                    }
+                }
+                "cycle" => {
+                    if let Some(inner) = item.as_table_like() {
+                        cycle = self.cycle(inner, line);
+                    } else {
+                        self.wrong_type("cycle", line, item);
                     }
                 }
                 "targets" => {
@@ -352,7 +420,11 @@ impl Parse<'_> {
             }
         }
 
-        Config { auto, targets }
+        Config {
+            auto,
+            cycle,
+            targets,
+        }
     }
 
     /// Reads `[auto]`, which names a theme for each mode.
@@ -372,6 +444,82 @@ impl Parse<'_> {
         Some(Auto {
             light: light?,
             dark: dark?,
+        })
+    }
+
+    /// Reads `[cycle]`, whose one key is the list of themes to step through.
+    ///
+    /// Every entry is reported on its own, the way the rest of this file reports problems, so
+    /// a table with two things wrong with it says both. The `Cycle` built from the survivors
+    /// is only ever returned alongside an empty problem list, so it is never a cycle stepping
+    /// through an order the file does not write.
+    fn cycle(&mut self, table: &dyn TableLike, line: usize) -> Option<Cycle> {
+        for (key, item) in table.iter() {
+            if key != "themes" {
+                self.problems.push(Problem::Unknown {
+                    key: format!("cycle.{key}"),
+                    line: self.line_of(table.key(key)),
+                });
+            }
+            let _ = item;
+        }
+
+        let Some(item) = table.get("themes") else {
+            self.problems.push(Problem::Missing {
+                key: "cycle.themes".to_owned(),
+                line,
+            });
+            return None;
+        };
+        let at = self.line_of(table.key("themes"));
+        let Some(array) = item.as_array() else {
+            self.wrong_type("cycle.themes", at, item);
+            return None;
+        };
+
+        // Shortness is read off what the file writes, not off what parsed. An entry that is
+        // not a theme identifier is already reported as itself, and counting the survivors
+        // would report the same defect a second time as a cycle that is too short.
+        if array.len() < 2 {
+            self.problems.push(Problem::Short { line: at });
+        }
+
+        let mut themes = Vec::new();
+        let mut written = BTreeSet::new();
+        for value in array {
+            let Some(text) = value.as_str() else {
+                self.problems.push(Problem::Type {
+                    key: "cycle.themes".to_owned(),
+                    line: at,
+                    found: value.type_name(),
+                });
+                continue;
+            };
+            let Some(theme) = ThemeId::parse(text) else {
+                self.problems.push(Problem::Theme {
+                    key: "cycle.themes".to_owned(),
+                    line: at,
+                    value: text.to_owned(),
+                });
+                continue;
+            };
+            if written.insert(theme.clone()) {
+                themes.push(theme);
+            } else {
+                self.problems.push(Problem::Repeated {
+                    theme: text.to_owned(),
+                    line: at,
+                });
+            }
+        }
+
+        let mut themes = themes.into_iter();
+        let (Some(head), Some(second)) = (themes.next(), themes.next()) else {
+            return None;
+        };
+        Some(Cycle {
+            head,
+            tail: std::iter::once(second).chain(themes).collect(),
         })
     }
 
@@ -804,5 +952,151 @@ mod tests {
         let source = "[[targets]]\nname = \"Bat\"\ntemplate = 1\n";
         let lines: Vec<usize> = problems(source).iter().map(Problem::line).collect();
         assert_eq!(lines, vec![1, 2, 3]);
+    }
+
+    const CYCLE: &str = "[cycle]\nthemes = [\"papercolor-light\", \"nord\", \"gruvbox-dark\"]\n";
+
+    fn cycle(source: &str) -> Cycle {
+        parse(&format!("{source}{TARGET}"))
+            .unwrap()
+            .cycle()
+            .unwrap()
+            .clone()
+    }
+
+    #[test]
+    fn reads_no_cycle_from_a_file_that_writes_none() {
+        assert_eq!(parse(TARGET).unwrap().cycle(), None);
+    }
+
+    #[test]
+    fn steps_to_the_theme_after_the_one_in_use() {
+        assert_eq!(
+            *cycle(CYCLE).next(Some(&theme("nord"))),
+            theme("gruvbox-dark")
+        );
+    }
+
+    #[test]
+    fn wraps_from_the_last_theme_to_the_first() {
+        assert_eq!(
+            *cycle(CYCLE).next(Some(&theme("gruvbox-dark"))),
+            theme("papercolor-light")
+        );
+    }
+
+    /// A machine that has applied nothing has no position, so the cycle starts.
+    #[test]
+    fn starts_at_the_first_theme_when_nothing_is_applied() {
+        assert_eq!(*cycle(CYCLE).next(None), theme("papercolor-light"));
+    }
+
+    /// The applied theme need not be in the list: `apply` names any theme it likes.
+    #[test]
+    fn starts_at_the_first_theme_when_the_cycle_does_not_name_the_one_in_use() {
+        assert_eq!(
+            *cycle(CYCLE).next(Some(&theme("solarized"))),
+            theme("papercolor-light")
+        );
+    }
+
+    #[test]
+    fn steps_through_a_cycle_of_two() {
+        let cycle = cycle("[cycle]\nthemes = [\"a\", \"b\"]\n");
+        assert_eq!(*cycle.next(Some(&theme("a"))), theme("b"));
+        assert_eq!(*cycle.next(Some(&theme("b"))), theme("a"));
+    }
+
+    /// The position is looked up by theme, so a theme written twice has two positions and
+    /// the cycle can never pass the first of them.
+    #[test]
+    fn reports_a_theme_the_cycle_writes_twice() {
+        let problems = problems(&format!(
+            "[cycle]\nthemes = [\"a\", \"b\", \"a\"]\n{TARGET}"
+        ));
+        assert!(
+            problems
+                .iter()
+                .any(|problem| matches!(problem, Problem::Repeated { theme, .. } if theme == "a")),
+            "{problems:?}"
+        );
+    }
+
+    #[test]
+    fn reports_a_cycle_of_one_theme() {
+        let problems = problems(&format!("[cycle]\nthemes = [\"a\"]\n{TARGET}"));
+        assert!(
+            problems
+                .iter()
+                .any(|problem| matches!(problem, Problem::Short { .. })),
+            "{problems:?}"
+        );
+    }
+
+    #[test]
+    fn reports_a_cycle_of_no_themes() {
+        let problems = problems(&format!("[cycle]\nthemes = []\n{TARGET}"));
+        assert!(
+            problems
+                .iter()
+                .any(|problem| matches!(problem, Problem::Short { .. })),
+            "{problems:?}"
+        );
+    }
+
+    /// An entry that is not an identifier is reported as itself. Counting the survivors
+    /// would call the same defect a cycle that is too short as well.
+    #[test]
+    fn reports_only_the_entry_that_is_not_a_theme_identifier() {
+        let problems = problems(&format!(
+            "[cycle]\nthemes = [\"a\", \"Not An Id\"]\n{TARGET}"
+        ));
+        assert!(
+            problems.iter().any(
+                |problem| matches!(problem, Problem::Theme { value, .. } if value == "Not An Id")
+            ),
+            "{problems:?}"
+        );
+        assert!(
+            !problems
+                .iter()
+                .any(|problem| matches!(problem, Problem::Short { .. })),
+            "{problems:?}"
+        );
+    }
+
+    #[test]
+    fn reports_an_entry_that_is_not_a_string() {
+        let problems = problems(&format!("[cycle]\nthemes = [\"a\", 3]\n{TARGET}"));
+        assert!(
+            problems.iter().any(
+                |problem| matches!(problem, Problem::Type { key, .. } if key == "cycle.themes")
+            ),
+            "{problems:?}"
+        );
+    }
+
+    #[test]
+    fn reports_a_cycle_that_writes_no_themes_key() {
+        let problems = problems(&format!("[cycle]\n{TARGET}"));
+        assert!(
+            problems.iter().any(
+                |problem| matches!(problem, Problem::Missing { key, .. } if key == "cycle.themes")
+            ),
+            "{problems:?}"
+        );
+    }
+
+    #[test]
+    fn reports_a_key_the_cycle_table_does_not_have() {
+        let problems = problems(&format!(
+            "[cycle]\nthemes = [\"a\", \"b\"]\nstep = 2\n{TARGET}"
+        ));
+        assert!(
+            problems.iter().any(
+                |problem| matches!(problem, Problem::Unknown { key, .. } if key == "cycle.step")
+            ),
+            "{problems:?}"
+        );
     }
 }

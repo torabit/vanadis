@@ -26,7 +26,7 @@ those, the answer is a different token, or a second template, or a script the to
 
 ```
 ~/.config/vanadis/          # $XDG_CONFIG_HOME/vanadis; $VANADIS_CONFIG replaces the whole directory
-├── config.toml             # [auto] and the [[targets]]
+├── config.toml             # [auto], [cycle] and the [[targets]]
 ├── themes/
 │   ├── papercolor-light.toml
 │   └── papercolor-dark.toml
@@ -52,6 +52,7 @@ not travel with it.
 | `vanadis apply --variant dark` | the theme `[auto]` names for dark |
 | `vanadis apply <theme> --only <name>` | writes only these targets and records them, so one theme name stops describing the machine |
 | `vanadis apply <theme> --diff` | shows the change line by line, writes nothing |
+| `vanadis cycle` | applies the theme after the one in use, taken from `[cycle] themes` |
 | `vanadis check` | checks against the applied theme, exits non-zero on any finding |
 | `vanadis check <theme>` | checks against that theme instead — the CI form, since a fresh checkout has no state file |
 | `vanadis check <theme> --only <name>` | one target, which is how a new template is verified |

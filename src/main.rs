@@ -52,6 +52,15 @@ enum Command {
         #[arg(long, value_name = "NAME")]
         only: Vec<String>,
     },
+    /// Apply the theme after the one in use, from `[cycle]`.
+    Cycle {
+        /// Render and report what would change, without writing anything.
+        #[arg(long)]
+        dry_run: bool,
+        /// Show a unified diff of what would change. Writes nothing.
+        #[arg(long)]
+        diff: bool,
+    },
     /// List the themes in `themes/`.
     List {
         /// Show only the themes written for this background.
@@ -159,6 +168,7 @@ fn main() -> anyhow::Result<ExitCode> {
             variant.map(Variant::from),
             &only,
         ),
+        Command::Cycle { dry_run, diff } => cycle(&environment, dry_run || diff, diff),
         Command::List { variant } => list(&environment, variant.map(Variant::from)),
         Command::Current => current(&environment),
         Command::Get { token, json, theme } => {
@@ -238,8 +248,36 @@ fn apply(
     let (config, catalog) = load(environment)?;
     let theme = wanted(&config, theme, variant)?.context("name a theme, or pass --variant")?;
     let only = selected(only)?;
+    commit(environment, &config, &catalog, &theme, &only, dry_run, diff)
+}
 
-    let plan = vanadis::plan(&config, &catalog, &theme, &only, &environment.state_file()?)?;
+/// Applies the theme after the one the state file records.
+///
+/// `docs/config.md` decides that the position is read off the applied theme rather than out
+/// of an index, so this needs nothing of the state file that `current` does not already read.
+fn cycle(environment: &Environment, dry_run: bool, diff: bool) -> anyhow::Result<ExitCode> {
+    let (config, catalog) = load(environment)?;
+    let cycle = config
+        .cycle()
+        .context("config.toml has no [cycle] table, so there is nothing to step through")?;
+    let applied = State::load(&environment.state_file()?)?;
+    let theme = cycle.next(applied.as_ref().map(State::theme)).clone();
+    commit(environment, &config, &catalog, &theme, &[], dry_run, diff)
+}
+
+/// Renders `theme` into every target `only` names, and writes unless `dry_run`.
+///
+/// Shared by `apply` and `cycle`, which differ only in how they arrive at a theme.
+fn commit(
+    environment: &Environment,
+    config: &Config,
+    catalog: &Catalog,
+    theme: &ThemeId,
+    only: &[TargetName],
+    dry_run: bool,
+    diff: bool,
+) -> anyhow::Result<ExitCode> {
+    let plan = vanadis::plan(config, catalog, theme, only, &environment.state_file()?)?;
     if dry_run {
         return preview(&plan, diff);
     }

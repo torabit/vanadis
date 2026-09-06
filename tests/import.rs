@@ -83,6 +83,9 @@ fn writes_a_theme_from_a_cached_scheme() {
     assert!(machine.theme("nord").is_file());
 }
 
+/// The path is matched by its tail, not in full: `main` contracts the home directory to `~`
+/// on the way out, and on a machine whose temporary directory sits under `$HOME` — CI's does
+/// — the full path is not what is printed.
 #[test]
 fn says_what_it_imported_and_where_it_put_it() {
     let machine = Machine::new("says", &["base16/nord.yaml"]);
@@ -91,7 +94,7 @@ fn says_what_it_imported_and_where_it_put_it() {
     assert!(said.contains("imported base16/nord as nord"), "{said}");
     assert!(said.contains("dark  Nord  arcticicestudio"), "{said}");
     assert!(
-        said.contains(machine.theme("nord").to_str().unwrap()),
+        said.contains("import-says/config/themes/nord.toml"),
         "{said}"
     );
 }

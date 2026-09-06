@@ -73,8 +73,10 @@ enum Destination {
 /// Writes the schemes `archive` holds into `directory`, replacing what is there.
 ///
 /// The archive is unpacked into `directory` with `.incoming` appended to its name, and that
-/// directory replaces `directory` by rename once every entry is written. A failure part way
-/// through leaves the previous cache exactly as it was.
+/// directory replaces `directory` by rename once every entry is written. Any failure, at any
+/// point, removes the staging directory before returning, so a failure part way through
+/// leaves neither a half-written staging directory nor a half-written cache: the previous
+/// cache is exactly as it was.
 ///
 /// # Errors
 ///
@@ -85,6 +87,30 @@ pub fn install(archive: &[u8], directory: &Path) -> Result<Installed, RemoteErro
     let staging = staging(directory);
     remove(&staging)?;
 
+    let installed = match unpack(archive, &staging) {
+        Ok(installed) => installed,
+        Err(error) => {
+            // The original error is what the caller needs. A cleanup that also fails
+            // must not replace it.
+            let _ = std::fs::remove_dir_all(&staging);
+            return Err(error);
+        }
+    };
+
+    remove(directory)?;
+    std::fs::rename(&staging, directory).map_err(|source| RemoteError::Write {
+        path: directory.to_owned(),
+        source,
+    })?;
+    Ok(installed)
+}
+
+/// Writes every entry `archive` holds that the whitelist accepts into `staging`.
+///
+/// Returns [`RemoteError::Empty`] when nothing matched. This does not remove `staging` on
+/// any failure, including that one: cleanup is [`install`]'s job, done once, the same way,
+/// for every error this can return.
+fn unpack(archive: &[u8], staging: &Path) -> Result<Installed, RemoteError> {
     let mut installed = Installed::default();
     let mut tar = tar::Archive::new(flate2::read::GzDecoder::new(archive));
     let entries = tar.entries().map_err(|source| RemoteError::Archive {
@@ -133,17 +159,11 @@ pub fn install(archive: &[u8], directory: &Path) -> Result<Installed, RemoteErro
     }
 
     if installed.total() == 0 {
-        remove(&staging)?;
         return Err(RemoteError::Empty {
             url: SOURCE.to_owned(),
         });
     }
 
-    remove(directory)?;
-    std::fs::rename(&staging, directory).map_err(|source| RemoteError::Write {
-        path: directory.to_owned(),
-        source,
-    })?;
     Ok(installed)
 }
 
@@ -369,6 +389,13 @@ mod tests {
             install(b"not a gzip stream at all", &schemes),
             Err(RemoteError::Archive { .. })
         ));
+    }
+
+    #[test]
+    fn leaves_no_staging_directory_when_the_archive_is_not_readable() {
+        let schemes = target("no-staging-debris");
+        assert!(install(b"not a gzip stream at all", &schemes).is_err());
+        assert!(!schemes.parent().unwrap().join("schemes.incoming").exists());
     }
 
     #[test]

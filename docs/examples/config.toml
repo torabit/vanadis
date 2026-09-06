@@ -6,8 +6,7 @@
 # every entry here reads across to one fixture. Output paths are where the tool actually
 # looks.
 
-# Consulted by `vanadis apply --light` and `--dark`. Optional: naming a theme works without
-# it, and only a bare `vanadis apply` needs it.
+# Consulted by `vanadis apply --variant dark`. Optional: naming a theme works without it.
 [auto]
 light = "papercolor-light"
 dark = "papercolor-dark"

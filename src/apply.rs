@@ -127,11 +127,93 @@ pub enum ApplyError {
 }
 
 /// One target rendered, waiting to be written.
-struct Rendered {
+///
+/// It carries its target's `reload` so that everything an apply still has to do is reachable
+/// from the render alone, and nothing downstream has to hold the config open.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Rendered {
     name: TargetName,
     template: PathBuf,
     output: PathBuf,
+    reload: Vec<String>,
     contents: String,
+}
+
+impl Rendered {
+    /// The target this was rendered from.
+    #[must_use]
+    pub fn name(&self) -> &TargetName {
+        &self.name
+    }
+
+    /// The template it was rendered from.
+    #[must_use]
+    pub fn template(&self) -> &Path {
+        &self.template
+    }
+
+    /// The file it would be written to.
+    #[must_use]
+    pub fn output(&self) -> &Path {
+        &self.output
+    }
+
+    /// What runs after the write, empty when nothing runs.
+    #[must_use]
+    pub fn reload(&self) -> &[String] {
+        &self.reload
+    }
+
+    /// The rendered output.
+    #[must_use]
+    pub fn contents(&self) -> &str {
+        &self.contents
+    }
+}
+
+/// Every target rendered, and the state the apply would leave behind.
+///
+/// Holding one is the point at which an apply is known to succeed as far as rendering goes.
+/// [`Plan::commit`] is what writes; dropping the plan writes nothing.
+#[derive(Debug)]
+pub struct Plan {
+    theme: ThemeId,
+    state: PathBuf,
+    next: State,
+    renders: Vec<Rendered>,
+}
+
+impl Plan {
+    /// The theme being applied.
+    #[must_use]
+    pub fn theme(&self) -> &ThemeId {
+        &self.theme
+    }
+
+    /// Every target, rendered, in the order the config writes them.
+    #[must_use]
+    pub fn renders(&self) -> &[Rendered] {
+        &self.renders
+    }
+
+    /// Writes every render, records the theme, and runs each reload.
+    ///
+    /// # Errors
+    ///
+    /// Returns what stopped the write. A failed reload is reported in [`Applied::failures`]
+    /// rather than here: the files are written by then.
+    pub fn commit(self) -> Result<Applied, ApplyError> {
+        write(&self.renders)?;
+        self.next.store(&self.state)?;
+
+        let (reloaded, failures) = reload(&self.renders);
+        Ok(Applied {
+            theme: self.theme,
+            written: self.renders.into_iter().map(|render| render.name).collect(),
+            reloaded,
+            failures,
+        })
+    }
 }
 
 /// Applies `theme`, or applies it to the targets `only` names.
@@ -149,46 +231,77 @@ pub fn apply(
     only: &[TargetName],
     state: &Path,
 ) -> Result<Applied, ApplyError> {
+    plan(config, catalog, theme, only, state)?.commit()
+}
+
+/// Renders what applying `theme` would write, without writing any of it.
+///
+/// This is the whole of an apply up to the first byte hitting disk, so a caller that wants to
+/// show a diff runs exactly what a caller that wants to write runs.
+///
+/// # Errors
+///
+/// Returns what would stop the apply, before anything is written.
+pub fn plan(
+    config: &Config,
+    catalog: &Catalog,
+    theme: &ThemeId,
+    only: &[TargetName],
+    state: &Path,
+) -> Result<Plan, ApplyError> {
+    let targets = select(config, only).map_err(|name| ApplyError::UnknownTarget { name })?;
+    let next = advance(State::load(state)?, theme, &targets, only.is_empty())?;
+
+    let renders = targets
+        .iter()
+        .map(|target| render(catalog, target, theme))
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(Plan {
+        theme: theme.clone(),
+        state: state.to_owned(),
+        next,
+        renders,
+    })
+}
+
+/// Renders `target` from `theme`, resolving the target's own themes first.
+///
+/// # Errors
+///
+/// Returns the theme that is missing, the template that could not be read, or every token
+/// the theme does not define.
+pub fn render(catalog: &Catalog, target: &Target, theme: &ThemeId) -> Result<Rendered, ApplyError> {
     let applied = catalog.get(theme).ok_or_else(|| ApplyError::UnknownTheme {
         theme: theme.clone(),
     })?;
-    let variant = applied.variant();
-    let targets = select(config, only)?;
-    let next = advance(State::load(state)?, theme, &targets, only.is_empty())?;
+    let id = pinned(target, theme, applied.variant())?;
+    let source = catalog
+        .get(&id)
+        .ok_or_else(|| ApplyError::UnknownTheme { theme: id.clone() })?;
+    let text =
+        std::fs::read_to_string(target.template()).map_err(|source| ApplyError::Template {
+            path: target.template().to_owned(),
+            source,
+        })?;
 
-    let mut renders = Vec::new();
-    for target in &targets {
-        let id = pinned(target, theme, variant)?;
-        let source = catalog
-            .get(&id)
-            .ok_or_else(|| ApplyError::UnknownTheme { theme: id.clone() })?;
-        let text =
-            std::fs::read_to_string(target.template()).map_err(|source| ApplyError::Template {
-                path: target.template().to_owned(),
-                source,
-            })?;
-        renders.push(Rendered {
-            name: target.name().clone(),
-            template: target.template().to_owned(),
-            output: target.output().to_owned(),
-            contents: Template::new(target.template(), text).render(source.tokens())?,
-        });
-    }
-
-    write(&renders)?;
-    next.store(state)?;
-
-    let (reloaded, failures) = reload(&targets);
-    Ok(Applied {
-        theme: theme.clone(),
-        written: renders.into_iter().map(|render| render.name).collect(),
-        reloaded,
-        failures,
+    Ok(Rendered {
+        name: target.name().clone(),
+        template: target.template().to_owned(),
+        output: target.output().to_owned(),
+        reload: target.reload().to_vec(),
+        contents: Template::new(target.template(), text).render(source.tokens())?,
     })
 }
 
 /// The targets to write: every one, or the ones `only` names.
-fn select<'a>(config: &'a Config, only: &[TargetName]) -> Result<Vec<&'a Target>, ApplyError> {
+///
+/// Returns the first name the config does not have, which each caller reports as its own
+/// error.
+pub(crate) fn select<'a>(
+    config: &'a Config,
+    only: &[TargetName],
+) -> Result<Vec<&'a Target>, TargetName> {
     if only.is_empty() {
         return Ok(config.targets().iter().collect());
     }
@@ -200,7 +313,7 @@ fn select<'a>(config: &'a Config, only: &[TargetName]) -> Result<Vec<&'a Target>
             .targets()
             .iter()
             .find(|target| target.name() == name)
-            .ok_or_else(|| ApplyError::UnknownTarget { name: name.clone() })?;
+            .ok_or_else(|| name.clone())?;
         if seen.insert(name.clone()) {
             selected.push(target);
         }
@@ -315,16 +428,16 @@ fn keep_mode(_staged: &Path, _output: &Path, _template: &Path) -> std::io::Resul
 }
 
 /// Runs each target's reload, in order. A failure stops nothing.
-fn reload(targets: &[&Target]) -> (Vec<TargetName>, Vec<ReloadError>) {
+fn reload(renders: &[Rendered]) -> (Vec<TargetName>, Vec<ReloadError>) {
     let mut reloaded = Vec::new();
     let mut failures = Vec::new();
 
-    for target in targets {
-        let Some((program, arguments)) = target.reload().split_first() else {
+    for render in renders {
+        let Some((program, arguments)) = render.reload.split_first() else {
             continue;
         };
-        let name = target.name().clone();
-        let command = target.reload().join(" ");
+        let name = render.name.clone();
+        let command = render.reload.join(" ");
 
         match Command::new(program).args(arguments).status() {
             Ok(status) if status.success() => reloaded.push(name),

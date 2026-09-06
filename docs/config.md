@@ -10,6 +10,8 @@ the file it was taken from.
 
 [docs/init.md](init.md) decides how `vanadis init` produces a template, a theme and a
 `[[targets]]` entry from a config file that already exists.
+[docs/schemes.md](schemes.md) decides the one path this document does not cover: the cache
+`vanadis remote update` writes the tinted-theming collection into.
 
 ## Layout
 

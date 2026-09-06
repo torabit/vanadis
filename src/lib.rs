@@ -5,10 +5,14 @@
 #![deny(clippy::unwrap_used, clippy::expect_used)]
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
+pub mod paths;
+pub mod state;
 pub mod template;
 pub mod theme;
 pub mod token;
 
+pub use paths::{Environment, PathsError};
+pub use state::{State, StateError};
 pub use template::{Template, TemplateError, UndefinedToken};
-pub use theme::{Problem, Theme, ThemeError, ThemeId};
+pub use theme::{Problem, Theme, ThemeError, ThemeId, Variant};
 pub use token::{TokenPath, Tokens};

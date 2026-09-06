@@ -113,8 +113,19 @@ fn reports_what_it_wrote() {
 #[test]
 fn gives_a_new_output_the_mode_of_its_template() {
     let (config, state) = workspace("apply-mode-new", "apply");
+
+    // git records the executable bit and nothing else, so the rest of the template's mode is
+    // whatever umask the working tree was checked out under. The property is the
+    // relationship, and a constant here passes under `umask 022` and fails under `umask 002`.
+    let template = mode(&config.join("templates/script.in"));
+    assert_eq!(
+        template & 0o100,
+        0o100,
+        "the fixture template is executable"
+    );
+
     vanadis(&config, &state, &["apply", "paper-light"]);
-    assert_eq!(mode(&config.join("out/host-colors.sh")), 0o755);
+    assert_eq!(mode(&config.join("out/host-colors.sh")), template);
 }
 
 #[test]

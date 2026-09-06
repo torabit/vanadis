@@ -11,8 +11,7 @@ use thiserror::Error;
 use toml_edit::{DocumentMut, Item, Table, Value};
 
 use crate::config::TargetName;
-use crate::init::naming::display_name;
-use crate::theme::{ThemeId, Variant};
+use crate::theme::Variant;
 use crate::token::TokenPath;
 
 /// A file could not be written out.
@@ -35,18 +34,28 @@ pub enum EmitError {
 }
 
 /// A whole theme file holding `tokens`, in the format `docs/theme-format.md` decides.
+///
+/// `name` is `meta.name`, which the caller supplies rather than the emitter deriving:
+/// `init` has only the identifier to go on, while a converter has the display name the
+/// upstream scheme carries and would otherwise discard.
+///
+/// A `meta.*` token in `tokens` is written under the header rather than opening a second
+/// `[meta]` table, which is how `meta.author` reaches the file. `format`, `name` and
+/// `variant` are the header's, so a token must not repeat them.
 #[must_use]
-pub fn theme(id: &ThemeId, variant: Variant, tokens: &BTreeMap<TokenPath, String>) -> String {
+pub fn theme(name: &str, variant: Variant, tokens: &BTreeMap<TokenPath, String>) -> String {
     let mut file = String::new();
     let _ = writeln!(file, "[meta]");
     let _ = writeln!(file, "format = 1");
-    let _ = writeln!(file, "name = {}", quoted(&display_name(id)));
+    let _ = writeln!(file, "name = {}", quoted(name));
     let _ = writeln!(file, "variant = {}", quoted(variant.as_str()));
 
     for (namespace, keys) in grouped(tokens) {
-        let _ = writeln!(file);
-        if !namespace.is_empty() {
-            let _ = writeln!(file, "[{namespace}]");
+        if namespace != "meta" {
+            let _ = writeln!(file);
+            if !namespace.is_empty() {
+                let _ = writeln!(file, "[{namespace}]");
+            }
         }
         for (key, value) in keys {
             let _ = writeln!(file, "{key} = {}", quoted(value));
@@ -161,11 +170,7 @@ mod tests {
     }
 
     fn written(pairs: &[(&str, &str)]) -> String {
-        theme(
-            &ThemeId::parse("papercolor-light").unwrap(),
-            Variant::Light,
-            &tokens(pairs),
-        )
+        theme("Papercolor Light", Variant::Light, &tokens(pairs))
     }
 
     #[test]
@@ -195,6 +200,18 @@ mod tests {
     fn writes_the_ansi_slots_in_numeric_order() {
         let file = written(&[("ansi.10", "#eeeeee"), ("ansi.2", "#444444")]);
         assert!(file.contains("2 = \"#444444\"\n10 = \"#eeeeee\""), "{file}");
+    }
+
+    #[test]
+    fn writes_a_meta_token_under_the_header_rather_than_a_second_table() {
+        let file = written(&[("meta.author", "torabit"), ("role.bg", "#eeeeee")]);
+        assert_eq!(file.matches("[meta]").count(), 1, "{file}");
+        assert!(
+            file.starts_with(
+                "[meta]\nformat = 1\nname = \"Papercolor Light\"\nvariant = \"light\"\nauthor = \"torabit\"\n"
+            ),
+            "{file}"
+        );
     }
 
     #[test]

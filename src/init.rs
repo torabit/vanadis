@@ -5,7 +5,7 @@
 //! byte for byte.
 
 mod answer;
-mod emit;
+pub mod emit;
 mod naming;
 mod plan;
 mod scan;

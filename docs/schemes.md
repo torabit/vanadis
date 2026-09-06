@@ -71,7 +71,8 @@ lint config, scripts and two README files besides the schemes. Only entries matc
 shapes are written, and the leading directory is dropped:
 
 ```
-<root>/base16/<name>.yaml    <root>/base24/<name>.yaml    <root>/tinted8/<name>.yaml
+<root>/{base16,base24,tinted8}/<name>.yaml
+<root>/{base16,base24,tinted8}/<name>.yml
 <root>/LICENSE
 ```
 
@@ -79,8 +80,12 @@ shapes are written, and the leading directory is dropped:
 must be a regular file, so symlinks and hard links are skipped. Everything else in the
 archive is discarded.
 
+Both extensions are matched because the collection uses both. `base16/cyberpunk.yml` is the
+one file spelled `.yml`; every other scheme is `.yaml`. Matching only `.yaml` would drop a
+scheme and say nothing.
+
 This is a whitelist and not a sanitising pass. An entry naming `../../.ssh/authorized_keys`
-does not match one of the four shapes, so there is no path to sanitise and no traversal to
+matches none of the shapes above, so there is no path to sanitise and no traversal to
 defend against: nothing outside the three scheme directories is ever a write target. The same
 holds for an absolute path and for a deeper nesting.
 
@@ -94,8 +99,8 @@ An interrupted download or a malformed archive leaves the previous cache in plac
 ## Reading a scheme
 
 `search` needs five fields per scheme: the system, the identifier, the display name, the
-author and the variant. The identifier is the filename minus `.yaml`, as in `themes/`. The
-rest come out of the file, and the file's shape depends on the system.
+author and the variant. The identifier is the filename minus its extension, as in
+`themes/`. The rest come out of the file, and the file's shape depends on the system.
 
 base16 and base24 put everything at the top level. All 338 base16 and 196 base24 files carry
 `system`, `name`, `author` and `variant`.

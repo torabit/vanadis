@@ -1,0 +1,222 @@
+# Config format
+
+This document decides where vanadis keeps its files and how a user declares what to render.
+It builds on [docs/theme-format.md](theme-format.md), which decides the theme file, and
+[docs/core-vocabulary.md](core-vocabulary.md), which decides what a theme must define.
+
+`docs/examples/config.toml` is the reference file: the eleven targets in
+`tests/fixtures/templates/`, with `tests/fixtures/MANIFEST.tsv` mapping each template back to
+the file it was taken from.
+
+## Layout
+
+```
+~/.config/vanadis/
+├── config.toml
+└── themes/
+    ├── papercolor-light.toml
+    ├── papercolor-dark.toml
+    └── gruvbox-dark.toml
+```
+
+The directory is `$XDG_CONFIG_HOME/vanadis`, falling back to `~/.config/vanadis` when
+`XDG_CONFIG_HOME` is unset. `$VANADIS_CONFIG` replaces the whole directory, not just the
+file, so `themes/` moves with it. That is what lets an integration test point at a fixture
+tree, and it keeps the config and the themes it names from drifting to separate places.
+
+Themes are discovered by scanning `themes/` for `*.toml`. They are not listed in the config:
+the filename minus `.toml` is the identifier
+([docs/theme-format.md](theme-format.md#keys-and-token-paths) already requires it to be a
+valid segment), so a list would be a second place to write the same name and a second thing
+to keep in sync.
+
+**`themes/` is the only place scanned.** Additional scan directories were considered and
+rejected. Two directories holding `gruvbox-dark.toml` need a rule for which one wins, and a
+resolution order is what
+[docs/theme-format.md](theme-format.md#rejected-alternatives) declined to reintroduce when it
+rejected theme inheritance. A theme collection checked out elsewhere is reachable with a
+symlink inside `themes/`, which needs no format at all.
+
+Files in `themes/` that do not end in `.toml` are ignored. Subdirectories are ignored, since
+a theme nested one level down has no unambiguous identifier.
+
+## The file
+
+```toml
+[auto]
+light = "papercolor-light"
+dark = "papercolor-dark"
+
+[[targets]]
+name = "herdr"
+template = "templates/herdr/config.toml.in"
+output = "~/.config/herdr/config.toml"
+reload = ["herdr", "server", "reload-config"]
+
+[[targets]]
+name = "nvim"
+template = "templates/neovim/palette.lua.in"
+output = "~/.config/nvim/lua/palette.lua"
+themes = { light = "gruvbox-light", dark = "gruvbox-dark" }
+```
+
+### `[auto]`
+
+Optional. `light` and `dark` each name a theme, and both are required when the table is
+present.
+
+It is the table `vanadis apply --light` and `--dark` resolve through, so a shell hook can
+flip the whole set without knowing theme names. Naming a theme directly works with or without
+it. Only a bare `vanadis apply` with no `[auto]` fails, and it fails by saying to add the
+table or name a theme.
+
+**`[auto]` is a table, not appearance detection.** Reading the desktop's light/dark setting
+was considered and left out: the setting lives on the machine the terminal is on, which over
+SSH is not the machine vanadis runs on. Anything that needs to detect it can call
+`vanadis apply --dark`.
+
+### `[[targets]]`
+
+| key | required | value |
+| --- | --- | --- |
+| `name` | yes | the target's identifier, a valid segment, unique in the file |
+| `template` | yes | path to the template |
+| `output` | yes | path to write |
+| `reload` | no | argv to run after writing, as an array |
+| `themes` | no | `{ light = "...", dark = "..." }`, this target's own themes |
+
+`name` identifies the target, not the tool. Three of the eleven targets in the reference
+config belong to herdr — its config, one plugin's config, and a script it executes — so
+`herdr`, `herdr-thumbs` and `herdr-host-colors` are three names for one program. It is what
+`check` prints and what an error message names.
+
+### Paths
+
+A leading `~` expands to the home directory. A relative path resolves against the config
+directory, which is what lets the reference config write `templates/herdr/config.toml.in` and
+keep every template in one place.
+
+`$VAR` is not expanded. One expansion rule is enough, and a config that expands variables has
+to say when: at parse time, at apply time, and whether an unset variable is empty or an
+error.
+
+### `reload`
+
+An array of arguments, executed directly. No shell.
+
+```toml
+reload = ["herdr", "server", "reload-config"]
+```
+
+A shell string was the original sketch and is rejected. Measured against the corpus it buys
+nothing: of the eleven targets, two have a reload command at all, and neither
+`bat cache --build` nor `herdr server reload-config` needs a shell. Against it, a string
+makes what actually runs depend on which shell is installed and how the value quotes, and
+`--dry-run` cannot show the command without reimplementing word splitting. A pipeline is
+still reachable by writing a script and naming it here.
+
+**Most targets cannot be reloaded, and the format does not pretend otherwise.** Of the eleven:
+
+| target | how a change takes effect | vanadis can run it |
+| --- | --- | --- |
+| bat | `bat cache --build`, mandatory | yes |
+| herdr | `herdr server reload-config` | yes |
+| starship | next prompt | nothing to run |
+| nvim, btop, hunk, lazygit | restart the program | not a command |
+| zsh / fzf | `exec zsh` | no: it replaces the user's shell, and vanadis is a child process |
+
+So `reload` is optional and absent means nothing runs. It is not a hook system, and there is
+no `pre` counterpart: nothing in the corpus needs work done before a write.
+
+A reload that exits non-zero is reported and does not stop the remaining targets. The files
+are already written by then and a reload failure does not make them wrong.
+
+### `themes`
+
+The per-target override, and the reason someone with a favourite editor theme can adopt
+vanadis at all. A scheme's editor plugin colours far more than sixteen slots, so its base16
+port loses fidelity, and being told to give that up to use the tool is where adoption stops.
+
+Selection works in three steps:
+
+1. The theme to apply is the one named on the command line, or the one `[auto]` gives for the
+   requested mode.
+2. That theme's `variant` is the mode. It is read, never guessed —
+   [docs/theme-format.md](theme-format.md#metadata) makes `variant` a statement of intent
+   rather than something derived from a background colour.
+3. Each target with `themes` takes `themes[mode]`. Every other target takes the theme from
+   step 1.
+
+Light and dark therefore flip together no matter how many targets override, which is the
+point. A `themes` table without an entry for the mode being applied is an error, reported
+before anything is written.
+
+## Output
+
+**The output path must not encode the theme's name.** Two of the eleven show why. btop's
+generated theme is `papercolor-light.theme` and bat's is `PaperColor-Light.tmTheme`; applying
+gruvbox to either leaves a file still named for papercolor, and btop scans its themes
+directory and lists whatever it finds. The reference config writes `vanadis.theme` and
+`vanadis.tmTheme`.
+
+bat has a second layer that the config cannot reach: it selects a theme by the `name` inside
+the tmTheme, so a template writing `{{meta.name}}` moves the name bat has to be configured
+with. That is the template author's to solve, and it is worth knowing before writing one.
+
+**An output keeps the mode it already has.** A newly created output takes the template's
+mode. One of the eleven, `herdr/host-colors.py`, carries a shebang and is executed by herdr,
+so writing it back as a plain non-executable file breaks it. A `mode` key was considered and
+rejected: the filesystem already records the answer, and a third place to state it is a third
+place for it to disagree.
+
+## Order
+
+Every target renders before anything is written. A failure at any target — an undefined
+token, a missing theme, an unreadable template — writes nothing at all. This is the same
+guarantee [docs/core-vocabulary.md](core-vocabulary.md#a-missing-core-token-is-not-a-load-error)
+makes for a theme missing a core token, held at the config level so a half-applied set of
+configs is not a state the tool can produce.
+
+Writes happen in the order targets appear. Reloads run after every write, also in order.
+
+## Rejected alternatives
+
+**No config: scan for `*.in` and write the sibling path.** This is what the reference
+JavaScript renderer does, and it needs no config file at all. It works there because it scans
+one repository that it owns. vanadis's templates live wherever each tool's config lives, and
+scanning `~/.config` for `*.in` would claim files vanadis never wrote, with no way to know
+whether the sibling path is safe to overwrite. There is also nowhere to attach `reload` or a
+per-target theme.
+
+**Derive `output` from `template` by dropping `.in`.** All eleven fixtures follow this rule,
+so it is not a hypothetical saving. It is rejected because it forces every template to sit
+next to its output, inside the directory the tool reads — and btop enumerates that directory,
+so a `.theme.in` left there appears in its theme list. An explicit `output` also lets every
+template live in one place, which is what makes a template directory backed up or version
+controlled as a unit.
+
+**Listing themes in the config.** The filename is already the identifier, so a list restates
+it and can disagree with the directory.
+
+**A `type` key separating colour-only outputs from whole-file outputs.** The distinction is
+real for the person writing templates: an output that is only colours gets included by a
+hand-written config, while a whole-file output is destroyed by editing it directly. It is
+invisible to vanadis, which renders a template to a path either way, so it belongs in a
+template-authoring guide rather than in a schema.
+
+**`enabled = false` per target.** Deleting the entry or commenting it out already says it,
+and a disabled entry that still names a template invites the question of whether `check`
+should verify it.
+
+**A shell string for `reload`.** Covered above.
+
+**Additional theme scan directories.** Covered above.
+
+## Left open
+
+- What `vanadis apply` does with no argument and no `[auto]` beyond failing, which depends on
+  whether the applied theme is recorded anywhere.
+- Whether `check` verifies that a target's `output` is writable, or only that the render
+  succeeds.
+- Rendering one named theme to one path, which export templates need. It reads no
+  `[[targets]]` entry and so decides nothing here.

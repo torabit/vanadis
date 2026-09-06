@@ -221,14 +221,14 @@ mod tests {
 
     use std::io::Write as _;
 
-    /// A gzipped tar holding `entries`, each a path and its contents.
+    /// Raw (ungzipped) tar bytes holding `entries`, each a path and its contents.
     ///
     /// The path is written directly into the header's name field rather than through
     /// `Builder::append_data`, because the `tar` crate's own path-setting refuses to write a
     /// path that starts with `/` or contains `..`, exactly the hostile shapes these fixtures
     /// need to hold. A real hostile archive is not built by a well-behaved writer, so the
     /// fixture must be free to hold what the crate's safe API will not construct.
-    fn archive(entries: &[(&str, &str)]) -> Vec<u8> {
+    fn tarball(entries: &[(&str, &str)]) -> Vec<u8> {
         let mut builder = tar::Builder::new(Vec::new());
         for (path, body) in entries {
             let mut header = tar::Header::new_gnu();
@@ -240,11 +240,35 @@ mod tests {
             header.set_cksum();
             builder.append(&header, body.as_bytes()).unwrap();
         }
-        let tarball = builder.into_inner().unwrap();
+        builder.into_inner().unwrap()
+    }
 
+    /// Gzips `bytes`.
+    fn gzip(bytes: &[u8]) -> Vec<u8> {
         let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
-        encoder.write_all(&tarball).unwrap();
+        encoder.write_all(bytes).unwrap();
         encoder.finish().unwrap()
+    }
+
+    /// A gzipped tar holding `entries`, each a path and its contents.
+    fn archive(entries: &[(&str, &str)]) -> Vec<u8> {
+        gzip(&tarball(entries))
+    }
+
+    /// A gzipped tar with one entry fully written and a second cut off part way through.
+    ///
+    /// Each of the two entries below is a 512-byte header plus `NORD`'s 58 bytes padded out
+    /// to the same 512-byte data block, so the first entry ends, and the second's header
+    /// begins, exactly at byte 1024. Keeping only half of that second header (256 more
+    /// bytes) leaves the first entry whole and readable, and the second an incomplete
+    /// header the archive reader cannot parse, so `install` writes the first entry into
+    /// staging and then fails reading the second.
+    fn truncated() -> Vec<u8> {
+        let bytes = tarball(&[
+            ("schemes-spec-0.11/base16/nord.yaml", NORD),
+            ("schemes-spec-0.11/base16/other.yaml", NORD),
+        ]);
+        gzip(&bytes[..1024 + 256])
     }
 
     const NORD: &str = "system: \"base16\"\nname: \"Nord\"\nauthor: \"a\"\nvariant: \"dark\"\n";
@@ -392,10 +416,14 @@ mod tests {
     }
 
     #[test]
-    fn leaves_no_staging_directory_when_the_archive_is_not_readable() {
-        let schemes = target("no-staging-debris");
-        assert!(install(b"not a gzip stream at all", &schemes).is_err());
-        assert!(!schemes.parent().unwrap().join("schemes.incoming").exists());
+    fn leaves_no_staging_directory_when_a_write_fails_part_way_through() {
+        let schemes = target("no-staging");
+        // Truncated inside the second entry, so the first one is written and then the
+        // stream ends. Only a failure after a write can leave the staging directory
+        // behind, which is the whole of what this asserts.
+        let bytes = truncated();
+        assert!(install(&bytes, &schemes).is_err());
+        assert!(!staging(&schemes).exists());
     }
 
     #[test]

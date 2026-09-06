@@ -89,9 +89,12 @@ in the same verification.
 
 ## The core vocabulary
 
-Thirty-three tokens. Every theme is expected to define them, and a template that reads only
-these plus `meta.*` renders against every theme. That portability is the whole return on the
-core.
+Thirty-three tokens. A template that reads only these plus `meta.*` renders against every theme
+that defines the core, which is what a converter from an upstream scheme must emit and what a
+hand-written theme is aiming at. That portability is the whole return on the core.
+
+An incomplete theme is not an error, and nothing refuses to load it. A core token it omits
+surfaces the first time a template being rendered reads it.
 
 `[role]`, seventeen:
 
@@ -147,10 +150,12 @@ Ask what the colour is *for*, not what it looks like.
 
 ## Colour is not the only thing that flips
 
-The trap is that `check` cannot see this. Everything it inspects is a valid colour, so a dark
-palette rendered into a config that still asks fzf and delta for light mode passes clean.
+A config carries values that are not colours and still have to follow the theme: the word
+`light` in a flag, another tool's own theme name, a display name. Leave them and a dark palette
+gets rendered into a config that still asks fzf and delta for light mode.
 
-Sweep the file for non-colour values that name the variant or the theme:
+`check` cannot catch this. Everything it inspects is a valid colour, so that config passes
+clean. Sweeping for these is yours to do, once, while writing the template:
 
 | in the file | becomes |
 | --- | --- |
@@ -173,7 +178,8 @@ what lets `check` say a colour value is well-formed at all.
    colours-only file and leave the hand-written config to read it — then the hand-written file
    is never at risk of being overwritten. If it cannot, the whole file becomes the template and
    the file is generated from then on. See [references/templates.md](references/templates.md).
-3. **Copy, never move.** `cp` the file to `$VANADIS_CONFIG/templates/<name>/<basename>.in`.
+3. **Copy, never move.** `cp` the file to `templates/<name>/<basename>.in` under the config
+   directory — `${VANADIS_CONFIG:-~/.config/vanadis}`, and `$VANADIS_CONFIG` is usually unset.
    The original stays exactly where it is and becomes the target's `output`.
 4. **Double every `{{` and `}}` already in the copy.** `{{{{` renders as a literal `{{`. Do
    this for every pair, not only the ones that look like a token path — a stray `{{` in front of
@@ -336,7 +342,7 @@ everything else points at. `[ansi]`, `[role]` and any namespace the author adds 
 | --- | --- |
 | Editing a generated file | Overwritten by the next apply. `check` reports drift until then. |
 | Naming the output for the theme | The name is wrong after any switch, and tools that enumerate a themes directory show it. |
-| Leaving `{{` unescaped in a template | A tool with its own `{{...}}` placeholders — rio's `{{columns}}` — is a valid token path, undefined, and a hard error. |
+| Leaving `{{` unescaped in a template | A tool with its own `{{...}}` placeholders writes things like rio's `{{columns}}`, which is a valid token path, undefined, and a hard error. |
 | Guessing a `reload` command | A wrong command is worse than none. Absent means nothing runs and the user restarts the tool. |
 | A shell pipeline in `reload` | `reload` is argv, executed directly. Write a script and name the script. |
 | Tokenising a hex that is not a colour | A theme switch rewrites prose that was quoting a value, and the explanation becomes a lie. |

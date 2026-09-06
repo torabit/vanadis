@@ -33,7 +33,7 @@ use std::fmt;
 use saphyr::Yaml;
 
 use super::{ConvertError, Converted, hex, literal, variant};
-use crate::scheme::yaml;
+use crate::scheme::{System, yaml};
 use crate::token::TokenPath;
 
 /// Which member of the base16 family a scheme is written for.
@@ -100,6 +100,18 @@ const ROLES: [(&str, &str); 17] = [
 ];
 
 impl Family {
+    /// The system a scheme of this family is filed under.
+    ///
+    /// One to one, and it exists so an error names what the caller asked for rather than
+    /// the discriminator this module reads the palette with. tinted8 has no family and
+    /// reports the same error through the same variant.
+    fn system(self) -> System {
+        match self {
+            Self::Base16 => System::Base16,
+            Self::Base24 => System::Base24,
+        }
+    }
+
     /// The slots a scheme of this family has to carry.
     fn slots(self) -> Vec<&'static str> {
         let extended = EXTENDED.iter().map(|(slot, _)| *slot);
@@ -200,7 +212,7 @@ fn colour(palette: &Yaml<'_>, family: Family, slot: &str) -> Result<[u8; 3], Con
         None => yaml::optional(palette, &segment(slot))?,
     };
     let written = written.ok_or_else(|| ConvertError::Slot {
-        family,
+        system: family.system(),
         slot: slot.to_owned(),
     })?;
     hex(slot, written)

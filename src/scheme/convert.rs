@@ -21,6 +21,7 @@ use crate::theme::Variant;
 use crate::token::TokenPath;
 
 mod base16;
+mod tinted8;
 
 pub use base16::Family;
 
@@ -77,17 +78,11 @@ pub enum ConvertError {
         #[from]
         source: Problem,
     },
-    /// The system is one vanadis reads but does not convert yet.
-    #[error("`{system}` is not a scheme system vanadis converts")]
-    Unsupported {
-        /// The system the caller asked for.
-        system: System,
-    },
-    /// The palette is missing a slot the scheme's own family requires.
-    #[error("the {family} palette does not carry `{slot}`")]
+    /// The palette is missing a slot the scheme's own system requires.
+    #[error("the {system} palette does not carry `{slot}`")]
     Slot {
-        /// The family the slot is required by.
-        family: Family,
+        /// The system the slot is required by.
+        system: System,
         /// The slot that is not written.
         slot: String,
     },
@@ -99,28 +94,49 @@ pub enum ConvertError {
         /// The value as the scheme writes it.
         value: String,
     },
+    /// A key the scheme writes cannot become a token.
+    #[error("`{key}` cannot be a token: `{segment}` is not a token segment")]
+    Segment {
+        /// The key the scheme writes.
+        key: String,
+        /// The part of it that is not a segment.
+        segment: String,
+    },
+    /// Two of the scheme's keys reach one token.
+    #[error("the scheme writes `{path}` twice")]
+    Duplicate {
+        /// The token both keys reach.
+        path: TokenPath,
+    },
+    /// A key uses a segment the converter's own encoding has already spoken for.
+    #[error("`{key}` uses `{segment}`, which is reserved for a theming property's own colour")]
+    Reserved {
+        /// The key the scheme writes, up to and including the reserved segment.
+        key: String,
+        /// The segment it may not use.
+        segment: &'static str,
+    },
 }
 
 /// Converts the bytes of an upstream scheme of `system` into the theme model.
 ///
-/// `system` is the caller's and not the file's. base16 and base24 are what this converts
-/// today, both through the base16 family converter; tinted8 is
-/// [`ConvertError::Unsupported`].
+/// `system` is the caller's and not the file's. base16 and base24 go through the base16
+/// family converter, which reads one palette of numbered slots; tinted8 has its own, which
+/// reads a palette of named hues and the `syntax` and `ui` roles drawn on it.
 ///
 /// # Errors
 ///
-/// Returns [`ConvertError`] when the bytes are not UTF-8, are not a YAML mapping, name a
-/// system this does not convert, omit a field or a palette slot that system requires, or
-/// write a palette entry that is not `#rrggbb`.
+/// Returns [`ConvertError`] when the bytes are not UTF-8, are not a YAML mapping, omit a
+/// field or a palette slot the system requires, write a palette entry that is not
+/// `#rrggbb`, or write a key that cannot become a token.
 pub fn convert(system: System, bytes: &[u8]) -> Result<Converted, ConvertError> {
     let text = std::str::from_utf8(bytes).map_err(|source| ConvertError::Utf8 { source })?;
-    let family = match system {
-        System::Base16 => Family::Base16,
-        System::Base24 => Family::Base24,
-        System::Tinted8 => return Err(ConvertError::Unsupported { system }),
-    };
     let document = yaml::document(text)?;
-    base16::convert(&document, family)
+    match system {
+        System::Base16 => base16::convert(&document, Family::Base16),
+        System::Base24 => base16::convert(&document, Family::Base24),
+        System::Tinted8 => tinted8::convert(&document),
+    }
 }
 
 /// Which background a scheme is written for, taken from the scheme or read off `base00`.
@@ -310,13 +326,25 @@ mod tests {
         ));
     }
 
+    /// The caller's system picks the converter, and nothing in the file overrides it.
+    ///
+    /// The same bytes are a whole tinted8 scheme and not a base16 one, so reading them as
+    /// base16 reports the top-level `name` that system requires rather than converting
+    /// what the document declares itself to be.
     #[test]
-    fn reports_a_system_it_does_not_convert_yet() {
-        let source = b"scheme:\n  name: \"A\"\n  author: \"a\"\nvariant: \"dark\"\n";
+    fn reads_a_document_through_the_converter_its_system_names() {
+        let source = concat!(
+            "scheme:\n  system: \"tinted8\"\n  name: \"A\"\nvariant: \"dark\"\npalette:\n",
+            "  black: \"#000000\"\n  red: \"#000001\"\n  green: \"#000002\"\n",
+            "  yellow: \"#000003\"\n  blue: \"#000004\"\n  magenta: \"#000005\"\n",
+            "  cyan: \"#000006\"\n  white: \"#000007\"\n",
+        )
+        .as_bytes();
+        assert_eq!(convert(System::Tinted8, source).unwrap().name(), "A");
         assert!(matches!(
-            convert(System::Tinted8, source),
-            Err(ConvertError::Unsupported {
-                system: System::Tinted8
+            convert(System::Base16, source),
+            Err(ConvertError::Invalid {
+                source: Problem::Missing("name")
             })
         ));
     }

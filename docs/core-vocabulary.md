@@ -215,9 +215,14 @@ as `ansi.15` takes it. base06 and base0F are read by nothing, which is the same 
 export direction: neither has a plausible role name, and neither appears in the terminal's
 sixteen slots, so a shell is unaffected either way.
 
-base24 and tinted8 are wider than base16 and inherit this mapping through the slots they
-share with it. Where they name something base16 does not, their converters decide whether to
-use it; neither can be blocked by a core token base16 already fills.
+base24 is wider than base16 and inherits this mapping through the slots it shares with it.
+Where it names something base16 does not, its converter decides whether to use it.
+
+tinted8 shares no slot name with base16, so it inherits nothing from the table above and
+derives its own mapping from its own specification. That mapping is tabulated in the module
+documentation of `src/scheme/convert/tinted8.rs`, next to the code it decides.
+
+Neither can be blocked by a core token base16 already fills.
 
 ## Extras
 

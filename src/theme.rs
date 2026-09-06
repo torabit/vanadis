@@ -1,5 +1,6 @@
 //! Theme files: parsing, validation and reference resolution.
 
+use std::fmt;
 use std::path::{Path, PathBuf};
 
 use thiserror::Error;
@@ -33,10 +34,48 @@ impl ThemeId {
     }
 }
 
+/// Which background a theme is written for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Variant {
+    /// Written for a dark background.
+    Dark,
+    /// Written for a light background.
+    Light,
+}
+
+impl Variant {
+    /// Parses `text` as a variant, returning `None` when it is neither `dark` nor `light`.
+    #[must_use]
+    pub fn parse(text: &str) -> Option<Self> {
+        match text {
+            "dark" => Some(Self::Dark),
+            "light" => Some(Self::Light),
+            _ => None,
+        }
+    }
+
+    /// The variant as a theme file spells it.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Dark => "dark",
+            Self::Light => "light",
+        }
+    }
+}
+
+impl fmt::Display for Variant {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// A theme, loaded and fully resolved.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Theme {
     id: ThemeId,
+    name: String,
+    variant: Variant,
     tokens: Tokens,
 }
 
@@ -128,16 +167,28 @@ impl Theme {
         problems.extend(resolve::problems(&definitions, &walked.namespaces));
         problems.sort_by_key(Problem::line);
 
-        if problems.is_empty() {
-            Ok(Self {
-                id,
-                tokens: resolve::resolve(&definitions),
-            })
-        } else {
-            Err(ThemeError::Invalid {
+        if !problems.is_empty() {
+            return Err(ThemeError::Invalid {
                 path: path.to_owned(),
                 problems,
-            })
+            });
+        }
+
+        let tokens = resolve::resolve(&definitions);
+        let line = definitions
+            .get(&meta_path("variant"))
+            .map_or(0, |definition| definition.line);
+        match metadata(&tokens, line) {
+            Ok((name, variant)) => Ok(Self {
+                id,
+                name,
+                variant,
+                tokens,
+            }),
+            Err(problem) => Err(ThemeError::Invalid {
+                path: path.to_owned(),
+                problems: vec![problem],
+            }),
         }
     }
 
@@ -147,10 +198,48 @@ impl Theme {
         &self.id
     }
 
+    /// The theme's display name, `meta.name`.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// The background the theme is written for, `meta.variant`.
+    #[must_use]
+    pub fn variant(&self) -> Variant {
+        self.variant
+    }
+
     /// Every token the theme defines, resolved.
     #[must_use]
     pub fn tokens(&self) -> &Tokens {
         &self.tokens
+    }
+}
+
+/// `meta.name` and `meta.variant`, read back out of the resolved tokens.
+///
+/// `walk::meta_problems` has already established that both keys are written and that
+/// `variant` reads `dark` or `light`, so nothing here is reachable from a theme file that
+/// got this far. It is reported rather than panicked on. `line` is the line `variant` is
+/// written on.
+fn metadata(tokens: &Tokens, line: usize) -> Result<(String, Variant), Problem> {
+    match (
+        tokens.get(&meta_path("name")),
+        tokens.get(&meta_path("variant")),
+    ) {
+        (Some(name), Some(value)) => Variant::parse(value)
+            .map(|variant| (name.to_owned(), variant))
+            .ok_or_else(|| Problem::MetaVariant {
+                line,
+                value: value.to_owned(),
+            }),
+        (None, _) => Err(Problem::MetaMissing {
+            key: "name".to_owned(),
+        }),
+        (_, None) => Err(Problem::MetaMissing {
+            key: "variant".to_owned(),
+        }),
     }
 }
 
@@ -538,5 +627,20 @@ mod tests {
                 line: 6,
             }]
         );
+    }
+
+    #[test]
+    fn reads_the_variant() {
+        assert_eq!(parse(META).unwrap().variant(), Variant::Light);
+    }
+
+    #[test]
+    fn reads_the_display_name() {
+        assert_eq!(parse(META).unwrap().name(), "Paper");
+    }
+
+    #[test]
+    fn writes_a_variant_the_way_a_theme_file_spells_it() {
+        assert_eq!(Variant::Dark.to_string(), "dark");
     }
 }

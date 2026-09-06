@@ -258,7 +258,11 @@ Refusing turns that collision into a message; overwriting would turn it into whi
 ran last.
 
 The write is staged beside the destination and renamed over it, the way every other write in
-vanadis is. A `--force` that fails part way through leaves the theme that was there intact.
+vanadis is. A `--force` that fails part way through leaves the theme that was there intact. It
+also replaces a theme file that is a symlink with a regular file, for the reason
+[docs/config.md](config.md#an-output-that-is-a-symlink-is-replaced) gives about an output; a
+`themes/` directory linked as one folded directory is unaffected, and one holding a link per
+file is not.
 
 ### Provenance
 

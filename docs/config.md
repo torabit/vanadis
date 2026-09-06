@@ -275,6 +275,56 @@ so writing it back as a plain non-executable file breaks it. A `mode` key was co
 rejected: the filesystem already records the answer, and a third place to state it is a third
 place for it to disagree.
 
+### An output that is a symlink is replaced
+
+Every write is staged as `<output>.vanadis-new` and renamed over the output, which is what
+[Order](#order) needs: a rename is the one operation that cannot leave a half-written file
+where a config was. A rename also replaces a symlink with a regular file. So a target whose
+`output` is a symlink has the link the first time it is applied, and a regular file every time
+after.
+
+```
+$ ls -l ~/.config/hunk/config.toml
+lrwxrwxrwx  ~/.config/hunk/config.toml -> ~/dotfiles/hunk/config.toml
+$ vanadis apply nord
+$ ls -l ~/.config/hunk/config.toml
+-rw-r--r--  ~/.config/hunk/config.toml
+```
+
+The file in the dotfiles repository is not touched, and the next `stow` finds a real file where
+its link was.
+
+Writing through the symlink instead was considered and is not done. It keeps the link, and it
+also makes an apply write into a path the user did not name: the output would be wherever the
+link happens to point, which for a dotfiles repository is a tracked file. Naming the file to be
+written is what `output` is for, and a rename cannot both preserve a link and stay atomic.
+
+### Managing vanadis with a symlink farm
+
+This matters because symlink farms are how dotfiles are managed, and vanadis is a build tool
+for dotfiles. The arrangement that works treats a generated config as a build artifact, which
+is not something to symlink or to commit:
+
+```
+dotfiles/vanadis/.config/vanadis/     stowed, tracked
+├── config.toml
+├── templates/
+└── themes/
+
+~/.config/<tool>/...                  written by vanadis, not stowed, not tracked
+~/.local/state/vanadis/state.toml     not tracked, and outside the config directory already
+```
+
+An `output` names a file vanadis owns. Switching themes then changes nothing the repository can
+see, because [State](#state) already keeps the applied theme out of the config directory for
+this reason. Importing a theme shows up as one new file under `themes/`, which is a source and
+is meant to be committed.
+
+The trade is that a machine without vanadis has no config for those tools until it runs one
+apply. Pointing `output` at the real file inside the repository rather than at the link keeps
+the symlink working, at the cost of a diff on every theme switch. Both are arrangements the
+format allows; neither is one vanadis enforces.
+
 ## Order
 
 Every target renders before anything is written. A failure at any target — an undefined

@@ -207,6 +207,12 @@ what lets `check` say a colour value is well-formed at all.
 9. **Then show `vanadis apply <theme> --diff`** and let the user decide before you run the
    apply.
 
+**`output` must not be a symlink.** vanadis renames the rendered file over the output, which
+replaces a link with a regular file and leaves the dotfiles repository behind it untouched. If
+the user manages dotfiles with Stow, chezmoi or `ln -s`, the generated config is a build
+artifact: it is not symlinked and not committed, and only `config.toml`, `templates/` and
+`themes/` go in the repository. `docs/config.md` records this under Output.
+
 ### `[[targets]]` keys
 
 | key | required | value |

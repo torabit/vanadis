@@ -1,0 +1,90 @@
+# The eleven targets in tests/fixtures/templates/, written in the format decided in
+# docs/config.md. tests/fixtures/MANIFEST.tsv maps each template back to the file it was
+# taken from.
+#
+# Template paths mirror tests/fixtures/templates/ under the vanadis config directory, so
+# every entry here reads across to one fixture. Output paths are where the tool actually
+# looks.
+
+# Consulted by `vanadis apply --light` and `--dark`. Optional: naming a theme works without
+# it, and only a bare `vanadis apply` needs it.
+[auto]
+light = "papercolor-light"
+dark = "papercolor-dark"
+
+# bat matches a theme by the name inside the tmTheme, not by the filename, so the file is
+# named for vanadis rather than for the theme it currently holds. `bat cache --build` is not
+# optional: without it bat keeps serving the cached theme.
+[[targets]]
+name = "bat"
+template = "templates/bat/PaperColor-Light.tmTheme.in"
+output = "~/.config/bat/themes/vanadis.tmTheme"
+reload = ["bat", "cache", "--build"]
+
+# btop scans its themes directory and lists what it finds, so the output is named for
+# vanadis. A file named papercolor-light.theme would still be called that after a switch to
+# gruvbox.
+[[targets]]
+name = "btop"
+template = "templates/btop/papercolor-light.theme.in"
+output = "~/.config/btop/themes/vanadis.theme"
+
+# Three targets belong to herdr, so `name` is the target's identifier rather than the tool's.
+[[targets]]
+name = "herdr"
+template = "templates/herdr/config.toml.in"
+output = "~/.config/herdr/config.toml"
+reload = ["herdr", "server", "reload-config"]
+
+[[targets]]
+name = "herdr-thumbs"
+template = "templates/herdr/config.env.in"
+output = "~/.config/herdr/plugins/config/sd2k.thumbs/config.env"
+
+# A script, not a config file. It carries a shebang and herdr executes it, so the output has
+# to stay executable.
+[[targets]]
+name = "herdr-host-colors"
+template = "templates/herdr/host-colors.py.in"
+output = "~/.config/herdr/bin/host-colors.py"
+
+[[targets]]
+name = "hunk"
+template = "templates/hunk/config.toml.in"
+output = "~/.config/hunk/config.toml"
+
+[[targets]]
+name = "lazygit"
+template = "templates/lazygit/theme.yml.in"
+output = "~/.config/lazygit/theme.yml"
+
+# The per-target override. A scheme's editor plugin colours far more than this palette
+# carries, so nvim stays on gruvbox while everything else follows papercolor. The variant
+# still comes from the theme being applied, so all eleven outputs flip light and dark
+# together.
+[[targets]]
+name = "nvim"
+template = "templates/neovim/palette.lua.in"
+output = "~/.config/nvim/lua/palette.lua"
+themes = { light = "gruvbox-light", dark = "gruvbox-dark" }
+
+# rio runs on the machine the terminal is on, which is not always the machine vanadis runs
+# on. This entry writes the config rio would read locally.
+[[targets]]
+name = "rio"
+template = "templates/rio/config.toml.in"
+output = "~/.config/rio/config.toml"
+
+# starship rereads its config on every prompt, so there is nothing to reload.
+[[targets]]
+name = "starship"
+template = "templates/starship/starship.toml.in"
+output = "~/.config/starship.toml"
+
+# fzf reads these colours from the environment, so the shell has to be replaced for a change
+# to show. `exec zsh` replaces the user's shell and vanadis runs as a child process, so it
+# cannot be a reload command.
+[[targets]]
+name = "zsh"
+template = "templates/zsh/palette.zsh.in"
+output = "~/.config/zsh/palette.zsh"

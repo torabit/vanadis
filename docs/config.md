@@ -42,6 +42,9 @@ a theme nested one level down has no unambiguous identifier.
 
 ## The file
 
+Every name below is the user's. vanadis ships no themes and carries no list of tools, so
+`papercolor-light` is a file in `themes/` and `herdr` is whatever the user called that entry.
+
 ```toml
 [auto]
 light = "papercolor-light"
@@ -86,8 +89,9 @@ SSH is not the machine vanadis runs on. Anything that needs to detect it can cal
 | `themes` | no | `{ light = "...", dark = "..." }`, this target's own themes |
 
 `name` identifies the target, not the tool. Three of the eleven targets in the reference
-config belong to herdr — its config, one plugin's config, and a script it executes — so
-`herdr`, `herdr-thumbs` and `herdr-host-colors` are three names for one program. It is what
+config belong to herdr, a terminal multiplexer — its config, one plugin's config, and a
+script it executes — so `herdr`, `herdr-thumbs` and `herdr-host-colors` are three names for
+one program. It is what
 `check` prints and what an error message names.
 
 ### Paths
@@ -119,11 +123,11 @@ still reachable by writing a script and naming it here.
 
 | target | how a change takes effect | vanadis can run it |
 | --- | --- | --- |
-| bat | `bat cache --build`, mandatory | yes |
-| herdr | `herdr server reload-config` | yes |
-| starship | next prompt | nothing to run |
-| nvim, btop, hunk, lazygit | restart the program | not a command |
-| zsh / fzf | `exec zsh` | no: it replaces the user's shell, and vanadis is a child process |
+| bat, a pager | `bat cache --build`, mandatory | yes |
+| herdr, a terminal multiplexer | `herdr server reload-config` | yes |
+| starship, a shell prompt | next prompt | nothing to run |
+| nvim, btop, hunk, lazygit — an editor, a system monitor, a diff viewer, a git UI | restart the program | not a command |
+| zsh with fzf, a shell and a fuzzy finder | `exec zsh` | no: it replaces the user's shell, and vanadis is a child process |
 
 So `reload` is optional and absent means nothing runs. It is not a hook system, and there is
 no `pre` counterpart: nothing in the corpus needs work done before a write.
@@ -153,11 +157,11 @@ before anything is written.
 
 ## Output
 
-**The output path must not encode the theme's name.** Two of the eleven show why. btop's
-generated theme is `papercolor-light.theme` and bat's is `PaperColor-Light.tmTheme`; applying
-gruvbox to either leaves a file still named for papercolor, and btop scans its themes
-directory and lists whatever it finds. The reference config writes `vanadis.theme` and
-`vanadis.tmTheme`.
+**The output path must not encode the theme's name.** Two of the eleven show why. The
+generated theme for btop, a system monitor, is `papercolor-light.theme`, and bat's is
+`PaperColor-Light.tmTheme`; applying gruvbox to either leaves a file still named for
+papercolor, and btop lists whatever it finds in its themes directory. The reference config
+writes `vanadis.theme` and `vanadis.tmTheme`.
 
 bat has a second layer that the config cannot reach: it selects a theme by the `name` inside
 the tmTheme, so a template writing `{{meta.name}}` moves the name bat has to be configured
@@ -206,11 +210,9 @@ template-authoring guide rather than in a schema.
 
 **`enabled = false` per target.** Deleting the entry or commenting it out already says it,
 and a disabled entry that still names a template invites the question of whether `check`
-should verify it.
-
-**A shell string for `reload`.** Covered above.
-
-**Additional theme scan directories.** Covered above.
+should verify it. The premise is that a target is turned off by hand and stays off; a use
+that turned targets on and off per machine, or per invocation, would need something the
+comment character cannot express.
 
 ## Left open
 

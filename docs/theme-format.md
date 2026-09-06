@@ -10,9 +10,9 @@ reference.
 ## Why not an existing scheme system
 
 The requirement is a vocabulary the theme author chooses. A template needs `diff.added-bg`
-because its author's lazygit config needs a diff background; the next person needs something
-else. No fixed list of slots satisfies that, and every existing scheme system is a fixed list
-of slots.
+because its author's git UI needs a diff background; the next person needs something else. No
+fixed list of slots satisfies that, and every existing scheme system is a fixed list of
+slots.
 
 That is the whole argument. Two weaker arguments are worth setting aside first, because they
 are the obvious ones and they do not hold.
@@ -206,11 +206,12 @@ undefined (`{{role.acent}}`) is a hard error. Single braces are always literal, 
 `{{{{` renders as literal `{{` and `}}}}` as literal `}}`. Neither sequence occurs in the
 golden templates, so the escape costs nothing there.
 
-It is needed because rio uses `{{...}}` for its own title placeholders and matches them with
-`\{\{(.*?)\}\}`, then trims and lowercases — to rio, `{{ columns }}` and `{{columns}}` are the
-same thing. The fixture happens to be written with spaces, which is the only reason it passes
-through today. Written the way rio's own documentation writes it, `{{columns}}` is a valid
-token path, undefined, and a hard error. `{{{{columns}}}}` says what the author means.
+It is needed because rio, a terminal emulator, uses `{{...}}` for its own title placeholders and
+matches them with `\{\{(.*?)\}\}`, then trims and lowercases — to rio, `{{ columns }}` and
+`{{columns}}` are the same thing. The fixture happens to be written with spaces, which is the
+only reason it passes through today. Written the way rio's own documentation writes it,
+`{{columns}}` is a valid token path, undefined, and a hard error. `{{{{columns}}}}` says what
+the author means.
 
 ### Chains
 

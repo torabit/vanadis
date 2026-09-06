@@ -80,9 +80,9 @@ price.
 
 ### Why `[diff]` is not core
 
-`lazygit/theme.yml.in` reads `diff.added-bg`, `diff.added-emph`, `diff.removed-bg` and
-`diff.removed-emph`. It is the one template held back from the core by something other than a
-hue name, so the case is worth stating.
+`lazygit/theme.yml.in`, the template for a git UI, reads `diff.added-bg`, `diff.added-emph`,
+`diff.removed-bg` and `diff.removed-emph`. It is the one template held back from the core by
+something other than a hue name, so the case is worth stating.
 
 No upstream scheme carries a diff background. base16 and base24 are foreground slots plus a
 handful of background steps, none of them a tint of green or red. tinted8 has
@@ -103,7 +103,8 @@ removed, and the templates already use them that way.
 All sixteen are required, which is the answer
 [docs/theme-format.md](theme-format.md#layers) states without arguing for.
 
-`rio/config.toml.in` is the only template that reads `[ansi]` and it reads every slot. A
+`rio/config.toml.in`, a terminal emulator's config, is the only template that reads `[ansi]`
+and it reads every slot. A
 partial `[ansi]` would render a terminal config with a hole in it, and a terminal keeps
 whatever colour it had for a slot the config does not set, so the hole is invisible until
 some program prints in that colour. base16 fills all sixteen from ten distinct slots, so
@@ -180,7 +181,8 @@ Slot meanings are from the base16 styling specification, `home/styling.md` v0.4.
 
 `linenr` takes base04 rather than base01, whose stated meaning names line numbers. base01 is
 a background and base04 is a foreground; `role.linenr` colours the digits, not the column
-behind them. `hunk/config.toml.in` reads it as `lineNumberFg`, which is the same reading.
+behind them. The template for hunk, a diff viewer, reads it as `lineNumberFg`, which is the
+same reading.
 
 All seventeen `role` tokens are filled. `[ansi]` is filled by the table in
 [docs/theme-format.md](theme-format.md#a-base16-scheme-in-this-format), which draws on ten
@@ -234,9 +236,6 @@ theme with one more extra.
 
 ## Rejected alternatives
 
-**The eight-token starting point.** Measured against the templates it leaves nine of
-seventeen out. Covered above.
-
 **Renaming `linenr` and `visual`.** Both are Vim's vocabulary rather than neutral names, and
 `linenr` is read by exactly one template. Renaming them means editing
 `tests/fixtures/templates/` and `tests/fixtures/expected/`, and
@@ -246,7 +245,10 @@ the names are at least the ones a Vim or Neovim config author already knows.
 
 **A core of base16's sixteen slots.** This is base16. The tool's stated niche is rendering
 arbitrary templates from a vocabulary the theme author chooses, and adopting a fixed
-sixteen-slot core would put the fixed list back in the one place it was removed from.
+sixteen-slot core would put the fixed list back in the one place it was removed from. The
+rejection rests on the niche rather than on any measurement, so it stands as long as the
+niche does: a vanadis that only ever rendered base16 schemes would have no reason to refuse
+base16's vocabulary.
 
 **Promoting `colors.purple`, `colors.brown` and `colors.slate` to `role`.** They are the only
 reason four templates are theme-bound, so promoting them would buy real portability. It is
@@ -257,10 +259,6 @@ name in the semantic layer, which is the distinction
 Whether a converter emits appearance-name aliases into `[colors]` — `purple` pointing at
 `base0E` — is the converter's own decision, and would fix those four templates without
 touching the core.
-
-**`[diff]` in the core, with the converter synthesising tints.** Covered above. It puts
-derived colour inside the converter, which is the thing
-[docs/theme-format.md](theme-format.md#left-open) holds open for a separate design.
 
 **Requiring a theme to declare its extras.** A `[extras]` list, or a per-namespace opt-in.
 Nothing would read it. `check` finds an undefined token by resolving the template against the

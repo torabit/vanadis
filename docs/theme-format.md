@@ -107,8 +107,8 @@ carries, and a rule its own reference file breaks is not a rule.
 leading zeros, no sub-tables. Any other key is an error, so `ansi.N` always means slot N.
 All sixteen must be present; see
 [docs/core-vocabulary.md](core-vocabulary.md#why-all-sixteen-ansi-slots). Terminals with
-extended slots put them in
-`[colors]` alongside everything else; `[ansi]` stays exactly sixteen.
+extended slots put them in `[colors]` alongside everything else; `[ansi]` stays exactly
+sixteen.
 
 **`[text]`** — string values that are not colours. See [Values](#values).
 

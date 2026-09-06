@@ -1,11 +1,8 @@
 # Core vocabulary
 
-Decides [#2](https://github.com/torabit/vanadis/issues/2). Enforced by
-[#8](https://github.com/torabit/vanadis/issues/8), filled by
-[#13](https://github.com/torabit/vanadis/issues/13) and
-[#14](https://github.com/torabit/vanadis/issues/14). Builds on
-[docs/theme-format.md](theme-format.md), which decides the file format and leaves this
-document the question of which tokens every theme must define.
+This document decides which tokens every theme must define. It builds on
+[docs/theme-format.md](theme-format.md), which decides the file format and defers this
+question here.
 
 The core is the set of token paths a template may rely on without binding itself to one
 theme. A template that reads only core tokens renders against every theme. A template that
@@ -64,10 +61,11 @@ core, for the reason below.
 
 ### Why seventeen and not eight
 
-#2 proposed `bg`, `fg`, `comment`, `keyword`, `string`, `error`, `ok`, `warn` as a starting
-point. Counting what the golden templates actually reference settles it: the eleven templates
-name every one of the seventeen `role` tokens in `tests/fixtures/palette.json` and no others.
-There is no unused role token to drop.
+The obvious starting point is the eight names any syntax-highlighting vocabulary has: `bg`,
+`fg`, `comment`, `keyword`, `string`, `error`, `ok`, `warn`. Counting what the golden
+templates actually reference settles it against that. The eleven templates name every one of
+the seventeen `role` tokens in `tests/fixtures/palette.json` and no others. There is no
+unused role token to drop.
 
 The nine tokens the starting point omits are what makes the core worth having. Under an
 eight-token core exactly one template — `herdr/host-colors.py.in`, which reads `role.bg` and
@@ -95,14 +93,15 @@ failure case exactly, and
 
 So `[diff]` is an extra, `lazygit/theme.yml.in` is theme-specific, and it is pinned to its
 theme the same way `bat/PaperColor-Light.tmTheme.in` is pinned by `{{colors.purple}}`:
-`check` reports it, and #3's per-target theme override is what keeps it rendering.
+`check` reports it, and a per-target theme override is what keeps it rendering.
 
 The diff *foregrounds* need no new token. `role.ok` and `role.error` already carry added and
 removed, and the templates already use them that way.
 
 ### Why all sixteen ANSI slots
 
-[docs/theme-format.md](theme-format.md#layers) left this open. All sixteen are required.
+All sixteen are required, which is the answer
+[docs/theme-format.md](theme-format.md#layers) states without arguing for.
 
 `rio/config.toml.in` is the only template that reads `[ansi]` and it reads every slot. A
 partial `[ansi]` would render a terminal config with a hole in it, and a terminal keeps
@@ -127,31 +126,31 @@ the failures [docs/theme-format.md](theme-format.md#errors) makes fatal — bad 
 reference cycle, a key that is not a segment, a non-string value — are all cases where a
 value cannot be produced at all. Incompleteness is not one of them.
 
-Treating it as one would also be disproportionate. Themes are discovered from a directory
-(#3, #6), so a hard load error on incompleteness would mean one unfinished file makes
+Treating it as one would also be disproportionate. Themes are discovered by enumerating a
+directory, so a hard load error on incompleteness would mean one unfinished file makes
 `vanadis list` fail, and with it every command that has to enumerate themes. A broken theme
 should cost the user that theme, not the tool.
 
-**`check` (#8) is the only place the core is enforced.** It reports every missing core token
-by name and exits non-zero. That is what `check` is for, and it is the moment the answer is
+**`check` is the only place the core is enforced.** It reports every missing core token by
+name and exits non-zero. That is what `check` is for, and it is the moment the answer is
 useful: before an apply, not after one has half-written a config.
 
-**`apply` (#7) fails only when a template it is rendering actually references a token the
-theme does not define**, which is #5's undefined-token error and needs nothing added here. It
-fails atomically: every target renders before anything is written, so a failure leaves no
-file touched. A theme missing `role.linenr` applies cleanly to a target whose templates never
-mention it.
+**`apply` fails only when a template it is rendering actually references a token the theme
+does not define**, which is the renderer's undefined-token error and needs nothing added
+here. It fails atomically: every target renders before anything is written, so a failure
+leaves no file touched. A theme missing `role.linenr` applies cleanly to a target whose
+templates never mention it.
 
 `list`, `current` and `get` never fail because a theme is incomplete.
 
-`init` (#10) writes the whole core into the skeleton it generates, so a hand-written theme
-starts complete and stays complete unless someone deletes a line.
+`init` writes the whole core into the skeleton it generates, so a hand-written theme starts
+complete and stays complete unless someone deletes a line.
 
 ### Converters must fill the entire core
 
-The rule above is about hand-written themes. A converter is held to more: #13 and #14 must
-emit every core token or the conversion is a bug. An imported theme that fails `check` on the
-day it is written would make importing pointless.
+The rule above is about hand-written themes. A converter is held to more: it must emit every
+core token or the conversion is a bug. An imported theme that fails `check` on the day it is
+written would make importing pointless.
 
 The mapping below is the proof that the requirement is met for base16, which is the tightest
 of the three formats.
@@ -207,8 +206,8 @@ export direction: neither has a plausible role name, and neither appears in the 
 sixteen slots, so a shell is unaffected either way.
 
 base24 and tinted8 are wider than base16 and inherit this mapping through the slots they
-share with it. Where they name something base16 does not, #13 and #14 decide whether to use
-it; neither can be blocked by a core token base16 already fills.
+share with it. Where they name something base16 does not, their converters decide whether to
+use it; neither can be blocked by a core token base16 already fills.
 
 ## Extras
 
@@ -220,7 +219,8 @@ In `docs/examples/papercolor-light.toml` the extras are the nineteen appearance 
 `[colors]`, the four tints in `[diff]`, and the two strings in `[text]`.
 
 Reading an extra is what makes a template theme-specific. That is a property of the template,
-reported by `check` and managed by #3's per-target override, and never an error in the theme.
+reported by `check` and managed by a per-target theme override, and never an error in the
+theme.
 
 ## Versioning
 
@@ -234,7 +234,7 @@ theme with one more extra.
 
 ## Rejected alternatives
 
-**The eight-token starting point in #2.** Measured against the templates it leaves nine of
+**The eight-token starting point.** Measured against the templates it leaves nine of
 seventeen out. Covered above.
 
 **Renaming `linenr` and `visual`.** Both are Vim's vocabulary rather than neutral names, and
@@ -255,7 +255,8 @@ filling a slot in catppuccin's palette by hue, and a `role.purple` would be an a
 name in the semantic layer, which is the distinction
 [docs/theme-format.md](theme-format.md#layers) draws between `[colors]` and everything else.
 Whether a converter emits appearance-name aliases into `[colors]` — `purple` pointing at
-`base0E` — is still #13's, and would fix those four templates without touching the core.
+`base0E` — is the converter's own decision, and would fix those four templates without
+touching the core.
 
 **`[diff]` in the core, with the converter synthesising tints.** Covered above. It puts
 derived colour inside the converter, which is the thing

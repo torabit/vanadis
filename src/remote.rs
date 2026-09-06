@@ -24,6 +24,15 @@ pub struct Installed {
 /// The collection could not be cached.
 #[derive(Debug, Error)]
 pub enum RemoteError {
+    /// The source could not be reached.
+    #[error("cannot reach {url}")]
+    Fetch {
+        /// The URL that was asked for.
+        url: String,
+        /// Why it could not be reached.
+        #[source]
+        source: Box<ureq::Error>,
+    },
     /// The archive could not be read as a gzipped tar.
     #[error("{url}: not a readable archive: {source}")]
     Archive {
@@ -103,6 +112,51 @@ pub fn install(archive: &[u8], directory: &Path) -> Result<Installed, RemoteErro
         source,
     })?;
     Ok(installed)
+}
+
+/// How long one fetch may take in all, including connecting and reading.
+const TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// The most an archive may weigh. The collection is under a hundred kilobytes.
+const CEILING: u64 = 32 * 1024 * 1024;
+
+/// Downloads the archive at `url`.
+///
+/// # Errors
+///
+/// Returns [`RemoteError::Fetch`] when the request fails, which includes every reason a
+/// machine that is offline gives.
+pub fn fetch(url: &str) -> Result<Vec<u8>, RemoteError> {
+    let failed = |error: ureq::Error| RemoteError::Fetch {
+        url: url.to_owned(),
+        source: Box::new(error),
+    };
+
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .timeout_global(Some(TIMEOUT))
+        .user_agent(concat!("vanadis/", env!("CARGO_PKG_VERSION")))
+        .build()
+        .into();
+
+    agent
+        .get(url)
+        .call()
+        .map_err(failed)?
+        .into_body()
+        .into_with_config()
+        .limit(CEILING)
+        .read_to_vec()
+        .map_err(failed)
+}
+
+/// Fetches the collection and caches it under `directory`.
+///
+/// # Errors
+///
+/// Returns whatever [`fetch`] or [`install`] returns.
+pub fn update(directory: &Path) -> Result<Installed, RemoteError> {
+    let archive = fetch(SOURCE)?;
+    install(&archive, directory)
 }
 
 /// Writes every entry `archive` holds that the whitelist accepts into `staging`.
@@ -434,5 +488,17 @@ mod tests {
             install(&bytes, &schemes),
             Err(RemoteError::Empty { .. })
         ));
+    }
+
+    #[test]
+    fn reports_a_source_it_cannot_reach() {
+        let error = fetch("https://vanadis.invalid/schemes.tar.gz").unwrap_err();
+        assert!(matches!(error, RemoteError::Fetch { .. }), "{error:?}");
+    }
+
+    #[test]
+    fn names_the_source_it_could_not_reach() {
+        let error = fetch("https://vanadis.invalid/schemes.tar.gz").unwrap_err();
+        assert!(error.to_string().contains("vanadis.invalid"), "{error}");
     }
 }

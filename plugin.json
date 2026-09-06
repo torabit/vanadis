@@ -1,0 +1,19 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "vanadis",
+  "description": "Writing a vanadis config.toml, templates and themes: picking a token for a colour, what belongs in reload, and diagnosing a failing check.",
+  "author": {
+    "name": "torabit",
+    "url": "https://github.com/torabit"
+  },
+  "homepage": "https://github.com/torabit/vanadis",
+  "repository": "https://github.com/torabit/vanadis",
+  "license": "MIT OR Apache-2.0",
+  "keywords": [
+    "dotfiles",
+    "colorscheme",
+    "theme",
+    "templating",
+    "cli"
+  ]
+}

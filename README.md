@@ -18,6 +18,7 @@ One palette. Templates alongside your existing configs. One command renders them
 reloads the tools that can reload.
 
 ```
+vanadis init ~/.config/hunk/config.toml   # turn a config you already have into a template
 vanadis apply nord
 vanadis apply --variant dark
 vanadis check                   # do the generated files still match their templates?

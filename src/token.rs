@@ -30,6 +30,12 @@ impl TokenPath {
         self.0.split('.').next().unwrap_or_default()
     }
 
+    /// The last segment, which names the token inside its namespace.
+    #[must_use]
+    pub fn leaf(&self) -> &str {
+        self.0.rsplit('.').next().unwrap_or_default()
+    }
+
     /// The segments the path is made of.
     pub fn segments(&self) -> impl Iterator<Item = &str> {
         self.0.split('.')
@@ -152,6 +158,16 @@ mod tests {
     #[test]
     fn rejects_a_trailing_hyphen() {
         assert!(!parses("role.bg-"));
+    }
+
+    #[test]
+    fn reads_the_last_segment_of_a_path() {
+        assert_eq!(TokenPath::parse("role.git.added").unwrap().leaf(), "added");
+    }
+
+    #[test]
+    fn reads_a_single_segment_as_its_own_leaf() {
+        assert_eq!(TokenPath::parse("bg").unwrap().leaf(), "bg");
     }
 
     #[test]

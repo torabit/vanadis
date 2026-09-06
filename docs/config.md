@@ -8,6 +8,9 @@ It builds on [docs/theme-format.md](theme-format.md), which decides the theme fi
 `tests/fixtures/templates/`, with `tests/fixtures/MANIFEST.tsv` mapping each template back to
 the file it was taken from.
 
+[docs/init.md](init.md) decides how `vanadis init` produces a template, a theme and a
+`[[targets]]` entry from a config file that already exists.
+
 ## Layout
 
 ```

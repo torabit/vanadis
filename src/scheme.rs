@@ -1,9 +1,24 @@
-//! One scheme out of the tinted-theming collection.
+//! One scheme out of the tinted-theming collection, and the conversion of one into a theme.
+//!
+//! [`Scheme`] is a scheme's header: what `search` prints and what `import` credits. The
+//! converter is [`convert`], which turns the same file's palette into [`Converted`] and
+//! fails with [`ConvertError`]. [`Family`] is the base16 converter's own discriminator and
+//! is not [`System`]; the two are told apart in `scheme::convert::base16`.
+//!
+//! ```text
+//! scheme.rs                  System, Scheme, Problem, SchemeError
+//! scheme/cache.rs            the cache directory, and searching it
+//! scheme/yaml.rs             the only reader of a scheme's YAML
+//! scheme/convert.rs          Converted, ConvertError, convert
+//! scheme/convert/base16.rs   Family, the base16 and base24 mapping tables
+//! ```
 //!
 //! `docs/schemes.md` decides that the system comes from the directory the file sits in and
 //! not from the file's own `system` field, that the identifier is the filename minus its
 //! extension, and that tinted8 nests its header under `scheme` while base16 and base24 do
-//! not.
+//! not. `docs/theme-format.md` decides what the converted theme holds and
+//! `docs/core-vocabulary.md` decides the mapping onto the core and the rule the converter is
+//! held to: a converter fills the entire core or the conversion is a bug.
 //!
 //! Every read of a scheme's YAML goes through the `yaml` submodule, both the header this
 //! module reads and the palette the converter reads. One layer means one answer to what an
@@ -95,6 +110,11 @@ pub enum Problem {
     ///
     /// Separate from [`Problem::Missing`] on purpose. A file writing a mapping under `name`
     /// has a `name` field; reporting it as absent would name the wrong defect.
+    ///
+    /// A key written with no value, as in a bare `name:`, is this and not
+    /// [`Problem::Missing`]. YAML says the key exists and holds null, and the line did write
+    /// the key, so the fix is to the value and this is what points at it. Settled; not a
+    /// case to special-case back.
     #[error("`{key}` is not {expected}")]
     Type {
         /// The field that holds it.
@@ -424,11 +444,115 @@ palette:
         );
     }
 
+    /// Every shape a scheme file can have that is not a mapping. `main` reached the header
+    /// on all of them and reported the first field as absent; a sequence has no `name` field
+    /// to be absent, it is the wrong kind of file.
     #[test]
     fn reports_a_file_whose_document_is_not_a_mapping() {
+        for source in ["- nord\n", "---\n", "nord\n"] {
+            assert_eq!(
+                Scheme::parse(System::Base16, "x", source).unwrap_err(),
+                Problem::Document,
+                "{source:?}"
+            );
+        }
+    }
+
+    /// The tinted8 path reached the same check by a different route: `main` reported
+    /// `Missing("scheme")`, because a sequence has no `scheme` key either.
+    #[test]
+    fn reports_a_tinted8_file_whose_document_is_not_a_mapping() {
         assert_eq!(
-            Scheme::parse(System::Base16, "x", "- nord\n").unwrap_err(),
+            Scheme::parse(System::Tinted8, "x", "- nord\n").unwrap_err(),
             Problem::Document
+        );
+    }
+
+    /// tinted8's `scheme` is the block the header sits in. A file writing a string there
+    /// wrote the key, so it is not absent, and the block is what the type check is about.
+    ///
+    /// The follow-up tinted8 converter reads this same key for the display name. Pinning the
+    /// answer here is what gives that branch something to agree with.
+    #[test]
+    fn reports_a_tinted8_scheme_key_that_is_not_a_mapping() {
+        assert_eq!(
+            Scheme::parse(
+                System::Tinted8,
+                "x",
+                "scheme: \"Nord\"\nvariant: \"dark\"\n"
+            )
+            .unwrap_err(),
+            Problem::Type {
+                key: "scheme".to_owned(),
+                expected: "a mapping",
+            }
+        );
+    }
+
+    /// Every key the header reads as a string, each written as an integer instead.
+    ///
+    /// `main` reported all six as absent, because its reader turned a value it could not
+    /// read into a key it had not found. The two tinted8 name spellings are both here: a
+    /// `family` that is not a string is not a file that spells its name some other way.
+    #[test]
+    fn separates_a_wrong_type_from_an_absent_field_on_every_key_it_reads() {
+        let cases = [
+            (
+                System::Base16,
+                "name",
+                "name: 42\nauthor: \"a\"\nvariant: \"dark\"\n",
+            ),
+            (
+                System::Base16,
+                "author",
+                "name: \"A\"\nauthor: 42\nvariant: \"dark\"\n",
+            ),
+            (
+                System::Base16,
+                "variant",
+                "name: \"A\"\nauthor: \"a\"\nvariant: 42\n",
+            ),
+            (
+                System::Tinted8,
+                "name",
+                "scheme:\n  name: 42\n  author: \"a\"\nvariant: \"dark\"\n",
+            ),
+            (
+                System::Tinted8,
+                "family",
+                "scheme:\n  family: 42\n  style: \"Latte\"\n  author: \"a\"\nvariant: \"dark\"\n",
+            ),
+            (
+                System::Tinted8,
+                "style",
+                "scheme:\n  family: \"Catppuccin\"\n  style: 42\n  author: \"a\"\nvariant: \"dark\"\n",
+            ),
+        ];
+        assert_eq!(cases.len(), 6, "the header reads six keys as strings");
+
+        for (system, key, source) in cases {
+            assert_eq!(
+                Scheme::parse(system, "x", source).unwrap_err(),
+                Problem::Type {
+                    key: key.to_owned(),
+                    expected: "a string",
+                },
+                "{system} {key}"
+            );
+        }
+    }
+
+    /// A key written with no value is a key the file wrote. `Problem::Type` records why this
+    /// is not `Missing`.
+    #[test]
+    fn reports_a_key_written_with_no_value_as_a_wrong_type() {
+        let source = "name:\nauthor: \"a\"\nvariant: \"dark\"\n";
+        assert_eq!(
+            Scheme::parse(System::Base16, "x", source).unwrap_err(),
+            Problem::Type {
+                key: "name".to_owned(),
+                expected: "a string",
+            }
         );
     }
 

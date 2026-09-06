@@ -44,6 +44,14 @@ impl Cache {
     /// anything that is not a file, are ignored, which is what keeps the collection's
     /// `LICENSE` out of the results.
     ///
+    /// Sorting compares the file stem, not the whole path: the identifier is the stem, and
+    /// `docs/schemes.md` promises identifier order. Sorting the whole filename instead would
+    /// let the extension take part in the comparison, and it can disagree with the stem —
+    /// `nord-light.yaml` sorts before `nord.yaml` because `-` (0x2D) is less than `.` (0x2E),
+    /// even though `nord` is the earlier identifier. The full path is kept as a tiebreak, so
+    /// `x.yaml` and `x.yml` sort in a fixed order rather than whatever `read_dir` happened to
+    /// yield, a pair the collection does not have today but could.
+    ///
     /// # Errors
     ///
     /// Returns [`CacheError::Missing`] when `directory` does not exist, and
@@ -75,7 +83,7 @@ impl Cache {
                         && path.is_file()
                 })
                 .collect();
-            files.sort();
+            files.sort_by(|left, right| (left.file_stem(), left).cmp(&(right.file_stem(), right)));
 
             for file in files {
                 match Scheme::load(system, &file) {
@@ -135,9 +143,18 @@ mod tests {
             [
                 "base16/cyberpunk",
                 "base16/nord",
+                "base16/nord-light",
                 "base24/dracula",
                 "tinted8/catppuccin-latte"
             ]
+        );
+    }
+
+    #[test]
+    fn orders_a_prefix_pair_by_identifier_and_not_by_filename() {
+        assert_eq!(
+            qualified(&cache().search("nord")),
+            ["base16/nord", "base16/nord-light"]
         );
     }
 
@@ -171,7 +188,10 @@ mod tests {
 
     #[test]
     fn finds_a_scheme_by_name() {
-        assert_eq!(qualified(&cache().search("nord")), ["base16/nord"]);
+        assert_eq!(
+            qualified(&cache().search("nord")),
+            ["base16/nord", "base16/nord-light"]
+        );
     }
 
     #[test]
@@ -183,7 +203,7 @@ mod tests {
     fn finds_every_scheme_of_one_system() {
         assert_eq!(
             qualified(&cache().search("base16/")),
-            ["base16/cyberpunk", "base16/nord"]
+            ["base16/cyberpunk", "base16/nord", "base16/nord-light"]
         );
     }
 
@@ -191,7 +211,7 @@ mod tests {
     fn finds_every_scheme_of_one_variant() {
         assert_eq!(
             qualified(&cache().search("light")),
-            ["tinted8/catppuccin-latte"]
+            ["base16/nord-light", "tinted8/catppuccin-latte"]
         );
     }
 

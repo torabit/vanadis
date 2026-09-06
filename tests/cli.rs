@@ -230,7 +230,8 @@ fn finds_every_scheme_matching_the_query() {
     let output = vanadis(&config(), &state, &["search", "nord"]);
     assert_eq!(
         stdout(&output),
-        "  base16/nord  dark  Nord  arcticicestudio\n"
+        "  base16/nord        dark   Nord        arcticicestudio\n  \
+         base16/nord-light  light  Nord Light  threddast\n"
     );
 }
 
@@ -240,8 +241,9 @@ fn pads_the_identifier_and_the_name_into_columns() {
     let output = vanadis(&config(), &state, &["search", "base16/"]);
     assert_eq!(
         stdout(&output),
-        "  base16/cyberpunk  dark  Cyberpunk  benjujo\n  \
-         base16/nord       dark  Nord       arcticicestudio\n"
+        "  base16/cyberpunk   dark   Cyberpunk   benjujo\n  \
+         base16/nord        dark   Nord        arcticicestudio\n  \
+         base16/nord-light  light  Nord Light  threddast\n"
     );
 }
 

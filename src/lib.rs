@@ -29,7 +29,7 @@ pub use init::{Answer, Binding, Colour, InitError, Occurrence, Scan, Unhandled};
 pub use paths::{Environment, PathsError};
 pub use remote::{Installed, RemoteError};
 pub use scheme::cache::{Cache, CacheError};
-pub use scheme::{Scheme, SchemeError, System};
+pub use scheme::{ConvertError, Converted, Family, Scheme, SchemeError, System, convert};
 pub use state::{State, StateError};
 pub use template::{Template, TemplateError, UndefinedToken};
 pub use theme::{Problem, Theme, ThemeError, ThemeId, Variant};

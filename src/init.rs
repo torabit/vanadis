@@ -12,7 +12,7 @@ mod scan;
 mod weave;
 
 pub use answer::{Answer, AnswerError, answer};
-pub use emit::EmitError;
+pub use emit::{EmitError, theme};
 pub use naming::{display_name, suggest};
 pub use plan::{Draft, InitError, Plan, Written, plan};
 pub use scan::{Colour, Occurrence, Scan, Unhandled, scan};

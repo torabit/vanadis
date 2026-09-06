@@ -194,6 +194,18 @@ error: cannot reach https://github.com/tinted-theming/schemes/archive/refs/heads
 the cached schemes are unchanged; `vanadis search` still reads them
 ```
 
+The source answers, but not with the archive:
+
+```
+error: https://github.com/tinted-theming/schemes/archive/refs/heads/spec-0.11.tar.gz answered 404
+the cached schemes are unchanged; `vanadis search` still reads them
+```
+
+There is no `caused by:` line: the message already says everything. A status gets its own
+message rather than folding into "cannot reach" because the URL answered: the machine is not
+offline. The likeliest reason is that the branch the constant names, pinned in
+[The source](#the-source), is gone.
+
 The last line names what still works, because the common case for a failed fetch is a laptop
 that is offline and already holds the collection. It is omitted when there is no cache, where
 it would be false. It is why `remote update` prints its own failure instead of returning it:

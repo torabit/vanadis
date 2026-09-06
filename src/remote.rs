@@ -33,6 +33,14 @@ pub enum RemoteError {
         #[source]
         source: Box<ureq::Error>,
     },
+    /// The source answered, but not with the archive.
+    #[error("{url} answered {status}")]
+    Status {
+        /// The URL that was asked for.
+        url: String,
+        /// The status it answered with.
+        status: u16,
+    },
     /// The archive could not be read as a gzipped tar.
     #[error("{url}: not a readable archive")]
     Archive {
@@ -125,12 +133,19 @@ const CEILING: u64 = 32 * 1024 * 1024;
 ///
 /// # Errors
 ///
-/// Returns [`RemoteError::Fetch`] when the request fails, which includes every reason a
-/// machine that is offline gives.
+/// Returns [`RemoteError::Status`] when the source answers with a non-success HTTP status,
+/// and [`RemoteError::Fetch`] for every other reason it could not be reached, which includes
+/// every reason a machine that is offline gives.
 pub(crate) fn fetch(url: &str) -> Result<Vec<u8>, RemoteError> {
-    let failed = |error: ureq::Error| RemoteError::Fetch {
-        url: url.to_owned(),
-        source: Box::new(error),
+    let failed = |error: ureq::Error| match error {
+        ureq::Error::StatusCode(status) => RemoteError::Status {
+            url: url.to_owned(),
+            status,
+        },
+        other => RemoteError::Fetch {
+            url: url.to_owned(),
+            source: Box::new(other),
+        },
     };
 
     let agent: ureq::Agent = ureq::Agent::config_builder()
@@ -501,5 +516,25 @@ mod tests {
     fn names_the_source_it_could_not_reach() {
         let error = fetch("https://vanadis.invalid/schemes.tar.gz").unwrap_err();
         assert!(error.to_string().contains("vanadis.invalid"), "{error}");
+    }
+
+    #[test]
+    fn a_status_reads_differently_from_a_fetch_failure() {
+        // A real non-success status would need a request, which no test here makes. This
+        // constructs both variants directly and checks only that the source answering with
+        // a status is not mistaken, in its message, for the source not answering at all.
+        let status = RemoteError::Status {
+            url: "https://vanadis.invalid/schemes.tar.gz".to_owned(),
+            status: 404,
+        };
+        let fetch = RemoteError::Fetch {
+            url: "https://vanadis.invalid/schemes.tar.gz".to_owned(),
+            source: Box::new(ureq::Error::HostNotFound),
+        };
+        assert_ne!(status.to_string(), fetch.to_string());
+        assert_eq!(
+            status.to_string(),
+            "https://vanadis.invalid/schemes.tar.gz answered 404"
+        );
     }
 }

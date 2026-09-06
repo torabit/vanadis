@@ -444,7 +444,8 @@ palette:
 
     #[test]
     fn matches_on_the_name_without_case() {
-        assert!(base16("nord").matches("NORD"));
+        let scheme = Scheme::parse(System::Base16, "x", BASE16).unwrap();
+        assert!(scheme.matches("NORD"));
     }
 
     #[test]

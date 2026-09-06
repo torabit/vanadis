@@ -160,7 +160,10 @@ mod tests {
 
     #[test]
     fn reads_a_scheme_whose_file_ends_in_yml() {
-        assert!(qualified(&cache().search("cyberpunk")).contains(&"base16/cyberpunk".to_owned()));
+        assert_eq!(
+            qualified(&cache().search("cyberpunk")),
+            ["base16/cyberpunk"]
+        );
     }
 
     #[test]
@@ -189,8 +192,8 @@ mod tests {
     #[test]
     fn finds_a_scheme_by_name() {
         assert_eq!(
-            qualified(&cache().search("nord")),
-            ["base16/nord", "base16/nord-light"]
+            qualified(&cache().search("nord light")),
+            ["base16/nord-light"]
         );
     }
 

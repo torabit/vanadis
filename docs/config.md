@@ -103,6 +103,9 @@ Every name below is the user's. vanadis ships no themes and carries no list of t
 light = "papercolor-light"
 dark = "papercolor-dark"
 
+[cycle]
+themes = ["papercolor-light", "nord", "gruvbox-dark", "everforest"]
+
 [[targets]]
 name = "herdr"
 template = "templates/herdr/config.toml.in"
@@ -134,6 +137,48 @@ says the same thing and says it out loud.
 was considered and left out: the setting lives on the machine the terminal is on, which over
 SSH is not the machine vanadis runs on. Anything that needs to detect it can call
 `vanadis apply --variant dark`.
+
+### `[cycle]`
+
+Optional. `themes` is the list `vanadis cycle` steps through, in the order it is written.
+
+```
+$ vanadis current
+papercolor-light
+$ vanadis cycle
+applied nord
+wrote herdr nvim
+```
+
+Everything after the theme is chosen is `apply`: the same targets, the same order, the same
+output, the same state file written at the end.
+
+**The position is the applied theme's place in the list.** It is not an index in the state
+file. An index would be a second record of where the machine is, and it and `theme` can
+disagree: `apply nord` moves one and not the other, and nothing could then say which of the
+two is right. Looking the applied theme up costs a scan of a list a person typed by hand.
+
+It follows that the list may not write one theme twice, and that is rejected when the file
+loads. Two entries with one name give the lookup two answers, it takes the first, and the
+cycle can never step past it. It also follows that a list of fewer than two themes is
+rejected: stepping through one theme re-applies it, which `apply` already says in fewer
+words.
+
+A theme the list does not name, and a machine that has applied nothing at all, both start the
+cycle at the first entry. Neither is an error. `apply` names any theme it likes and is not
+required to stay inside the cycle, and a user who has just written the table and run `cycle`
+is asking to begin.
+
+`--dry-run` and `--diff` are the same two `apply` carries, and mean the same thing: nothing is
+written, so the position does not move and the next run steps to the same theme.
+
+**Whether the themes exist is not checked here.** That matches `[auto]`, which also holds
+identifiers and not files. A cycle that steps to a theme `themes/` does not hold fails the way
+`apply` naming it fails, which is the message that already exists for it.
+
+**There is no `--back`.** The list wraps, so the way back from an overshoot is round. A
+second direction is a flag to add when somebody is cycling a list long enough for that to be
+tedious, and it needs no decision recorded before then.
 
 ### `[[targets]]`
 

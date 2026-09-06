@@ -1,4 +1,8 @@
-//! `vanadis apply`, driven as the user drives it, against a copy of a fixture tree.
+//! `vanadis apply` and `vanadis cycle`, driven as the user drives them, against a copy of a
+//! fixture tree.
+//!
+//! `cycle` is `apply` reached by a different route, so it is here rather than in a file of
+//! its own: it shares the fixture, the harness and everything after the theme is chosen.
 
 use std::fs;
 use std::os::unix::fs::PermissionsExt as _;
@@ -299,4 +303,110 @@ fn shows_no_diff_for_a_target_that_would_not_change() {
         "{}",
         stdout(&output)
     );
+}
+
+/// `docs/config.md`: the position is the applied theme's place in the list.
+#[test]
+fn applies_the_theme_after_the_one_in_use() {
+    let (config, state) = workspace("cycle-next", "apply");
+    vanadis(&config, &state, &["apply", "paper-light"]);
+    let output = vanadis(&config, &state, &["cycle"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(
+        stdout(&output).starts_with("applied nord\n"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn wraps_the_cycle_at_the_end_of_the_list() {
+    let (config, state) = workspace("cycle-wrap", "apply");
+    vanadis(&config, &state, &["apply", "ink-dark"]);
+    let output = vanadis(&config, &state, &["cycle"]);
+    assert!(
+        stdout(&output).starts_with("applied paper-light\n"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+/// A machine that has applied nothing has no position, so the cycle starts.
+#[test]
+fn starts_the_cycle_when_nothing_has_been_applied() {
+    let (config, state) = workspace("cycle-fresh", "apply");
+    let output = vanadis(&config, &state, &["cycle"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(
+        stdout(&output).starts_with("applied paper-light\n"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+/// `sea-light` is a theme the cycle does not name, which `apply` is free to have applied.
+#[test]
+fn starts_the_cycle_from_a_theme_the_list_does_not_name() {
+    let (config, state) = workspace("cycle-outside", "apply");
+    vanadis(&config, &state, &["apply", "sea-light"]);
+    let output = vanadis(&config, &state, &["cycle"]);
+    assert!(
+        stdout(&output).starts_with("applied paper-light\n"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn writes_the_outputs_of_the_theme_it_steps_to() {
+    let (config, state) = workspace("cycle-writes", "apply");
+    vanadis(&config, &state, &["apply", "ink-dark"]);
+    vanadis(&config, &state, &["cycle"]);
+    assert_eq!(read(&config.join("out/one.conf")), "bg=#eeeeee\n");
+}
+
+/// Two runs step two places, which is the whole point of reading the position back.
+#[test]
+fn steps_one_place_per_run() {
+    let (config, state) = workspace("cycle-twice", "apply");
+    vanadis(&config, &state, &["apply", "paper-light"]);
+    vanadis(&config, &state, &["cycle"]);
+    let output = vanadis(&config, &state, &["cycle"]);
+    assert!(
+        stdout(&output).starts_with("applied ink-dark\n"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn writes_nothing_on_a_dry_run() {
+    let (config, state) = workspace("cycle-dry", "apply");
+    vanadis(&config, &state, &["apply", "paper-light"]);
+    let before = read(&config.join("out/one.conf"));
+
+    let output = vanadis(&config, &state, &["cycle", "--dry-run"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(
+        stdout(&output).starts_with("would apply nord\n"),
+        "{}",
+        stdout(&output)
+    );
+    assert_eq!(read(&config.join("out/one.conf")), before);
+
+    // The position did not move either, so the next real cycle still steps to `nord`.
+    let output = vanadis(&config, &state, &["cycle"]);
+    assert!(
+        stdout(&output).starts_with("applied nord\n"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn says_a_config_that_writes_no_cycle_has_nothing_to_step_through() {
+    let (config, state) = workspace("cycle-none", "apply-reload");
+    let output = vanadis(&config, &state, &["cycle"]);
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("[cycle]"), "{}", stderr(&output));
 }

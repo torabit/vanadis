@@ -5,6 +5,11 @@
 light = "paper-light"
 dark = "ink-dark"
 
+# `sea-light` is deliberately left out, so a cycle can be stepped from a theme it does not
+# name.
+[cycle]
+themes = ["paper-light", "nord", "ink-dark"]
+
 [[targets]]
 name = "one"
 template = "templates/simple.in"

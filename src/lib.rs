@@ -24,7 +24,7 @@ pub mod vocabulary;
 pub use apply::{Applied, ApplyError, Plan, Rendered, apply, plan, render};
 pub use catalog::{Catalog, CatalogError};
 pub use check::{CheckError, Disk, Finding, Report, check, compare};
-pub use config::{Config, ConfigError, Target, TargetName};
+pub use config::{Config, ConfigError, Cycle, Target, TargetName};
 pub use diff::unified;
 pub use import::{ImportError, Imported, import};
 pub use init::{Answer, Binding, Colour, InitError, Occurrence, Scan, Unhandled};

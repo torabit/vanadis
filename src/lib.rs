@@ -6,6 +6,7 @@
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
 pub mod catalog;
+pub mod config;
 pub mod paths;
 pub mod state;
 pub mod template;
@@ -13,6 +14,7 @@ pub mod theme;
 pub mod token;
 
 pub use catalog::{Catalog, CatalogError};
+pub use config::{Config, ConfigError, Target, TargetName};
 pub use paths::{Environment, PathsError};
 pub use state::{State, StateError};
 pub use template::{Template, TemplateError, UndefinedToken};

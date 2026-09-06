@@ -234,6 +234,43 @@ configs is not a state the tool can produce.
 
 Writes happen in the order targets appear. Reloads run after every write, also in order.
 
+## Checking
+
+`vanadis check` renders every target in memory and compares the result against the file on
+disk. It reports four things, and any of them exits non-zero:
+
+| finding | what it means |
+| --- | --- |
+| drift | the output no longer holds what its template renders |
+| missing | the output has not been written yet, or has been deleted |
+| unreadable | the output exists and cannot be read |
+| unrenderable | the target does not render, so an apply would fail on it |
+
+Findings go to stdout, one per finding. A clean run prints the number of targets checked.
+
+A target that cannot be checked costs that target and nothing else. The remaining targets are
+still checked, which is the call
+[the theme scan](#layout) already makes for a file that will not load.
+
+`vanadis check` with no argument checks against the state file, so `[targets]` is honoured and
+a machine left on a partial apply reports clean. `vanadis check <theme>` and
+`vanadis check --variant dark` check against that theme instead. That is what makes it a CI
+step: a fresh checkout has no state file, and CI knows which theme the committed outputs were
+generated from.
+
+**`check` does not test whether an output is writable.** It reads. Testing a write means
+performing one, and the answer is stale by the time an apply runs. An unwritable output is
+`apply`'s to report, and it reports it before replacing anything, because every write is
+staged beside its destination first.
+
+`vanadis apply <theme> --dry-run` renders the same way and writes nothing, naming the targets
+whose output would change and the reload commands that would run. `--diff` adds a unified
+diff of each, and implies `--dry-run`.
+
+The list `--dry-run` prints is shorter than the one a real apply prints afterwards.
+`--dry-run` answers "what would change". An apply writes every target it rendered, whether or
+not the bytes moved.
+
 ## Rejected alternatives
 
 **No config: scan for `*.in` and write the sibling path.** This is what the reference
@@ -267,7 +304,5 @@ comment character cannot express.
 
 ## Left open
 
-- Whether `check` verifies that a target's `output` is writable, or only that the render
-  succeeds.
 - Rendering one named theme to one path, which export templates need. It reads no
   `[[targets]]` entry and so decides nothing here.

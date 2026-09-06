@@ -198,3 +198,94 @@ fn refuses_an_apply_that_names_neither_a_theme_nor_a_variant() {
     assert!(!output.status.success());
     assert!(!config.join("out").exists());
 }
+
+#[test]
+fn writes_nothing_when_it_is_only_told_what_it_would_do() {
+    let (config, state) = workspace("apply-dry-run", "apply");
+    let output = vanadis(&config, &state, &["apply", "paper-light", "--dry-run"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(!config.join("out").exists());
+}
+
+#[test]
+fn names_the_targets_it_would_write() {
+    let (config, state) = workspace("apply-dry-run-reports", "apply");
+    let output = vanadis(&config, &state, &["apply", "paper-light", "--dry-run"]);
+    assert!(
+        stdout(&output).contains("would write one"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn names_the_reload_it_would_run() {
+    let (config, state) = workspace("apply-dry-run-reload", "apply");
+    let output = vanadis(&config, &state, &["apply", "paper-light", "--dry-run"]);
+    assert!(
+        stdout(&output).contains("would run: true"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn records_no_theme_when_it_is_only_told_what_it_would_do() {
+    let (config, state) = workspace("apply-dry-run-state", "apply");
+    vanadis(&config, &state, &["apply", "paper-light", "--dry-run"]);
+    let output = vanadis(&config, &state, &["current"]);
+    assert!(!output.status.success());
+}
+
+#[test]
+fn refuses_a_partial_dry_run_before_a_whole_apply() {
+    let (config, state) = workspace("apply-dry-run-only", "apply");
+    let output = vanadis(
+        &config,
+        &state,
+        &["apply", "nord", "--only", "two", "--dry-run"],
+    );
+    assert!(!output.status.success());
+}
+
+#[test]
+fn shows_a_unified_diff_of_what_would_change() {
+    let (config, state) = workspace("apply-diff", "apply");
+    vanadis(&config, &state, &["apply", "paper-light"]);
+    let output = vanadis(&config, &state, &["apply", "nord", "--diff"]);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    let two = config.join("out/two.conf");
+    let two = two.display();
+    let stdout = stdout(&output);
+    assert!(
+        stdout.contains(&format!("--- {two}\n+++ {two}\n")),
+        "{stdout}"
+    );
+    assert!(stdout.contains("-background = \"#eeeeee\""), "{stdout}");
+    assert!(stdout.contains("+background = \"#2e3440\""), "{stdout}");
+}
+
+#[test]
+fn writes_nothing_when_it_is_only_showing_a_diff() {
+    let (config, state) = workspace("apply-diff-writes", "apply");
+    vanadis(&config, &state, &["apply", "paper-light"]);
+    vanadis(&config, &state, &["apply", "nord", "--diff"]);
+    assert_eq!(
+        read(&config.join("out/two.conf")),
+        "background = \"#eeeeee\"\n"
+    );
+}
+
+#[test]
+fn shows_no_diff_for_a_target_that_would_not_change() {
+    let (config, state) = workspace("apply-diff-unchanged", "apply");
+    vanadis(&config, &state, &["apply", "paper-light"]);
+    let output = vanadis(&config, &state, &["apply", "paper-light", "--diff"]);
+    assert!(!stdout(&output).contains("---"), "{}", stdout(&output));
+    assert!(
+        !stdout(&output).contains("would write"),
+        "{}",
+        stdout(&output)
+    );
+}

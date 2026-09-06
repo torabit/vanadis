@@ -1,0 +1,7 @@
+system: "base16"
+name: "Nord"
+author: "arcticicestudio"
+variant: "dark"
+palette:
+  base00: "#2E3440"
+  base05: "#E5E9F0"

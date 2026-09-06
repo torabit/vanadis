@@ -2,6 +2,8 @@
 //!
 //! `docs/config.md` decides the layout: `$VANADIS_CONFIG` replaces the whole config
 //! directory, and the state file stays outside it, under `$XDG_STATE_HOME`.
+//! `docs/schemes.md` decides that the scheme cache stays outside it too, under
+//! `$XDG_CACHE_HOME`.
 
 use std::path::{Path, PathBuf};
 
@@ -13,6 +15,7 @@ pub struct Environment {
     vanadis_config: Option<PathBuf>,
     xdg_config_home: Option<PathBuf>,
     xdg_state_home: Option<PathBuf>,
+    xdg_cache_home: Option<PathBuf>,
     home: Option<PathBuf>,
 }
 
@@ -37,6 +40,7 @@ impl Environment {
             vanadis_config: variable("VANADIS_CONFIG"),
             xdg_config_home: variable("XDG_CONFIG_HOME"),
             xdg_state_home: variable("XDG_STATE_HOME"),
+            xdg_cache_home: variable("XDG_CACHE_HOME"),
             home: std::env::home_dir(),
         }
     }
@@ -91,6 +95,31 @@ impl Environment {
         )
     }
 
+    /// The directory downloaded data is cached in.
+    ///
+    /// This does not move with `$VANADIS_CONFIG`. `docs/schemes.md` decides that the cache
+    /// is downloaded data rather than something a user writes, so it follows
+    /// `$XDG_CACHE_HOME` and is safe to delete.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PathsError::NoHome`] when nothing names it and there is no home directory.
+    pub fn cache_dir(&self) -> Result<PathBuf, PathsError> {
+        if let Some(directory) = set(self.xdg_cache_home.as_ref()) {
+            return Ok(directory.join("vanadis"));
+        }
+        self.under_home(&[".cache", "vanadis"], "cache directory", "XDG_CACHE_HOME")
+    }
+
+    /// The directory the tinted-theming scheme collection is cached in.
+    ///
+    /// # Errors
+    ///
+    /// Returns whatever [`Environment::cache_dir`] returns.
+    pub fn schemes_dir(&self) -> Result<PathBuf, PathsError> {
+        Ok(self.cache_dir()?.join("schemes"))
+    }
+
     /// `tail` under the home directory.
     fn under_home(
         &self,
@@ -124,6 +153,7 @@ mod tests {
             vanadis_config: None,
             xdg_config_home: None,
             xdg_state_home: None,
+            xdg_cache_home: None,
             home: Some(PathBuf::from("/home/ada")),
         }
     }
@@ -195,6 +225,58 @@ mod tests {
         assert_eq!(
             environment().state_file().unwrap(),
             Path::new("/home/ada/.local/state/vanadis/state.toml")
+        );
+    }
+
+    #[test]
+    fn takes_the_cache_directory_from_xdg_cache_home() {
+        let environment = Environment {
+            xdg_cache_home: Some(PathBuf::from("/home/ada/.cache")),
+            ..environment()
+        };
+        assert_eq!(
+            environment.cache_dir().unwrap(),
+            Path::new("/home/ada/.cache/vanadis")
+        );
+    }
+
+    #[test]
+    fn falls_back_to_dot_cache_under_the_home_directory() {
+        assert_eq!(
+            environment().cache_dir().unwrap(),
+            Path::new("/home/ada/.cache/vanadis")
+        );
+    }
+
+    #[test]
+    fn keeps_the_cache_out_of_the_directory_vanadis_config_names() {
+        let environment = Environment {
+            vanadis_config: Some(PathBuf::from("/srv/themes")),
+            ..environment()
+        };
+        assert_eq!(
+            environment.cache_dir().unwrap(),
+            Path::new("/home/ada/.cache/vanadis")
+        );
+    }
+
+    #[test]
+    fn scans_schemes_under_the_cache_directory() {
+        assert_eq!(
+            environment().schemes_dir().unwrap(),
+            Path::new("/home/ada/.cache/vanadis/schemes")
+        );
+    }
+
+    #[test]
+    fn reads_an_empty_cache_variable_as_unset() {
+        let environment = Environment {
+            xdg_cache_home: Some(PathBuf::new()),
+            ..environment()
+        };
+        assert_eq!(
+            environment.cache_dir().unwrap(),
+            Path::new("/home/ada/.cache/vanadis")
         );
     }
 

@@ -28,11 +28,21 @@ fn applied(state_home: &Path, theme: &str) {
     .unwrap();
 }
 
+/// The fixture cache directory, whose `schemes/` holds five schemes and one broken file.
+fn cache() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/cache")
+}
+
 fn vanadis(config: &Path, state_home: &Path, args: &[&str]) -> Output {
+    with_cache(config, state_home, &cache(), args)
+}
+
+fn with_cache(config: &Path, state_home: &Path, cache_home: &Path, args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_vanadis"))
         .args(args)
         .env("VANADIS_CONFIG", config)
         .env("XDG_STATE_HOME", state_home)
+        .env("XDG_CACHE_HOME", cache_home)
         .output()
         .unwrap()
 }
@@ -222,4 +232,62 @@ fn refuses_to_read_neither_a_token_nor_the_whole_theme() {
     let output = vanadis(&config(), &state, &["get"]);
     assert!(!output.status.success());
     assert!(stdout(&output).is_empty(), "{}", stdout(&output));
+}
+
+#[test]
+fn finds_every_scheme_matching_the_query() {
+    let state = state_home("search");
+    let output = vanadis(&config(), &state, &["search", "nord"]);
+    assert_eq!(
+        stdout(&output),
+        "  base16/nord        dark   Nord        arcticicestudio\n  \
+         base16/nord-light  light  Nord Light  threddast\n"
+    );
+}
+
+#[test]
+fn pads_the_identifier_and_the_name_into_columns() {
+    let state = state_home("search-columns");
+    let output = vanadis(&config(), &state, &["search", "base16/"]);
+    assert_eq!(
+        stdout(&output),
+        "  base16/cyberpunk   dark   Cyberpunk   benjujo\n  \
+         base16/nord        dark   Nord        arcticicestudio\n  \
+         base16/nord-light  light  Nord Light  threddast\n"
+    );
+}
+
+#[test]
+fn reports_the_scheme_it_could_not_read() {
+    let state = state_home("search-broken");
+    let output = vanadis(&config(), &state, &["search", "nord"]);
+    assert!(
+        stderr(&output).contains("broken.yaml"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn prints_nothing_for_a_query_no_scheme_matches() {
+    let state = state_home("search-empty");
+    let output = vanadis(&config(), &state, &["search", "solarized"]);
+    assert_eq!(stdout(&output), "");
+}
+
+#[test]
+fn fails_when_no_scheme_matches() {
+    // docs/schemes.md, `search`: an empty result prints nothing and exits non-zero.
+    let state = state_home("search-empty-status");
+    let output = vanadis(&config(), &state, &["search", "solarized"]);
+    assert!(!output.status.success());
+}
+
+#[test]
+fn says_how_to_fill_a_cache_that_is_not_there() {
+    let state = state_home("search-no-cache");
+    let empty = state_home("search-no-cache-home");
+    let output = with_cache(&config(), &state, &empty, &["search", "nord"]);
+    let stderr = stderr(&output);
+    assert!(stderr.contains("vanadis remote update"), "{stderr}");
 }

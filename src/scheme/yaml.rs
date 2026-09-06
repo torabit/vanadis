@@ -5,13 +5,17 @@
 //! name, so a converter for another system reads its document through the same four
 //! functions.
 //!
-//! Keys the converter does not read are ignored. `system` is dropped by
-//! `docs/theme-format.md` and upstream also writes `slug` and `description`, none of which
-//! `[meta]` has a home for.
+//! This is the only layer that touches the YAML. [`Scheme::parse`](super::Scheme::parse)
+//! reads a header through it and the converter reads a palette through it, so an absent key
+//! and a key of the wrong type have one answer and not one per caller.
+//!
+//! Keys the caller does not read are ignored. `system` is dropped by `docs/schemes.md`,
+//! which takes the system from the directory instead, and upstream also writes `slug` and
+//! `description`, none of which `[meta]` has a home for.
 
 use saphyr::{LoadableYamlNode, Yaml};
 
-use super::SchemeError;
+use super::Problem;
 
 /// The scheme's top-level mapping.
 ///
@@ -20,15 +24,16 @@ use super::SchemeError;
 ///
 /// # Errors
 ///
-/// Returns [`SchemeError::Yaml`] when the text is not YAML, [`SchemeError::Empty`] when it
-/// holds no document, and [`SchemeError::Document`] when the document is not a mapping.
-pub(super) fn document(text: &str) -> Result<Yaml<'_>, SchemeError> {
-    let documents = Yaml::load_from_str(text).map_err(|source| SchemeError::Yaml { source })?;
-    let document = documents.into_iter().next().ok_or(SchemeError::Empty)?;
+/// Returns [`Problem::Syntax`] when the text is not YAML, [`Problem::Empty`] when it holds
+/// no document, and [`Problem::Document`] when the document is not a mapping.
+pub(super) fn document(text: &str) -> Result<Yaml<'_>, Problem> {
+    let documents =
+        Yaml::load_from_str(text).map_err(|error| Problem::Syntax(error.to_string()))?;
+    let document = documents.into_iter().next().ok_or(Problem::Empty)?;
     if document.is_mapping() {
         Ok(document)
     } else {
-        Err(SchemeError::Document)
+        Err(Problem::Document)
     }
 }
 
@@ -36,14 +41,11 @@ pub(super) fn document(text: &str) -> Result<Yaml<'_>, SchemeError> {
 ///
 /// # Errors
 ///
-/// Returns [`SchemeError::Type`] when `key` is written and does not hold a string.
-pub(super) fn optional<'a>(
-    mapping: &'a Yaml<'_>,
-    key: &str,
-) -> Result<Option<&'a str>, SchemeError> {
+/// Returns [`Problem::Type`] when `key` is written and does not hold a string.
+pub(super) fn optional<'a>(mapping: &'a Yaml<'_>, key: &str) -> Result<Option<&'a str>, Problem> {
     match mapping.as_mapping_get(key) {
         None => Ok(None),
-        Some(value) => value.as_str().map(Some).ok_or_else(|| SchemeError::Type {
+        Some(value) => value.as_str().map(Some).ok_or_else(|| Problem::Type {
             key: key.to_owned(),
             expected: "a string",
         }),
@@ -54,33 +56,27 @@ pub(super) fn optional<'a>(
 ///
 /// # Errors
 ///
-/// Returns [`SchemeError::Missing`] when `key` is not written and [`SchemeError::Type`]
-/// when it does not hold a string.
-pub(super) fn required<'a>(mapping: &'a Yaml<'_>, key: &str) -> Result<&'a str, SchemeError> {
-    optional(mapping, key)?.ok_or_else(|| SchemeError::Missing {
-        key: key.to_owned(),
-    })
+/// Returns [`Problem::Missing`] when `key` is not written and [`Problem::Type`] when it does
+/// not hold a string.
+pub(super) fn required<'a>(mapping: &'a Yaml<'_>, key: &'static str) -> Result<&'a str, Problem> {
+    optional(mapping, key)?.ok_or(Problem::Missing(key))
 }
 
 /// The mapping `key` holds.
 ///
 /// # Errors
 ///
-/// Returns [`SchemeError::Missing`] when `key` is not written and [`SchemeError::Type`]
-/// when it does not hold a mapping.
+/// Returns [`Problem::Missing`] when `key` is not written and [`Problem::Type`] when it does
+/// not hold a mapping.
 pub(super) fn nested<'a, 'input>(
     mapping: &'a Yaml<'input>,
-    key: &str,
-) -> Result<&'a Yaml<'input>, SchemeError> {
-    let value = mapping
-        .as_mapping_get(key)
-        .ok_or_else(|| SchemeError::Missing {
-            key: key.to_owned(),
-        })?;
+    key: &'static str,
+) -> Result<&'a Yaml<'input>, Problem> {
+    let value = mapping.as_mapping_get(key).ok_or(Problem::Missing(key))?;
     if value.is_mapping() {
         Ok(value)
     } else {
-        Err(SchemeError::Type {
+        Err(Problem::Type {
             key: key.to_owned(),
             expected: "a mapping",
         })
@@ -106,10 +102,10 @@ mod tests {
     #[test]
     fn reports_a_key_the_scheme_has_to_write() {
         let document = document("system: \"base16\"\n").unwrap();
-        assert!(matches!(
-            required(&document, "name"),
-            Err(SchemeError::Missing { ref key }) if key == "name"
-        ));
+        assert_eq!(
+            required(&document, "name").unwrap_err(),
+            Problem::Missing("name")
+        );
     }
 
     #[test]
@@ -117,7 +113,7 @@ mod tests {
         let document = document("name:\n  first: \"Gruvbox\"\n").unwrap();
         assert!(matches!(
             required(&document, "name"),
-            Err(SchemeError::Type { ref key, .. }) if key == "name"
+            Err(Problem::Type { ref key, .. }) if key == "name"
         ));
     }
 
@@ -133,7 +129,7 @@ mod tests {
         let document = document("palette: \"#1d2021\"\n").unwrap();
         assert!(matches!(
             nested(&document, "palette"),
-            Err(SchemeError::Type { ref key, .. }) if key == "palette"
+            Err(Problem::Type { ref key, .. }) if key == "palette"
         ));
     }
 
@@ -141,17 +137,17 @@ mod tests {
     fn reports_yaml_that_does_not_parse() {
         assert!(matches!(
             document("name: \"unterminated\n"),
-            Err(SchemeError::Yaml { .. })
+            Err(Problem::Syntax(_))
         ));
     }
 
     #[test]
     fn reports_a_stream_holding_no_document() {
-        assert!(matches!(document(""), Err(SchemeError::Empty)));
+        assert_eq!(document("").unwrap_err(), Problem::Empty);
     }
 
     #[test]
     fn reports_a_document_that_is_not_a_mapping() {
-        assert!(matches!(document("- base00\n"), Err(SchemeError::Document)));
+        assert_eq!(document("- base00\n").unwrap_err(), Problem::Document);
     }
 }

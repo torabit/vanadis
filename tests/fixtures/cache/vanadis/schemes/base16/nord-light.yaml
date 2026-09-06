@@ -1,0 +1,6 @@
+system: "base16"
+name: "Nord Light"
+author: "threddast"
+variant: "light"
+palette:
+  base00: "#e5e9f0"

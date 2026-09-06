@@ -1,0 +1,8 @@
+scheme:
+  system: "tinted8"
+  author: "https://github.com/catppuccin/catppuccin"
+  family: "Catppuccin"
+  style: "Latte"
+variant: "light"
+palette:
+  black: "#4c4f69"

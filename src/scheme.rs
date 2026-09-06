@@ -1,317 +1,529 @@
-//! Reading an upstream colour scheme into the theme model.
+//! One scheme out of the tinted-theming collection.
 //!
-//! `docs/theme-format.md` decides what the converted theme holds and
-//! `docs/core-vocabulary.md` decides the `base00`-`base0F` mapping and the rule this module
-//! is held to: a converter fills the entire core or the conversion is a bug.
+//! `docs/schemes.md` decides that the system comes from the directory the file sits in and
+//! not from the file's own `system` field, that the identifier is the filename minus its
+//! extension, and that tinted8 nests its header under `scheme` while base16 and base24 do
+//! not.
 //!
-//! The converter takes bytes. It knows nothing about where they came from, so a file on disk
-//! and a scheme fetched over the network go down the same path.
+//! Every read of a scheme's YAML goes through the `yaml` submodule, both the header this
+//! module reads and the palette the converter reads. One layer means one answer to what an
+//! absent key is and what a key of the wrong type is.
 
-use std::collections::BTreeMap;
-use std::str::Utf8Error;
+use std::fmt;
+use std::path::{Path, PathBuf};
 
-use saphyr::ScanError;
+use saphyr::Yaml;
 use thiserror::Error;
 
 use crate::theme::Variant;
-use crate::token::TokenPath;
 
-mod base16;
+pub mod cache;
+mod convert;
 mod yaml;
 
-pub use base16::System;
+pub use convert::{ConvertError, Converted, Family, convert};
 
-/// A scheme converted to the theme model.
-///
-/// This is not a theme and not a file. `meta.id` is deliberately absent: the identifier is
-/// the theme's filename, which the converter does not choose.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Converted {
-    name: String,
-    variant: Variant,
-    tokens: BTreeMap<TokenPath, String>,
+/// Which scheme system a file is written for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum System {
+    /// base16, sixteen slots.
+    Base16,
+    /// base24, base16 plus eight ANSI bright slots.
+    Base24,
+    /// tinted8, eight named colours plus a handful of greys.
+    Tinted8,
 }
 
-impl Converted {
-    /// The upstream display name, verbatim, for `meta.name`.
+impl System {
+    /// Every system, in the order results are printed in.
+    pub const ALL: [Self; 3] = [Self::Base16, Self::Base24, Self::Tinted8];
+
+    /// Parses `text` as a system, returning `None` when it names none.
+    #[must_use]
+    pub fn parse(text: &str) -> Option<Self> {
+        match text {
+            "base16" => Some(Self::Base16),
+            "base24" => Some(Self::Base24),
+            "tinted8" => Some(Self::Tinted8),
+            _ => None,
+        }
+    }
+
+    /// The system as the collection spells it, which is also its directory name.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Base16 => "base16",
+            Self::Base24 => "base24",
+            Self::Tinted8 => "tinted8",
+        }
+    }
+}
+
+impl fmt::Display for System {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// A cached scheme, as much of it as searching needs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Scheme {
+    system: System,
+    id: String,
+    name: String,
+    author: String,
+    variant: Variant,
+}
+
+/// A scheme file parses but does not say what it has to.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum Problem {
+    /// The file is not valid YAML.
+    #[error("not valid YAML: {0}")]
+    Syntax(String),
+    /// The file holds no document.
+    #[error("holds no document")]
+    Empty,
+    /// The file holds a document and it is not a mapping.
+    #[error("is not a YAML mapping")]
+    Document,
+    /// A field the header needs is absent.
+    #[error("no `{0}` field")]
+    Missing(&'static str),
+    /// A field is written and holds the wrong kind of value.
+    ///
+    /// Separate from [`Problem::Missing`] on purpose. A file writing a mapping under `name`
+    /// has a `name` field; reporting it as absent would name the wrong defect.
+    #[error("`{key}` is not {expected}")]
+    Type {
+        /// The field that holds it.
+        key: String,
+        /// What the field has to hold.
+        expected: &'static str,
+    },
+    /// `variant` holds something that is neither `dark` nor `light`.
+    #[error("`variant` is `{0}`, which is neither `dark` nor `light`")]
+    Variant(String),
+}
+
+/// A scheme file could not be loaded.
+#[derive(Debug, Error)]
+pub enum SchemeError {
+    /// The file could not be read.
+    #[error("{}: {source}", .path.display())]
+    Read {
+        /// The file the read failed on.
+        path: PathBuf,
+        /// The IO error.
+        source: std::io::Error,
+    },
+    /// The filename is not one a scheme can have.
+    #[error("{}: not a scheme filename", .path.display())]
+    Name {
+        /// The file the name came from.
+        path: PathBuf,
+    },
+    /// The file was read but is not a scheme.
+    #[error("{}: {source}", .path.display())]
+    Invalid {
+        /// The file the problem was found in.
+        path: PathBuf,
+        /// What the file does not say.
+        source: Problem,
+    },
+}
+
+impl Scheme {
+    /// Reads the scheme `path` holds, taking its identifier from the filename.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SchemeError::Read`] when the file cannot be read, [`SchemeError::Name`]
+    /// when the filename is not usable as an identifier, and [`SchemeError::Invalid`] when
+    /// the file is not a scheme.
+    pub fn load(system: System, path: &Path) -> Result<Self, SchemeError> {
+        let id = path
+            .file_stem()
+            .and_then(std::ffi::OsStr::to_str)
+            .ok_or_else(|| SchemeError::Name {
+                path: path.to_owned(),
+            })?;
+        let source = std::fs::read_to_string(path).map_err(|source| SchemeError::Read {
+            path: path.to_owned(),
+            source,
+        })?;
+        Self::parse(system, id, &source).map_err(|source| SchemeError::Invalid {
+            path: path.to_owned(),
+            source,
+        })
+    }
+
+    /// Reads the header of one scheme file.
+    ///
+    /// `system` decides where the header sits: tinted8 nests everything but `variant` under
+    /// `scheme`, and the other two put it at the top level.
+    ///
+    /// The document is read through the `yaml` submodule, the same layer the converter
+    /// reads a palette through, so an absent field and a field of the wrong type are told
+    /// apart here as well.
+    ///
+    /// Private: [`Scheme::load`] is the only way in from outside, the way `Theme::load` is.
+    fn parse(system: System, id: &str, source: &str) -> Result<Self, Problem> {
+        let root = yaml::document(source)?;
+
+        let head = match system {
+            System::Tinted8 => yaml::nested(&root, "scheme")?,
+            System::Base16 | System::Base24 => &root,
+        };
+
+        let name = match system {
+            System::Tinted8 => tinted8_name(head)?.ok_or(Problem::Missing("scheme.name"))?,
+            System::Base16 | System::Base24 => yaml::optional(head, "name")?
+                .ok_or(Problem::Missing("name"))?
+                .to_owned(),
+        };
+
+        let author = yaml::optional(head, "author")?
+            .ok_or(Problem::Missing(match system {
+                System::Tinted8 => "scheme.author",
+                System::Base16 | System::Base24 => "author",
+            }))?
+            .to_owned();
+
+        let written = yaml::optional(&root, "variant")?.ok_or(Problem::Missing("variant"))?;
+        let variant =
+            Variant::parse(written).ok_or_else(|| Problem::Variant(written.to_owned()))?;
+
+        Ok(Self {
+            system,
+            id: id.to_owned(),
+            name,
+            author,
+            variant,
+        })
+    }
+
+    /// The system the scheme is written for.
+    #[must_use]
+    pub fn system(&self) -> System {
+        self.system
+    }
+
+    /// The identifier with its system, as in `base16/nord`.
+    ///
+    /// A bare identifier is not unique: `nord` names a base16 scheme and a tinted8 one.
+    #[must_use]
+    pub fn qualified(&self) -> String {
+        format!("{}/{}", self.system, self.id)
+    }
+
+    /// The display name.
     #[must_use]
     pub fn name(&self) -> &str {
         &self.name
     }
 
-    /// The background the scheme is written for, for `meta.variant`.
+    /// Who the collection credits the scheme to.
+    #[must_use]
+    pub fn author(&self) -> &str {
+        &self.author
+    }
+
+    /// Which background the scheme is written for.
     #[must_use]
     pub fn variant(&self) -> Variant {
         self.variant
     }
 
-    /// Every token the theme file will hold, `meta.name` and `meta.variant` aside.
+    /// Whether `query` occurs in any cell a result line prints, compared without case.
+    ///
+    /// `docs/schemes.md` decides this rule: search matches what search prints, so a result
+    /// that looks unrelated carries its own reason on the line.
     #[must_use]
-    pub fn tokens(&self) -> &BTreeMap<TokenPath, String> {
-        &self.tokens
+    pub fn matches(&self, query: &str) -> bool {
+        let query = query.to_lowercase();
+        [
+            self.qualified(),
+            self.variant.as_str().to_owned(),
+            self.name.clone(),
+            self.author.clone(),
+        ]
+        .iter()
+        .any(|cell| cell.to_lowercase().contains(&query))
     }
 }
 
-/// Converting an upstream scheme failed.
-#[derive(Debug, Error)]
-pub enum SchemeError {
-    /// The bytes are not UTF-8.
-    #[error("the scheme is not UTF-8: {source}")]
-    Utf8 {
-        /// Where the decode failed.
-        source: Utf8Error,
-    },
-    /// The bytes are not valid YAML.
-    #[error("the scheme is not valid YAML: {source}")]
-    Yaml {
-        /// The parse error.
-        source: ScanError,
-    },
-    /// The YAML holds no document at all.
-    #[error("the scheme holds no YAML document")]
-    Empty,
-    /// The YAML holds a document, and it is not a mapping.
-    #[error("the scheme is not a YAML mapping")]
-    Document,
-    /// A key the scheme has to carry is not written.
-    #[error("the scheme does not carry `{key}`")]
-    Missing {
-        /// The key that is not written.
-        key: String,
-    },
-    /// A key is written but holds the wrong kind of value.
-    #[error("`{key}` is not {expected}")]
-    Type {
-        /// The key that holds it.
-        key: String,
-        /// What the key has to hold.
-        expected: &'static str,
-    },
-    /// `system` names a scheme system this does not convert.
-    #[error("`{system}` is not a scheme system vanadis converts")]
-    System {
-        /// The system as the scheme spells it.
-        system: String,
-    },
-    /// `variant` is written and is neither `dark` nor `light`.
-    #[error("`variant` is `{variant}`, which is neither `dark` nor `light`")]
-    Variant {
-        /// The variant as the scheme spells it.
-        variant: String,
-    },
-    /// The palette is missing a slot the scheme's own system requires.
-    #[error("the {system} palette does not carry `{slot}`")]
-    Slot {
-        /// The system the scheme declares.
-        system: System,
-        /// The slot that is not written.
-        slot: String,
-    },
-    /// A palette entry is not a hex colour.
-    #[error("`{slot}` is `{value}`, which is not `#rrggbb`")]
-    Hex {
-        /// The slot that holds it.
-        slot: String,
-        /// The value as the scheme writes it.
-        value: String,
-    },
-}
-
-/// Converts the bytes of an upstream scheme into the theme model.
+/// The display name a tinted8 file writes under `scheme`, or `None` when it writes neither
+/// spelling.
 ///
-/// The scheme's own `system` key decides how it is read. base16 and base24 are what this
-/// converts today; anything else is [`SchemeError::System`].
+/// `docs/schemes.md` records both: three of the four files spell the name as `family` plus
+/// `style` and `nord.yaml` spells it as `name`.
 ///
 /// # Errors
 ///
-/// Returns [`SchemeError`] when the bytes are not UTF-8, are not YAML, declare a system this
-/// does not convert, omit a key or a palette slot that system requires, or write a palette
-/// entry that is not `#rrggbb`.
-pub fn convert(bytes: &[u8]) -> Result<Converted, SchemeError> {
-    let text = std::str::from_utf8(bytes).map_err(|source| SchemeError::Utf8 { source })?;
-    let document = yaml::document(text)?;
-    let system = System::parse(yaml::required(&document, "system")?)?;
-    base16::convert(&document, system)
-}
-
-/// Which background a scheme is written for, taken from the scheme or read off `base00`.
-///
-/// `variant` is what the issue names first and every scheme in `tinted-theming/schemes`
-/// carries it. The fallback is the luminance of the default background, using the formula
-/// and the threshold `tests/fixtures/templates/herdr/host-colors.py.in` already answers the
-/// same question with: sRGB coefficients on the gamma-encoded channels, light above one
-/// half. Matching it keeps one rule in the repository rather than two.
-///
-/// # Errors
-///
-/// Returns [`SchemeError::Variant`] when the scheme writes a variant that is neither `dark`
-/// nor `light`. An absent variant is inferred, a wrong one is a bug in the scheme.
-fn variant(written: Option<&str>, background: [u8; 3]) -> Result<Variant, SchemeError> {
-    match written {
-        Some(text) => Variant::parse(text).ok_or_else(|| SchemeError::Variant {
-            variant: text.to_owned(),
-        }),
-        None => Ok(if luma(background) > 0.5 {
-            Variant::Light
-        } else {
-            Variant::Dark
-        }),
+/// Returns [`Problem::Type`] when one of the three fields does not hold a string.
+fn tinted8_name(head: &Yaml<'_>) -> Result<Option<String>, Problem> {
+    if let Some(name) = yaml::optional(head, "name")? {
+        return Ok(Some(name.to_owned()));
     }
-}
-
-/// The sRGB luma of a colour, from its red, green and blue.
-fn luma([red, green, blue]: [u8; 3]) -> f64 {
-    let scaled = |channel: u8| f64::from(channel) / 255.0;
-    0.2126 * scaled(red) + 0.7152 * scaled(green) + 0.0722 * scaled(blue)
-}
-
-/// `value` as red, green and blue, or [`SchemeError::Hex`].
-///
-/// `docs/theme-format.md` decides that a hex literal is `#` and six hex digits, stored
-/// lowercase. Upstream schemes write exactly that, in either case, so the converter accepts
-/// exactly that: three-digit shorthand and eight-digit `#rrggbbaa` are rejected rather than
-/// expanded or truncated, neither of which the scheme asked for.
-///
-/// The channels are parsed here rather than re-read off the literal later, so no caller has
-/// to handle a colour it has already validated failing to parse.
-fn hex(slot: &str, value: &str) -> Result<[u8; 3], SchemeError> {
-    let malformed = || SchemeError::Hex {
-        slot: slot.to_owned(),
-        value: value.to_owned(),
-    };
-    let digits = value.strip_prefix('#').ok_or_else(malformed)?.as_bytes();
-    let [r0, r1, g0, g1, b0, b1] = <[u8; 6]>::try_from(digits).map_err(|_| malformed())?;
-    let channel = |high: u8, low: u8| match (nibble(high), nibble(low)) {
-        (Some(high), Some(low)) => Ok(high * 16 + low),
-        _ => Err(malformed()),
-    };
-    Ok([channel(r0, r1)?, channel(g0, g1)?, channel(b0, b1)?])
-}
-
-/// What one hex digit is worth, in either case.
-///
-/// Decoded here rather than through `u8::from_str_radix`, which also accepts a leading `+`
-/// and would let `#+f+f+f` through as a colour.
-fn nibble(byte: u8) -> Option<u8> {
-    match byte {
-        b'0'..=b'9' => Some(byte - b'0'),
-        b'a'..=b'f' => Some(byte - b'a' + 10),
-        b'A'..=b'F' => Some(byte - b'A' + 10),
-        _ => None,
+    let family = yaml::optional(head, "family")?;
+    let style = yaml::optional(head, "style")?;
+    match (family, style) {
+        (Some(family), Some(style)) => Ok(Some(format!("{family} {style}"))),
+        _ => Ok(None),
     }
-}
-
-/// Red, green and blue as the hex literal a theme file holds.
-fn literal([red, green, blue]: [u8; 3]) -> String {
-    format!("#{red:02x}{green:02x}{blue:02x}")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// `value` read and written back out, which is what a theme file ends up holding.
-    fn round_trip(value: &str) -> String {
-        literal(hex("base00", value).unwrap())
+    const BASE16: &str = r##"
+system: "base16"
+name: "Nord"
+author: "arcticicestudio"
+variant: "dark"
+palette:
+  base00: "#2E3440"
+"##;
+
+    const TINTED8_FAMILY: &str = r##"
+scheme:
+  system: "tinted8"
+  author: "https://github.com/catppuccin/catppuccin"
+  family: "Catppuccin"
+  style: "Latte"
+variant: "light"
+palette:
+  black: "#4c4f69"
+"##;
+
+    const TINTED8_NAME: &str = r##"
+scheme:
+  system: "tinted8"
+  name: "Nord"
+  author: "Tinted Theming (https://github.com/tinted-theming)"
+variant: "dark"
+palette:
+  black: "#2e3440"
+"##;
+
+    const TINTED8_BOTH: &str = r##"
+scheme:
+  system: "tinted8"
+  name: "Nord"
+  author: "Tinted Theming"
+  family: "Nordic"
+  style: "Polar"
+variant: "dark"
+palette:
+  black: "#2e3440"
+"##;
+
+    fn base16(id: &str) -> Scheme {
+        Scheme::parse(System::Base16, id, BASE16).unwrap()
     }
 
     #[test]
-    fn reads_the_three_channels_of_a_hex_literal() {
-        assert_eq!(hex("base00", "#1d2021").unwrap(), [0x1d, 0x20, 0x21]);
+    fn reads_the_name_of_a_base16_scheme() {
+        assert_eq!(base16("nord").name(), "Nord");
     }
 
     #[test]
-    fn stores_a_hex_literal_in_lowercase() {
-        assert_eq!(round_trip("#1D2021"), "#1d2021");
+    fn reads_the_author_of_a_base16_scheme() {
+        assert_eq!(base16("nord").author(), "arcticicestudio");
     }
 
     #[test]
-    fn keeps_a_hex_literal_that_is_already_lowercase() {
-        assert_eq!(round_trip("#1d2021"), "#1d2021");
+    fn reads_the_variant_of_a_base16_scheme() {
+        assert_eq!(base16("nord").variant(), Variant::Dark);
     }
 
     #[test]
-    fn pads_a_channel_below_sixteen() {
-        assert_eq!(literal([0x00, 0x0f, 0xff]), "#000fff");
-    }
-
-    #[test]
-    fn rejects_a_hex_literal_without_a_hash() {
-        assert!(hex("base00", "1d2021").is_err());
-    }
-
-    #[test]
-    fn rejects_three_digit_shorthand() {
-        assert!(hex("base00", "#eee").is_err());
-    }
-
-    #[test]
-    fn rejects_a_hex_literal_carrying_alpha() {
-        assert!(hex("base00", "#1d2021ff").is_err());
-    }
-
-    #[test]
-    fn rejects_a_hex_literal_that_is_not_hex() {
-        assert!(hex("base00", "#gggggg").is_err());
-    }
-
-    #[test]
-    fn rejects_a_signed_channel() {
-        assert!(hex("base00", "#+f+f+f").is_err());
-    }
-
-    #[test]
-    fn rejects_a_seventh_digit() {
-        assert!(hex("base00", "#1d20211").is_err());
-    }
-
-    #[test]
-    fn names_the_slot_a_malformed_hex_literal_sits_in() {
-        let error = hex("base0a", "#eee").unwrap_err();
-        assert!(error.to_string().contains("base0a"), "{error}");
-    }
-
-    /// The variant inferred for a background written as a hex literal.
-    fn inferred(background: &str) -> Variant {
-        variant(None, hex("base00", background).unwrap()).unwrap()
-    }
-
-    #[test]
-    fn takes_a_written_variant_over_the_background() {
+    fn takes_the_system_from_the_caller_and_not_from_the_file() {
         assert_eq!(
-            variant(Some("light"), [0x00, 0x00, 0x00]).unwrap(),
-            Variant::Light
+            Scheme::parse(System::Base24, "nord", BASE16)
+                .unwrap()
+                .system(),
+            System::Base24
         );
     }
 
     #[test]
-    fn rejects_a_written_variant_that_is_neither_dark_nor_light() {
-        assert!(variant(Some("pale"), [0x00, 0x00, 0x00]).is_err());
+    fn qualifies_the_identifier_with_the_system() {
+        assert_eq!(base16("nord").qualified(), "base16/nord");
     }
 
     #[test]
-    fn infers_a_dark_variant_from_a_dark_background() {
-        assert_eq!(inferred("#1d2021"), Variant::Dark);
+    fn reads_a_tinted8_name_from_family_and_style() {
+        let scheme = Scheme::parse(System::Tinted8, "catppuccin-latte", TINTED8_FAMILY).unwrap();
+        assert_eq!(scheme.name(), "Catppuccin Latte");
     }
 
     #[test]
-    fn infers_a_light_variant_from_a_light_background() {
-        assert_eq!(inferred("#fdf6e3"), Variant::Light);
+    fn reads_a_tinted8_author_from_under_scheme() {
+        let scheme = Scheme::parse(System::Tinted8, "catppuccin-latte", TINTED8_FAMILY).unwrap();
+        assert_eq!(scheme.author(), "https://github.com/catppuccin/catppuccin");
     }
 
     #[test]
-    fn infers_light_on_the_bright_side_of_the_luminance_boundary() {
-        assert_eq!(inferred("#808080"), Variant::Light);
+    fn reads_a_tinted8_name_from_the_name_field() {
+        let scheme = Scheme::parse(System::Tinted8, "nord", TINTED8_NAME).unwrap();
+        assert_eq!(scheme.name(), "Nord");
     }
 
     #[test]
-    fn infers_dark_on_the_dark_side_of_the_luminance_boundary() {
-        assert_eq!(inferred("#7f7f7f"), Variant::Dark);
+    fn prefers_a_tinted8_name_field_over_family_and_style() {
+        let scheme = Scheme::parse(System::Tinted8, "nord", TINTED8_BOTH).unwrap();
+        assert_eq!(scheme.name(), "Nord");
     }
 
     #[test]
-    fn weights_green_above_red_and_blue() {
-        assert!(luma([0x00, 0xff, 0x00]) > luma([0xff, 0x00, 0x00]));
-        assert!(luma([0xff, 0x00, 0x00]) > luma([0x00, 0x00, 0xff]));
+    fn reads_a_variant_that_is_not_quoted() {
+        let source = "name: \"Linux VT\"\nauthor: \"j-c-m\"\nvariant: dark\n";
+        let scheme = Scheme::parse(System::Base16, "linux-vt", source).unwrap();
+        assert_eq!(scheme.variant(), Variant::Dark);
+    }
+
+    #[test]
+    fn reports_a_file_that_is_not_yaml() {
+        let problem = Scheme::parse(System::Base16, "x", "name: \"a\"\n\tauthor: b\n").unwrap_err();
+        assert!(matches!(problem, Problem::Syntax(_)), "{problem:?}");
+    }
+
+    #[test]
+    fn reports_an_empty_file() {
+        assert_eq!(
+            Scheme::parse(System::Base16, "x", "").unwrap_err(),
+            Problem::Empty
+        );
+    }
+
+    #[test]
+    fn reports_a_missing_name() {
+        let source = "author: \"a\"\nvariant: \"dark\"\n";
+        assert_eq!(
+            Scheme::parse(System::Base16, "x", source).unwrap_err(),
+            Problem::Missing("name")
+        );
+    }
+
+    /// A file that writes a mapping under `name` has a `name` field. Reporting it as absent
+    /// would name a defect the file does not have, which is what reading the header through
+    /// `yaml` stops.
+    #[test]
+    fn separates_a_name_of_the_wrong_type_from_a_name_that_is_absent() {
+        let source = "name:\n  first: \"Nord\"\nauthor: \"a\"\nvariant: \"dark\"\n";
+        assert_eq!(
+            Scheme::parse(System::Base16, "x", source).unwrap_err(),
+            Problem::Type {
+                key: "name".to_owned(),
+                expected: "a string",
+            }
+        );
+    }
+
+    #[test]
+    fn reports_a_file_whose_document_is_not_a_mapping() {
+        assert_eq!(
+            Scheme::parse(System::Base16, "x", "- nord\n").unwrap_err(),
+            Problem::Document
+        );
+    }
+
+    #[test]
+    fn reports_a_missing_author() {
+        let source = "name: \"A\"\nvariant: \"dark\"\n";
+        assert_eq!(
+            Scheme::parse(System::Base16, "x", source).unwrap_err(),
+            Problem::Missing("author")
+        );
+    }
+
+    #[test]
+    fn reports_a_missing_variant() {
+        let source = "name: \"A\"\nauthor: \"a\"\n";
+        assert_eq!(
+            Scheme::parse(System::Base16, "x", source).unwrap_err(),
+            Problem::Missing("variant")
+        );
+    }
+
+    #[test]
+    fn reports_a_variant_that_is_neither_dark_nor_light() {
+        let source = "name: \"A\"\nauthor: \"a\"\nvariant: \"dusk\"\n";
+        assert_eq!(
+            Scheme::parse(System::Base16, "x", source).unwrap_err(),
+            Problem::Variant("dusk".to_owned())
+        );
+    }
+
+    #[test]
+    fn reports_a_tinted8_file_with_no_scheme_mapping() {
+        assert_eq!(
+            Scheme::parse(System::Tinted8, "x", BASE16).unwrap_err(),
+            Problem::Missing("scheme")
+        );
+    }
+
+    #[test]
+    fn reports_a_tinted8_file_with_neither_a_name_nor_a_family() {
+        let source = "scheme:\n  author: \"a\"\nvariant: \"dark\"\n";
+        assert_eq!(
+            Scheme::parse(System::Tinted8, "x", source).unwrap_err(),
+            Problem::Missing("scheme.name")
+        );
+    }
+
+    #[test]
+    fn reports_a_tinted8_file_with_no_author() {
+        let source = "scheme:\n  name: \"A\"\nvariant: \"dark\"\n";
+        assert_eq!(
+            Scheme::parse(System::Tinted8, "x", source).unwrap_err(),
+            Problem::Missing("scheme.author")
+        );
+    }
+
+    #[test]
+    fn matches_on_the_qualified_identifier() {
+        assert!(base16("nord").matches("base16/no"));
+    }
+
+    #[test]
+    fn matches_on_the_name_without_case() {
+        let scheme = Scheme::parse(System::Base16, "x", BASE16).unwrap();
+        assert!(scheme.matches("NORD"));
+    }
+
+    #[test]
+    fn matches_on_the_author() {
+        assert!(base16("nord").matches("arctic"));
+    }
+
+    #[test]
+    fn matches_on_the_variant() {
+        assert!(base16("nord").matches("dark"));
+    }
+
+    #[test]
+    fn does_not_match_a_query_no_cell_holds() {
+        assert!(!base16("nord").matches("solarized"));
+    }
+
+    #[test]
+    fn names_every_system() {
+        let names: Vec<&str> = System::ALL.iter().map(|system| system.as_str()).collect();
+        assert_eq!(names, ["base16", "base24", "tinted8"]);
+    }
+
+    #[test]
+    fn parses_a_system_by_name() {
+        assert_eq!(System::parse("tinted8"), Some(System::Tinted8));
+    }
+
+    #[test]
+    fn parses_no_system_from_a_name_that_is_not_one() {
+        assert_eq!(System::parse("base8"), None);
     }
 }

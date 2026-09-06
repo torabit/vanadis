@@ -83,6 +83,44 @@ pub(super) fn nested<'a, 'input>(
     }
 }
 
+/// Whether the mapping writes `key` at all, whatever kind of value it holds.
+///
+/// Separate from reading the key, because a palette answers "does the scheme carry this
+/// colour" before anything reads what the colour is, and a type error is not a no.
+pub(super) fn writes(mapping: &Yaml<'_>, key: &str) -> bool {
+    mapping.as_mapping_get(key).is_some()
+}
+
+/// The entries of `mapping`, in the order the document writes them.
+///
+/// `at` names the mapping, for the error a caller cannot otherwise attribute.
+///
+/// # Errors
+///
+/// Returns [`Problem::Type`] when `mapping` is not a mapping, or writes a key that is not a
+/// string.
+pub(super) fn entries<'a, 'input>(
+    mapping: &'a Yaml<'input>,
+    at: &str,
+) -> Result<Vec<(&'a str, &'a Yaml<'input>)>, Problem> {
+    mapping
+        .as_mapping()
+        .ok_or_else(|| Problem::Type {
+            key: at.to_owned(),
+            expected: "a mapping",
+        })?
+        .iter()
+        .map(|(key, value)| {
+            key.as_str()
+                .map(|key| (key, value))
+                .ok_or_else(|| Problem::Type {
+                    key: at.to_owned(),
+                    expected: "keyed by strings",
+                })
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -149,5 +187,51 @@ mod tests {
     #[test]
     fn reports_a_document_that_is_not_a_mapping() {
         assert_eq!(document("- base00\n").unwrap_err(), Problem::Document);
+    }
+
+    #[test]
+    fn says_a_key_the_scheme_writes_is_written() {
+        let document = document("scheme:\n  system: \"tinted8\"\n").unwrap();
+        assert!(writes(&document, "scheme"));
+    }
+
+    #[test]
+    fn says_a_key_the_scheme_omits_is_not_written() {
+        let document = document("system: \"base16\"\n").unwrap();
+        assert!(!writes(&document, "scheme"));
+    }
+
+    #[test]
+    fn reads_the_entries_of_a_mapping_in_the_order_they_are_written() {
+        let document = document("ui:\n  gutter: \"#1d2021\"\n  accent: \"#fabd2f\"\n").unwrap();
+        let ui = nested(&document, "ui").unwrap();
+        let keys: Vec<&str> = entries(ui, "ui")
+            .unwrap()
+            .into_iter()
+            .map(|(key, _)| key)
+            .collect();
+        assert_eq!(keys, ["gutter", "accent"]);
+    }
+
+    /// The parser folds a key the scheme writes twice, keeping the value written last, so
+    /// no caller sees one key twice and none has to guard against it.
+    #[test]
+    fn folds_a_key_the_scheme_writes_twice() {
+        let document = document("ui:\n  red: \"#111111\"\n  red: \"#222222\"\n").unwrap();
+        let ui = nested(&document, "ui").unwrap();
+        let entries = entries(ui, "ui").unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].0, "red");
+        assert_eq!(entries[0].1.as_str(), Some("#222222"));
+    }
+
+    #[test]
+    fn reports_a_mapping_that_is_not_keyed_by_strings() {
+        let document = document("ui:\n  1: \"#1d2021\"\n").unwrap();
+        let ui = nested(&document, "ui").unwrap();
+        assert!(matches!(
+            entries(ui, "ui"),
+            Err(Problem::Type { ref key, .. }) if key == "ui"
+        ));
     }
 }

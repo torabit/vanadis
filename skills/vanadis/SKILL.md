@@ -67,10 +67,11 @@ not travel with it.
 `apply` overwrites files the user wrote. Show `vanadis apply <theme> --diff` and get their
 go-ahead before running the real thing.
 
-`apply --only` refuses to run before a whole apply has happened — `--only needs a theme applied
-to every target first` — because there would be no theme for the targets it does not name to be
-on. `check --only` has no such restriction as long as a theme is named, which is what makes it
-usable on a target added minutes ago.
+`apply --only` refuses to write before a whole apply has happened — `--only needs a theme
+applied to every target first` — because there would be no theme for the targets it does not
+name to be on. Adding `--dry-run` or `--diff` records nothing, so one target's diff is readable
+there. `check --only` has no such restriction as long as a theme is named, which is what makes
+it usable on a target added minutes ago.
 
 ## `init` is the user's to run, not yours
 

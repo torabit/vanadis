@@ -187,6 +187,19 @@ fn refuses_a_partial_apply_before_a_whole_one() {
     let (config, state) = workspace("apply-only-first", "apply");
     let output = vanadis(&config, &state, &["apply", "nord", "--only", "two"]);
     assert!(!output.status.success());
+    assert!(
+        stderr(&output).contains("vanadis apply <theme>"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+/// The state a partial apply would record is worked out at the top of the commit, so the
+/// refusal lands before the first byte.
+#[test]
+fn writes_nothing_when_a_partial_apply_is_refused() {
+    let (config, state) = workspace("apply-only-first-writes", "apply");
+    vanadis(&config, &state, &["apply", "nord", "--only", "two"]);
     assert!(!config.join("out").exists());
 }
 
@@ -252,15 +265,38 @@ fn records_no_theme_when_it_is_only_told_what_it_would_do() {
     assert!(!output.status.success());
 }
 
+/// Adding targets one at a time is when `--only` is wanted, and is exactly when no whole
+/// apply has happened yet. A preview records nothing, so it needs no state to record against.
 #[test]
-fn refuses_a_partial_dry_run_before_a_whole_apply() {
+fn previews_a_partial_apply_before_a_whole_one() {
     let (config, state) = workspace("apply-dry-run-only", "apply");
     let output = vanadis(
         &config,
         &state,
         &["apply", "nord", "--only", "two", "--dry-run"],
     );
-    assert!(!output.status.success());
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(
+        stdout(&output).contains("would write two"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn diffs_one_target_before_a_whole_apply() {
+    let (config, state) = workspace("apply-diff-only-first", "apply");
+    let output = vanadis(
+        &config,
+        &state,
+        &["apply", "nord", "--only", "two", "--diff"],
+    );
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(
+        stdout(&output).contains("+background = \"#2e3440\""),
+        "{}",
+        stdout(&output)
+    );
 }
 
 #[test]

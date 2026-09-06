@@ -79,8 +79,10 @@ nvim = "nord"
 ```
 
 The table holds exactly what diverges. A target brought back to the theme every other target
-carries stops being recorded, and a whole apply clears the table. `--only` before any whole
-apply fails, because there is no theme for the targets it does not name to be on.
+carries stops being recorded, and a whole apply clears the table. An `--only` apply that
+writes fails before any whole apply, because there is no theme for the targets it does not
+name to be on. `--dry-run` and `--diff` record nothing and so are not held to that: reading
+one target's diff is exactly what a config being built up a target at a time needs.
 
 **`$VANADIS_CONFIG` does not move it.** The config directory holds what the user wrote, and
 is what gets version controlled or copied between machines. The state file records which

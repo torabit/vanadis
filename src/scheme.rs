@@ -193,12 +193,6 @@ impl Scheme {
         self.system
     }
 
-    /// The identifier, which is the filename minus its extension.
-    #[must_use]
-    pub fn id(&self) -> &str {
-        &self.id
-    }
-
     /// The identifier with its system, as in `base16/nord`.
     ///
     /// A bare identifier is not unique: `nord` names a base16 scheme and a tinted8 one.

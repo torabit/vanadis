@@ -12,7 +12,7 @@ use thiserror::Error;
 use crate::scheme::System;
 
 /// The archive every scheme is read out of.
-pub const SOURCE: &str =
+pub(crate) const SOURCE: &str =
     "https://github.com/tinted-theming/schemes/archive/refs/heads/spec-0.11.tar.gz";
 
 /// What one run of [`install`] wrote.
@@ -93,7 +93,7 @@ enum Destination {
 /// Returns [`RemoteError::Archive`] when the bytes are not a readable gzipped tar,
 /// [`RemoteError::Empty`] when they hold no scheme, and [`RemoteError::Write`] when the
 /// cache cannot be written.
-pub fn install(archive: &[u8], directory: &Path) -> Result<Installed, RemoteError> {
+pub(crate) fn install(archive: &[u8], directory: &Path) -> Result<Installed, RemoteError> {
     let staging = staging(directory);
     remove(&staging)?;
 
@@ -127,7 +127,7 @@ const CEILING: u64 = 32 * 1024 * 1024;
 ///
 /// Returns [`RemoteError::Fetch`] when the request fails, which includes every reason a
 /// machine that is offline gives.
-pub fn fetch(url: &str) -> Result<Vec<u8>, RemoteError> {
+pub(crate) fn fetch(url: &str) -> Result<Vec<u8>, RemoteError> {
     let failed = |error: ureq::Error| RemoteError::Fetch {
         url: url.to_owned(),
         source: Box::new(error),

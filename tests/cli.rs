@@ -56,6 +56,16 @@ fn lists_every_theme_with_its_variant_and_display_name() {
 }
 
 #[test]
+fn lists_a_theme_that_does_not_define_the_whole_core() {
+    // Both themes in this fixture define one `role` token and no `[ansi]` at all. `check` is
+    // the only place the core is enforced, so an unfinished theme costs the user that theme
+    // and never a command that enumerates the directory.
+    let state = state_home("list-incomplete");
+    let output = vanadis(&config(), &state, &["list"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+}
+
+#[test]
 fn marks_the_theme_that_was_applied_last() {
     let state = state_home("list-current");
     applied(&state, "papercolor-light");

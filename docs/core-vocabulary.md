@@ -136,6 +136,12 @@ should cost the user that theme, not the tool.
 name and exits non-zero. That is what `check` is for, and it is the moment the answer is
 useful: before an apply, not after one has half-written a config.
 
+It asks it of the themes a run resolves to, and not of every file in `themes/`.
+[docs/config.md](config.md#checking) decides that and says why: a theme no target is on is not
+part of whether this machine is consistent, and failing a run over one would be the same
+disproportion this section rejects for the loader. Naming a theme is how it is asked of one
+that is not applied.
+
 **`apply` fails only when a template it is rendering actually references a token the theme
 does not define**, which is the renderer's undefined-token error and needs nothing added
 here. It fails atomically: every target renders before anything is written, so a failure

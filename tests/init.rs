@@ -190,7 +190,7 @@ fn applying_straight_after_an_init_reproduces_the_original_file() {
 }
 
 #[test]
-fn checks_clean_straight_after_an_init() {
+fn finds_nothing_wrong_with_the_target_straight_after_an_init() {
     let machine = Machine::new("check");
     let file = machine.adopt("hunk/config.toml");
     machine.run(
@@ -199,8 +199,14 @@ fn checks_clean_straight_after_an_init() {
     );
     machine.run(&["apply", "paper-light"], "");
 
+    // One config file does not carry seventeen roles and sixteen ANSI slots, so the theme
+    // `init` wrote is incomplete and `check` says so and exits non-zero. That is the list
+    // `init` itself printed. What is asserted here is the other half of the report: the
+    // target is clean, so the apply reproduced the file that was adopted.
     let checked = machine.run(&["check"], "");
-    assert!(succeeded(&checked), "{}", stdout(&checked));
+    let report = stdout(&checked);
+    assert!(report.contains("paper-light:"), "{report}");
+    assert!(!report.contains("hunk"), "{report}");
 }
 
 #[test]

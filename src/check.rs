@@ -12,11 +12,13 @@ use std::path::PathBuf;
 
 use thiserror::Error;
 
-use crate::apply::{ApplyError, Rendered, render, select};
+use crate::apply::{ApplyError, Rendered, pinned, render, select};
 use crate::catalog::Catalog;
 use crate::config::{Config, Target, TargetName};
 use crate::state::State;
-use crate::theme::ThemeId;
+use crate::theme::{Theme, ThemeId};
+use crate::token::TokenPath;
+use crate::vocabulary;
 
 /// What the file a render would be written to holds now.
 #[derive(Debug)]
@@ -42,9 +44,38 @@ pub fn compare(render: &Rendered) -> Disk {
     }
 }
 
-/// One thing `check` found wrong with a target.
+/// `s` when there is not exactly one.
+fn plural(count: usize) -> &'static str {
+    if count == 1 { "" } else { "s" }
+}
+
+/// The missing paths, four to a line and indented, the way `init` prints the same list.
+fn undefined(missing: &[TokenPath]) -> String {
+    missing
+        .chunks(4)
+        .map(|line| {
+            let paths: Vec<&str> = line.iter().map(TokenPath::as_str).collect();
+            format!("  {}", paths.join(" "))
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// One thing `check` found wrong: four about a target, one about a theme.
 #[derive(Debug, Error)]
 pub enum Finding {
+    /// A theme the run resolves to does not define the whole core vocabulary.
+    ///
+    /// This is about the theme rather than any one target, so it is reported once however
+    /// many targets are on it. `docs/core-vocabulary.md` makes `check` the only place the
+    /// core is enforced.
+    #[error("{theme}: {} core token{} undefined\n{}", .missing.len(), plural(.missing.len()), undefined(.missing))]
+    Incomplete {
+        /// The theme that is short of the core.
+        theme: ThemeId,
+        /// Every core token it does not define, in core order.
+        missing: Vec<TokenPath>,
+    },
     /// The output no longer holds what its template renders to.
     #[error("{target}: {} does not match {}", .output.display(), .template.display())]
     Drift {
@@ -111,7 +142,10 @@ impl Report {
         self.checked
     }
 
-    /// Everything wrong, in the order the config writes the targets.
+    /// Everything wrong: the incomplete themes first, then the targets in config order.
+    ///
+    /// A theme short of the core is why several of the target findings below it exist, so it
+    /// is reported before them rather than after.
     #[must_use]
     pub fn findings(&self) -> &[Finding] {
         &self.findings
@@ -146,6 +180,10 @@ impl Assigned<'_> {
 /// it still looks like what was applied, which is the question a partial apply makes
 /// interesting: `state` carries the targets that were moved off the theme it records.
 ///
+/// Every theme the run resolves to is also measured against the core vocabulary. That is the
+/// only place the core is enforced; a theme is free to be incomplete and still load, list and
+/// apply to targets whose templates never read what it is short of.
+///
 /// # Errors
 ///
 /// Returns the reason there is nothing to check. A target that cannot be checked is a
@@ -165,6 +203,37 @@ pub fn check(
     let targets = select(config, only).map_err(|name| CheckError::UnknownTarget { name })?;
 
     let mut findings = Vec::new();
+
+    // The core is enforced against the themes this run resolves to, not against everything in
+    // `themes/`. `check` asks whether the machine is consistent, and a theme no target is on is
+    // not part of that: making one break the run is the shape `docs/core-vocabulary.md` rejects
+    // for the loader, where an unfinished file costs the user that theme rather than the tool.
+    // `vanadis check <theme>` is how a theme that is not applied yet gets the same question.
+    let mut resolved: Vec<ThemeId> = Vec::new();
+    for target in &targets {
+        // The same resolution `render` does: the applied theme states the mode, and a target
+        // with its own `themes` takes the one it names for that mode. Both ways this can fail
+        // — a theme that is not in `themes/`, a `themes` table short of the mode — are already
+        // that target's own `Unrenderable`, so they are passed over rather than reported twice.
+        let applied = assigned.theme(target);
+        let Some(mode) = catalog.get(&applied).map(Theme::variant) else {
+            continue;
+        };
+        let Ok(id) = pinned(target, &applied, mode) else {
+            continue;
+        };
+        if resolved.contains(&id) {
+            continue;
+        }
+        resolved.push(id.clone());
+        if let Some(theme) = catalog.get(&id) {
+            let missing = vocabulary::missing(theme.tokens());
+            if !missing.is_empty() {
+                findings.push(Finding::Incomplete { theme: id, missing });
+            }
+        }
+    }
+
     for target in &targets {
         let name = target.name().clone();
         let rendered = match render(catalog, target, &assigned.theme(target)) {

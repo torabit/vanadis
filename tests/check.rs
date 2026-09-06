@@ -204,3 +204,86 @@ fn refuses_an_only_that_names_no_target() {
     assert!(!output.status.success());
     assert!(!stderr(&output).is_empty());
 }
+
+/// Removes `token` from the theme `id` in `config`, leaving the theme otherwise as written.
+fn undefine(config: &Path, id: &str, token: &str) {
+    let path = config.join("themes").join(format!("{id}.toml"));
+    let text = fs::read_to_string(&path).unwrap();
+    let kept: Vec<&str> = text
+        .lines()
+        .filter(|line| !line.starts_with(&format!("{token} = ")))
+        .collect();
+    fs::write(&path, kept.join("\n") + "\n").unwrap();
+}
+
+/// An applied tree, so the only thing left for `check` to find is what a test puts there.
+fn applied(test: &str) -> (PathBuf, PathBuf) {
+    let (config, state) = tree(test, "apply");
+    let output = vanadis(&config, &state, &["apply", "paper-light"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    (config, state)
+}
+
+#[test]
+fn reports_a_core_role_the_theme_does_not_define() {
+    let (config, state) = applied("check-core-role");
+    undefine(&config, "paper-light", "linenr");
+
+    let output = vanadis(&config, &state, &["check", "paper-light"]);
+    assert!(!output.status.success());
+    assert!(
+        stdout(&output).contains("role.linenr"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn reports_a_core_ansi_slot_the_theme_does_not_define() {
+    let (config, state) = applied("check-core-ansi");
+    undefine(&config, "paper-light", "7");
+
+    let output = vanadis(&config, &state, &["check", "paper-light"]);
+    assert!(!output.status.success());
+    assert!(stdout(&output).contains("ansi.7"), "{}", stdout(&output));
+}
+
+#[test]
+fn passes_a_theme_that_defines_the_whole_core() {
+    let (config, state) = applied("check-core-whole");
+    let output = vanadis(&config, &state, &["check", "paper-light"]);
+    assert!(output.status.success(), "{}", stdout(&output));
+}
+
+#[test]
+fn names_the_incomplete_theme_once_however_many_targets_are_on_it() {
+    let (config, state) = applied("check-core-once");
+    undefine(&config, "paper-light", "linenr");
+
+    let output = vanadis(&config, &state, &["check", "paper-light"]);
+    let named = stdout(&output)
+        .lines()
+        .filter(|line| line.starts_with("paper-light:"))
+        .count();
+    assert_eq!(named, 1, "{}", stdout(&output));
+}
+
+#[test]
+fn says_nothing_about_a_theme_no_target_in_the_run_is_on() {
+    let (config, state) = applied("check-core-unused");
+    undefine(&config, "sea-light", "linenr");
+
+    // Only `pinned` is on sea-light, and `--only two` leaves it out of the run.
+    let output = vanadis(&config, &state, &["check", "paper-light", "--only", "two"]);
+    assert!(output.status.success(), "{}", stdout(&output));
+}
+
+#[test]
+fn reports_the_theme_a_pinned_target_is_on() {
+    let (config, state) = applied("check-core-pinned");
+    undefine(&config, "sea-light", "linenr");
+
+    let output = vanadis(&config, &state, &["check", "paper-light"]);
+    assert!(!output.status.success());
+    assert!(stdout(&output).contains("sea-light"), "{}", stdout(&output));
+}

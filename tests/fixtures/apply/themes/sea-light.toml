@@ -1,0 +1,7 @@
+[meta]
+format = 1
+name = "Sea Light"
+variant = "light"
+
+[colors]
+bg = "#e0f0ff"

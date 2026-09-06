@@ -3,7 +3,7 @@
 //! `docs/config.md` decides the layout: `$VANADIS_CONFIG` replaces the whole config
 //! directory, and the state file stays outside it, under `$XDG_STATE_HOME`.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use thiserror::Error;
 
@@ -39,6 +39,12 @@ impl Environment {
             xdg_state_home: variable("XDG_STATE_HOME"),
             home: std::env::home_dir(),
         }
+    }
+
+    /// The home directory, when the environment names one.
+    #[must_use]
+    pub fn home(&self) -> Option<&Path> {
+        set(self.home.as_ref()).map(PathBuf::as_path)
     }
 
     /// The directory holding `config.toml` and `themes/`.
@@ -111,8 +117,6 @@ fn set(value: Option<&PathBuf>) -> Option<&PathBuf> {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
     use super::*;
 
     fn environment() -> Environment {

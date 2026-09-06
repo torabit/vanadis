@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use thiserror::Error;
 
-use crate::theme::{Theme, ThemeError};
+use crate::theme::{Theme, ThemeError, ThemeId};
 
 /// Every theme a directory holds, and every file in it that is not one.
 #[derive(Debug)]
@@ -69,6 +69,12 @@ impl Catalog {
         &self.themes
     }
 
+    /// The theme `id` names, or `None` when the directory holds none.
+    #[must_use]
+    pub fn get(&self, id: &ThemeId) -> Option<&Theme> {
+        self.themes.iter().find(|theme| theme.id() == id)
+    }
+
     /// Why each of the other files is not a theme, in the same order.
     #[must_use]
     pub fn broken(&self) -> &[ThemeError] {
@@ -125,5 +131,18 @@ mod tests {
     fn reports_a_directory_it_cannot_scan() {
         let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/nowhere");
         assert!(Catalog::scan(&directory).is_err());
+    }
+    #[test]
+    fn finds_a_theme_by_its_identifier() {
+        let catalog = catalog();
+        let theme = catalog
+            .get(&ThemeId::parse("gruvbox-dark").unwrap())
+            .unwrap();
+        assert_eq!(theme.name(), "Gruvbox Dark");
+    }
+
+    #[test]
+    fn finds_no_theme_the_directory_does_not_hold() {
+        assert!(catalog().get(&ThemeId::parse("nope").unwrap()).is_none());
     }
 }

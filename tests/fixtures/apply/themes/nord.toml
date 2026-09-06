@@ -1,0 +1,7 @@
+[meta]
+format = 1
+name = "Nord"
+variant = "dark"
+
+[colors]
+bg = "#2e3440"

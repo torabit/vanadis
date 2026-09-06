@@ -1,0 +1,62 @@
+# The tree tests/check.rs drives. The test assembles the rest of the directory around this
+# file: tests/fixtures/templates/ as templates/, tests/fixtures/expected/ as expected/, and
+# docs/examples/papercolor-light.toml as the one theme.
+#
+# Every output points into expected/, which is the golden data the renderer is measured
+# against. A clean run therefore reports nothing, and hand-editing one of those files is
+# what drift detection has to catch.
+
+[[targets]]
+name = "bat"
+template = "templates/bat/PaperColor-Light.tmTheme.in"
+output = "expected/bat/PaperColor-Light.tmTheme"
+
+[[targets]]
+name = "btop"
+template = "templates/btop/papercolor-light.theme.in"
+output = "expected/btop/papercolor-light.theme"
+
+[[targets]]
+name = "herdr"
+template = "templates/herdr/config.toml.in"
+output = "expected/herdr/config.toml"
+
+[[targets]]
+name = "herdr-thumbs"
+template = "templates/herdr/config.env.in"
+output = "expected/herdr/config.env"
+
+[[targets]]
+name = "herdr-host-colors"
+template = "templates/herdr/host-colors.py.in"
+output = "expected/herdr/host-colors.py"
+
+[[targets]]
+name = "hunk"
+template = "templates/hunk/config.toml.in"
+output = "expected/hunk/config.toml"
+
+[[targets]]
+name = "lazygit"
+template = "templates/lazygit/theme.yml.in"
+output = "expected/lazygit/theme.yml"
+
+[[targets]]
+name = "nvim"
+template = "templates/neovim/palette.lua.in"
+output = "expected/neovim/palette.lua"
+
+[[targets]]
+name = "rio"
+template = "templates/rio/config.toml.in"
+output = "expected/rio/config.toml"
+
+[[targets]]
+name = "starship"
+template = "templates/starship/starship.toml.in"
+output = "expected/starship/starship.toml"
+
+[[targets]]
+name = "zsh"
+template = "templates/zsh/palette.zsh.in"
+output = "expected/zsh/palette.zsh"

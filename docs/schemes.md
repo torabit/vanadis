@@ -102,8 +102,13 @@ An interrupted download or a malformed archive leaves the previous cache in plac
 author and the variant. The identifier is the filename minus its extension, as in
 `themes/`. The rest come out of the file, and the file's shape depends on the system.
 
-base16 and base24 put everything at the top level. All 338 base16 and 196 base24 files carry
-`system`, `name`, `author` and `variant`.
+The system comes from the directory the file is in, not from the `system` field. The
+directory is what the extraction whitelist already matched on, so the field is a second copy
+of a decision that is made before the file is opened. Reading it would only add a way for the
+two to disagree, and a rule for which one wins.
+
+base16 and base24 put everything else at the top level. All 338 base16 and 196 base24 files
+carry `name`, `author` and `variant`.
 
 ```yaml
 system: "base16"
@@ -130,7 +135,7 @@ variant: "light"
 collection, which is worth showing when a scheme is imported and is not what someone
 searching by author is looking for.
 
-**A YAML parser, not a line scanner.** The five fields sit on their own lines in every file,
+**A YAML parser, not a line scanner.** Every field sits on its own line in every file,
 so scanning for `name: ` would work on the collection as it stands today — except that one
 base16 file writes `variant: dark` unquoted while every other file quotes it, which is
 already two spellings of one value. The collection is not vanadis's to keep uniform, and a
@@ -173,7 +178,7 @@ since the last `remote update`.
 Nothing has been cached yet:
 
 ```
-error: no scheme cache under ~/.cache/vanadis/schemes
+Error: no scheme cache under /home/ada/.cache/vanadis/schemes
 run `vanadis remote update` to fetch it
 ```
 
@@ -181,13 +186,18 @@ run `vanadis remote update` to fetch it
 
 ```
 error: cannot reach https://github.com/tinted-theming/schemes/archive/refs/heads/spec-0.11.tar.gz
-  caused by: dns error: failed to lookup address information
+  caused by: io: failed to lookup address information: Name or service not known
 the cached schemes are unchanged; `vanadis search` still reads them
 ```
 
 The last line names what still works, because the common case for a failed fetch is a laptop
 that is offline and already holds the collection. It is omitted when there is no cache, where
-it would be false.
+it would be false. It is why `remote update` prints its own failure instead of returning it:
+no other command has a closing line that depends on what is on disk.
+
+Paths in these messages are absolute and not shortened to `~`. The error is raised where the
+home directory is not known, and threading it down to reach one message would put a
+presentation concern into every signature on the way.
 
 ## Rejected alternatives
 

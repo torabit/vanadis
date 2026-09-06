@@ -13,6 +13,8 @@ use thiserror::Error;
 
 use crate::theme::Variant;
 
+pub mod cache;
+
 /// Which scheme system a file is written for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum System {

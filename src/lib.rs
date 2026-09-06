@@ -26,6 +26,7 @@ pub use config::{Config, ConfigError, Target, TargetName};
 pub use diff::unified;
 pub use init::{Answer, Binding, Colour, InitError, Occurrence, Scan, Unhandled};
 pub use paths::{Environment, PathsError};
+pub use scheme::cache::{Cache, CacheError};
 pub use scheme::{Scheme, SchemeError, System};
 pub use state::{State, StateError};
 pub use template::{Template, TemplateError, UndefinedToken};

@@ -1,3 +1,4 @@
+onboarding = false
 # 生成物。編集は config.toml.in を直す。
 
 [keys]

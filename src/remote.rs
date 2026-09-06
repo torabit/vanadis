@@ -34,7 +34,7 @@ pub enum RemoteError {
         source: Box<ureq::Error>,
     },
     /// The archive could not be read as a gzipped tar.
-    #[error("{url}: not a readable archive: {source}")]
+    #[error("{url}: not a readable archive")]
     Archive {
         /// Where the archive came from.
         url: String,
@@ -48,7 +48,7 @@ pub enum RemoteError {
         url: String,
     },
     /// A file or directory could not be written.
-    #[error("{}: {source}", .path.display())]
+    #[error("{}", .path.display())]
     Write {
         /// The path the write failed on.
         path: PathBuf,
@@ -82,10 +82,11 @@ enum Destination {
 /// Writes the schemes `archive` holds into `directory`, replacing what is there.
 ///
 /// The archive is unpacked into `directory` with `.incoming` appended to its name, and that
-/// directory replaces `directory` by rename once every entry is written. Any failure, at any
-/// point, removes the staging directory before returning, so a failure part way through
-/// leaves neither a half-written staging directory nor a half-written cache: the previous
-/// cache is exactly as it was.
+/// directory replaces `directory` by rename once every entry is written. Only unpacking is
+/// wrapped in cleanup: a failure there removes the staging directory and leaves the
+/// previous cache untouched. A failure in either of the two steps after — removing the
+/// previous cache, or renaming staging into its place — leaves the staging directory
+/// behind; the next run's opening [`remove`] clears it before staging again.
 ///
 /// # Errors
 ///

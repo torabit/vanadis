@@ -79,6 +79,15 @@ enum Command {
         #[command(subcommand)]
         command: RemoteCommand,
     },
+    /// Convert an upstream scheme into a theme under `themes/`.
+    Import {
+        /// A cached identifier, `<system>/<id>`, a file, or a URL.
+        #[arg(value_name = "SOURCE")]
+        source: String,
+        /// Write over a theme of that name that is already there.
+        #[arg(long)]
+        force: bool,
+    },
     /// Find a cached scheme by identifier, variant, name or author.
     Search {
         /// What to look for, compared without case against every column printed.
@@ -170,6 +179,7 @@ fn main() -> anyhow::Result<ExitCode> {
         Command::Remote {
             command: RemoteCommand::Update,
         } => remote_update(&environment),
+        Command::Import { source, force } => import(&environment, &source, force),
         Command::Search { query } => search(&environment, &query),
     }
 }
@@ -634,6 +644,56 @@ fn search(environment: &Environment, query: &str) -> anyhow::Result<ExitCode> {
         )?;
     }
 
+    Ok(ExitCode::SUCCESS)
+}
+
+/// Converts one upstream scheme and writes it as a theme.
+///
+/// `docs/schemes.md` decides that a theme already under that name is refused rather than
+/// written over, and that `--force` is how it is written over.
+fn import(environment: &Environment, source: &str, force: bool) -> anyhow::Result<ExitCode> {
+    let imported = match vanadis::import(
+        source,
+        &environment.schemes_dir()?,
+        &environment.themes_dir()?,
+        force,
+    ) {
+        Ok(imported) => imported,
+        Err(error) => {
+            eprintln!("error: {error}");
+            let mut cause: &dyn std::error::Error = &error;
+            while let Some(next) = cause.source() {
+                eprintln!("  caused by: {next}");
+                cause = next;
+            }
+            match error {
+                vanadis::ImportError::NoCache { .. } => {
+                    eprintln!("run `vanadis remote update` to fetch it");
+                }
+                vanadis::ImportError::Unknown { .. } => {
+                    eprintln!("run `vanadis search` to find one");
+                }
+                vanadis::ImportError::Exists { .. } => {
+                    eprintln!("pass `--force` to write over it");
+                }
+                _ => {}
+            }
+            return Ok(ExitCode::FAILURE);
+        }
+    };
+
+    let mut out = std::io::stdout().lock();
+    writeln!(out, "imported {} as {}", imported.origin(), imported.id())?;
+    writeln!(
+        out,
+        "  {}  {}  {}{}",
+        shown(imported.path(), environment.home()),
+        imported.variant().as_str(),
+        imported.name(),
+        imported
+            .author()
+            .map_or_else(String::new, |author| format!("  {author}"))
+    )?;
     Ok(ExitCode::SUCCESS)
 }
 

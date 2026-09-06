@@ -91,6 +91,17 @@ pub(super) fn writes(mapping: &Yaml<'_>, key: &str) -> bool {
     mapping.as_mapping_get(key).is_some()
 }
 
+/// Whether the mapping writes `key` and `key` holds a mapping of its own.
+///
+/// Stronger than [`writes`], for telling a nested header apart from a flat one before either
+/// is read. base16 schemes written for the 0.9 spec carry `scheme` as a string holding the
+/// display name, and one of those is in the collection today, so a scheme that writes the
+/// key over something that is not a mapping must not be sent down the nested path and then
+/// failed on the type of a key it never meant as a block.
+pub(super) fn nests(mapping: &Yaml<'_>, key: &str) -> bool {
+    mapping.as_mapping_get(key).is_some_and(Yaml::is_mapping)
+}
+
 /// The entries of `mapping`, in the order the document writes them.
 ///
 /// `at` names the mapping, for the error a caller cannot otherwise attribute.
@@ -233,5 +244,18 @@ mod tests {
             entries(ui, "ui"),
             Err(Problem::Type { ref key, .. }) if key == "ui"
         ));
+    }
+
+    #[test]
+    fn says_a_key_holding_a_mapping_is_nested() {
+        let document = document("scheme:\n  system: \"tinted8\"\n").unwrap();
+        assert!(nests(&document, "scheme"));
+    }
+
+    #[test]
+    fn says_a_key_holding_a_string_is_not_nested() {
+        let document = document("scheme: \"Gruvbox dark, hard\"\n").unwrap();
+        assert!(writes(&document, "scheme"));
+        assert!(!nests(&document, "scheme"));
     }
 }

@@ -282,6 +282,18 @@ palette:
   black: "#2e3440"
 "##;
 
+    const TINTED8_BOTH: &str = r##"
+scheme:
+  system: "tinted8"
+  name: "Nord"
+  author: "Tinted Theming"
+  family: "Nordic"
+  style: "Polar"
+variant: "dark"
+palette:
+  black: "#2e3440"
+"##;
+
     fn base16(id: &str) -> Scheme {
         Scheme::parse(System::Base16, id, BASE16).unwrap()
     }
@@ -329,8 +341,14 @@ palette:
     }
 
     #[test]
-    fn prefers_a_tinted8_name_field_over_family_and_style() {
+    fn reads_a_tinted8_name_from_the_name_field() {
         let scheme = Scheme::parse(System::Tinted8, "nord", TINTED8_NAME).unwrap();
+        assert_eq!(scheme.name(), "Nord");
+    }
+
+    #[test]
+    fn prefers_a_tinted8_name_field_over_family_and_style() {
+        let scheme = Scheme::parse(System::Tinted8, "nord", TINTED8_BOTH).unwrap();
         assert_eq!(scheme.name(), "Nord");
     }
 
@@ -405,6 +423,15 @@ palette:
         assert_eq!(
             Scheme::parse(System::Tinted8, "x", source).unwrap_err(),
             Problem::Missing("scheme.name")
+        );
+    }
+
+    #[test]
+    fn reports_a_tinted8_file_with_no_author() {
+        let source = "scheme:\n  name: \"A\"\nvariant: \"dark\"\n";
+        assert_eq!(
+            Scheme::parse(System::Tinted8, "x", source).unwrap_err(),
+            Problem::Missing("scheme.author")
         );
     }
 

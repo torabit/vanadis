@@ -40,6 +40,39 @@ symlink inside `themes/`, which needs no format at all.
 Files in `themes/` that do not end in `.toml` are ignored. Subdirectories are ignored, since
 a theme nested one level down has no unambiguous identifier.
 
+A `.toml` file that does not load is reported and skipped rather than failing the scan. This
+is the same call [docs/core-vocabulary.md](core-vocabulary.md#a-missing-core-token-is-not-a-load-error)
+makes for a theme missing a core token, and for the same reason: one unfinished file should
+cost the user that theme, not every command that enumerates the directory.
+
+## State
+
+The theme that was applied last is recorded in `$XDG_STATE_HOME/vanadis/state.toml`, falling
+back to `~/.local/state/vanadis/state.toml` when `XDG_STATE_HOME` is unset.
+
+```toml
+theme = "papercolor-light"
+```
+
+`apply` writes it. `current` prints the identifier it holds, and prints nothing and exits
+non-zero when the file does not exist yet, so a shell hook can tell "not applied" from a
+theme name without parsing. `list` reads it to mark the applied theme, and a state file it
+cannot read costs that mark and nothing else.
+
+The file is written beside its destination and renamed over it, so a state file that exists
+is one that was written whole.
+
+**`$VANADIS_CONFIG` does not move it.** The config directory holds what the user wrote, and
+is what gets version controlled or copied between machines. The state file records which
+theme this machine is currently showing, which is the one thing that must not travel with it.
+The separation also means a test can point `$VANADIS_CONFIG` at a fixture tree without a run
+leaving a file behind in it.
+
+**It is TOML rather than the bare identifier.** A file holding `papercolor-light` and nothing
+else would be smaller, and `current` would be `cat`. It carries one key today. TOML is what
+lets a second one, such as the mode a `--variant` apply resolved, be added later without
+changing how the file is read, and `toml_edit` is already a dependency.
+
 ## The file
 
 Every name below is the user's. vanadis ships no themes and carries no list of tools, so
@@ -216,8 +249,8 @@ comment character cannot express.
 
 ## Left open
 
-- What `vanadis apply` does with no argument and no `[auto]` beyond failing, which depends on
-  whether the applied theme is recorded anywhere.
+- Whether a bare `vanadis apply` with no `[auto]` re-renders the theme the state file
+  records, rather than failing.
 - Whether `check` verifies that a target's `output` is writable, or only that the render
   succeeds.
 - Rendering one named theme to one path, which export templates need. It reads no

@@ -5,3 +5,8 @@ variant = "dark"
 
 [colors]
 bg = "#282828"
+
+[role]
+bg = "#282828"
+fg = "#ebdbb2"
+accent = "{{colors.bg}}"

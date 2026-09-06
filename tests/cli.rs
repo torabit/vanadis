@@ -1,4 +1,4 @@
-//! `vanadis list` and `vanadis current`, driven as the user drives them.
+//! The commands that read: `list`, `current` and `get`, driven as the user drives them.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -109,4 +109,107 @@ fn reports_that_no_theme_has_been_applied_yet() {
     assert!(!output.status.success());
     assert!(stdout(&output).is_empty(), "{}", stdout(&output));
     assert!(!stderr(&output).is_empty());
+}
+
+#[test]
+fn prints_the_value_a_token_resolves_to() {
+    let state = state_home("get");
+    applied(&state, "gruvbox-dark");
+    let output = vanadis(&config(), &state, &["get", "role.fg"]);
+    assert_eq!(stdout(&output), "#ebdbb2\n");
+}
+
+#[test]
+fn follows_a_reference_before_printing_it() {
+    let state = state_home("get-reference");
+    applied(&state, "papercolor-light");
+    let output = vanadis(&config(), &state, &["get", "role.bg"]);
+    assert_eq!(stdout(&output), "#eeeeee\n");
+}
+
+#[test]
+fn reads_the_theme_named_instead_of_the_applied_one() {
+    let state = state_home("get-theme");
+    applied(&state, "gruvbox-dark");
+    let output = vanadis(
+        &config(),
+        &state,
+        &["get", "role.fg", "--theme", "papercolor-light"],
+    );
+    assert_eq!(stdout(&output), "#444444\n");
+}
+
+#[test]
+fn prints_nothing_for_a_token_the_theme_does_not_define() {
+    let state = state_home("get-undefined");
+    applied(&state, "gruvbox-dark");
+    let output = vanadis(&config(), &state, &["get", "role.acent"]);
+    assert!(!output.status.success());
+    assert!(stdout(&output).is_empty(), "{}", stdout(&output));
+    assert!(
+        stderr(&output).contains("role.acent"),
+        "{}",
+        stderr(&output)
+    );
+}
+
+#[test]
+fn prints_nothing_for_a_name_that_is_not_a_token_path() {
+    let state = state_home("get-malformed");
+    applied(&state, "gruvbox-dark");
+    let output = vanadis(&config(), &state, &["get", "Role.BG"]);
+    assert!(!output.status.success());
+    assert!(stdout(&output).is_empty(), "{}", stdout(&output));
+}
+
+#[test]
+fn reports_that_no_theme_has_been_applied_when_reading_a_token() {
+    let state = state_home("get-unset");
+    let output = vanadis(&config(), &state, &["get", "role.fg"]);
+    assert!(!output.status.success());
+    assert!(stdout(&output).is_empty(), "{}", stdout(&output));
+    assert!(!stderr(&output).is_empty());
+}
+
+#[test]
+fn prints_every_token_the_theme_defines_as_json() {
+    let state = state_home("get-json");
+    applied(&state, "gruvbox-dark");
+    let output = vanadis(&config(), &state, &["get", "--json"]);
+    let tokens: std::collections::BTreeMap<String, String> =
+        serde_json::from_str(&stdout(&output)).unwrap();
+    assert_eq!(
+        tokens,
+        [
+            ("colors.bg", "#282828"),
+            ("meta.format", "1"),
+            ("meta.id", "gruvbox-dark"),
+            ("meta.name", "Gruvbox Dark"),
+            ("meta.variant", "dark"),
+            ("role.accent", "#282828"),
+            ("role.bg", "#282828"),
+            ("role.fg", "#ebdbb2"),
+        ]
+        .into_iter()
+        .map(|(path, value)| (path.to_owned(), value.to_owned()))
+        .collect()
+    );
+}
+
+#[test]
+fn refuses_a_token_path_and_json_together() {
+    let state = state_home("get-both");
+    applied(&state, "gruvbox-dark");
+    let output = vanadis(&config(), &state, &["get", "role.fg", "--json"]);
+    assert!(!output.status.success());
+    assert!(stdout(&output).is_empty(), "{}", stdout(&output));
+}
+
+#[test]
+fn refuses_to_read_neither_a_token_nor_the_whole_theme() {
+    let state = state_home("get-neither");
+    applied(&state, "gruvbox-dark");
+    let output = vanadis(&config(), &state, &["get"]);
+    assert!(!output.status.success());
+    assert!(stdout(&output).is_empty(), "{}", stdout(&output));
 }

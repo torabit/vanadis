@@ -24,6 +24,8 @@ vanadis apply --variant dark
 vanadis check                   # do the generated files still match their templates?
 vanadis apply nord --diff       # what would change?
 vanadis get role.bg             # for a tool that would rather ask than read a file
+vanadis remote update           # cache the tinted-theming scheme collection
+vanadis search nord             # find a scheme in it, offline
 ```
 
 ## What this is not

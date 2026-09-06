@@ -105,7 +105,8 @@ carries, and a rule its own reference file breaks is not a rule.
 **`[ansi]`** — the terminal's 16 slots. Keys are the decimal strings `0` through `15`, no
 leading zeros, no sub-tables. Any other key is an error, so `ansi.N` always means slot N.
 All sixteen must be present; see
-[docs/core-vocabulary.md](core-vocabulary.md#why-all-sixteen-ansi-slots). Terminals with
+[docs/core-vocabulary.md](core-vocabulary.md#why-all-sixteen-ansi-slots), which also decides
+that `check` rather than the loader is where that is enforced. Terminals with
 extended slots put them in `[colors]` alongside everything else; `[ansi]` stays exactly
 sixteen.
 
@@ -143,8 +144,9 @@ cannot be `PaperColor Light.toml`.
 
 ## Values
 
-Every value is a TOML string. Integers, floats, booleans, datetimes, arrays and arrays of
-tables are all errors — `bg = 0xeeeeee` is valid TOML and is not a colour.
+Every value is a TOML string, and `meta.format` is the one exception: it is the number `1`,
+as [Metadata](#metadata) writes it. Everywhere else integers, floats, booleans, datetimes,
+arrays and arrays of tables are errors — `bg = 0xeeeeee` is valid TOML and is not a colour.
 
 In `[colors]`, `[ansi]` and author-defined namespaces, a string is either a **hex literal** or
 **exactly one reference** filling the whole string.
@@ -246,10 +248,11 @@ as `.claude/rules/errors.md` requires.
 | `[meta]` unknown key, or missing `name` / `variant`, or `variant` outside `dark` / `light` | the key |
 | reference cycle | every cycle, each once |
 
-Reporting each cycle exactly once needs strongly connected components, not a visited set
-during a depth-first walk: a plain visited set either stops at the first cycle or reports the
-same cycle once per node in it. Tarjan's algorithm over the reference graph gives the right
-answer and is the intended implementation.
+Reporting each cycle exactly once takes more than a plain visited set, which either stops at
+the first cycle or reports the same cycle once per node in it. A value is exactly one
+reference, so a token has at most one outgoing edge: following that edge from each token, and
+marking the tokens on the current walk, reports every cycle once. Strongly connected
+components are what a graph whose nodes branch would need.
 
 Producing a line number for each of these rules out `#[derive(Deserialize)]`. `toml::Spanned`
 does not survive `#[serde(untagged)]` or `#[serde(flatten)]`, both of which a model with

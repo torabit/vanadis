@@ -23,10 +23,32 @@ impl TokenPath {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+
+    /// The first segment, which names the namespace a token sits in.
+    #[must_use]
+    pub fn root(&self) -> &str {
+        self.0.split('.').next().unwrap_or_default()
+    }
+
+    /// The segments the path is made of.
+    pub fn segments(&self) -> impl Iterator<Item = &str> {
+        self.0.split('.')
+    }
+
+    /// `self.segment`, or `None` when `segment` is not a valid segment.
+    #[must_use]
+    pub fn child(&self, segment: &str) -> Option<Self> {
+        is_segment(segment).then(|| Self(format!("{}.{segment}", self.0)))
+    }
+
+    /// Joins pre-validated segments. The caller guarantees each one is a segment.
+    pub(crate) fn from_segments<'a>(segments: impl IntoIterator<Item = &'a str>) -> Self {
+        Self(segments.into_iter().collect::<Vec<_>>().join("."))
+    }
 }
 
 /// One segment of a token path: `[a-z0-9]([a-z0-9-]*[a-z0-9])?`.
-fn is_segment(text: &str) -> bool {
+pub(crate) fn is_segment(text: &str) -> bool {
     let bytes = text.as_bytes();
     let (Some(&first), Some(&last)) = (bytes.first(), bytes.last()) else {
         return false;

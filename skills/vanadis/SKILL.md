@@ -61,6 +61,7 @@ not travel with it.
 | `vanadis get role.bg` | one resolved value and nothing else, so `$(vanadis get role.bg)` is a colour |
 | `vanadis get <token> --theme <id>` | reads that theme instead of the applied one, and is the only way to query before any apply |
 | `vanadis get --json` | the whole resolved theme, flat, keyed by token path |
+| `vanadis render <template> --theme <id>` | one template against one named theme, to stdout. Reads no target and writes no file — this is how a theme is written out as a base16 scheme or any other format |
 | `vanadis init <file>` | interactive. Hand it to the user — see below. |
 
 `apply` overwrites files the user wrote. Show `vanadis apply <theme> --diff` and get their

@@ -454,11 +454,14 @@ and three `{{meta...}}` in it. Putting knowledge of output formats into vanadis 
 rendering through templates exists to prevent, and the converter is an importer: its stated
 work is reading scheme bytes into this model, and nothing in this document extends it.
 
-What is missing is a way to render one named theme once, rather than rendering the active
-theme to every target. The config file's model writes every target on every apply, which
-would overwrite `gruvbox.yaml` with whatever theme is active. Export therefore needs something
-like `vanadis render <template> --theme <name> --out <path>`, which keeps vanadis ignorant of
-formats. That is a separate decision, not this document.
+Rendering one named theme once, rather than the active theme to every target, is what makes
+that possible: the config file's model writes every target on every apply, which would
+overwrite `gruvbox.yaml` with whatever theme is active. `vanadis render <template> --theme <id>`
+is that mechanism and it keeps vanadis ignorant of formats.
+[docs/config.md](config.md#rendering-one-theme-once) decides it.
+`tests/fixtures/export/base16.yaml.in` is the template, and `tests/export.rs` holds the claim
+to account: a scheme imported, rendered back out, and imported again carries the same sixteen
+colours.
 
 Filling base16 from the core vocabulary alone leaves two slots empty. Ten follow from
 `[ansi]`; `base01`, `base02`, `base04` and `base09` carry `role` names in the core
@@ -470,7 +473,6 @@ unaffected.
 ## Left open
 
 - Where theme files live and how they are discovered.
-- A subcommand for rendering one named theme, which export templates need.
 - **Indexed colour.** Upstream PaperColor stores `['#eeeeee', '255']` — hex and cterm index
   together — and a Vim template written against it would need the index. A token holds a hex
   literal and there is no conversion function, so those templates cannot be generated.

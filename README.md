@@ -35,6 +35,17 @@ and they drift apart; switching between light and dark means editing them all ag
 can reload.** You write the templates and you choose the token names. There is no spec to
 conform to and no template repository to maintain.
 
+<p align="center">
+  <img
+    src="media/demo.gif"
+    alt="One vanadis cycle, and herdr, Neovim, btop and the shell prompt all change together"
+    width="900"
+  />
+</p>
+
+One `vanadis cycle`, and the multiplexer, the editor, the process viewer and the prompt all
+follow. Four config files, four different ways of picking a change up, one palette.
+
 - **Yours:** your templates, your vocabulary. `role.accent` or `colors.mauve` — vanadis does
   not have a list of names to squeeze into.
 - **Checked:** `vanadis check` re-renders every target and names the ones that no longer match.

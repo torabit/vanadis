@@ -2,6 +2,7 @@
 -- recorder's own nvim config is loaded.
 
 vim.opt.number = true
+vim.opt.wrap = false
 vim.opt.termguicolors = true
 vim.opt.laststatus = 0
 vim.opt.ruler = false

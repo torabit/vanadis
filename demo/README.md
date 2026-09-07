@@ -61,8 +61,21 @@ demo/
   .run/             a copy of the two above, written into by init.tape, gitignored
 ```
 
-Every template reads core tokens only, so both themes render against all four targets.
-Rendering the matrix is the proof, and it is what to run after editing a template:
+Three of the four templates read core tokens only. The herdr one also reads
+`text.herdr-base`, a string and not a colour: the name of the built-in theme herdr falls back
+to for anything `[theme.custom]` does not set. Getting it wrong is visible, and only just —
+a light pane border drawn across an otherwise dark frame.
+
+`herdr config check` is what says which keys `[theme.custom]` accepts. It names every key it
+does not know and then ignores it, so a token invented in the template is silent at runtime
+and loud only there:
+
+```sh
+HERDR_CONFIG_PATH=$PWD/demo/home/herdr/config.toml herdr config check
+```
+
+Both themes render against all four targets. Rendering the matrix is the proof, and it is
+what to run after editing a template:
 
 ```sh
 for theme in papercolor-light papercolor-dark; do

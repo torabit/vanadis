@@ -83,3 +83,6 @@ removed-emph = "#ffafaf"
 [text]
 delta-syntax-theme = "gruvbox-light"
 hunk-base = "github-light-default"
+# The built-in herdr theme anything [theme.custom] does not name falls back to. A dark base
+# under a light palette leaves a dark line wherever a token was missed.
+herdr-base = "catppuccin-latte"

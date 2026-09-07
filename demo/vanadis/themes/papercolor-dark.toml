@@ -86,4 +86,5 @@ removed-emph = "#870000"
 [text]
 delta-syntax-theme = "gruvbox-dark"
 hunk-base = "github-dark-default"
-herdr-base = "catppuccin-mocha"
+# `herdr --default-config` lists the built-in names. `catppuccin` is the dark one.
+herdr-base = "catppuccin"

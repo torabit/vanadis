@@ -9,9 +9,10 @@
 # was needed to theme it.
 
 [theme]
-# `terminal` is the built-in that adds no colours of its own, so every token below is
-# the theme's and nothing falls through to the host terminal.
-name = "terminal"
+# The base is a built-in of the right lightness, named by the theme in `text.herdr-base`.
+# Every token below overrides it, and the base is what catches any this file has missed:
+# get it wrong and a stray token draws a light pane border across a dark frame.
+name = "{{text.herdr-base}}"
 
 [theme.custom]
 accent = "{{role.accent}}"
@@ -33,6 +34,9 @@ red = "{{role.error}}"
 blue = "{{role.visual}}"
 teal = "{{role.accent-alt}}"
 peach = "{{role.accent-warm}}"
+
+# This is the whole set herdr accepts. `herdr config check` names any key that is not in it
+# and then ignores it, so a token invented here is silent at runtime and loud only there.
 
 [ui]
 accent = "{{role.accent}}"

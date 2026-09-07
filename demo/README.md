@@ -27,9 +27,22 @@ reload commands in `demo/vanadis/config.toml`.
 
 ```sh
 cargo build --release
-PATH="$PWD/target/release:$PATH" vhs demo/demo.tape
-PATH="$PWD/target/release:$PATH" vhs demo/init.tape
+VHS_NO_SANDBOX=true PATH="$PWD/target/release:$PATH" vhs demo/demo.tape
+VHS_NO_SANDBOX=true PATH="$PWD/target/release:$PATH" vhs demo/init.tape
 ```
+
+`VHS_NO_SANDBOX` is needed on Ubuntu, and the failure without it is not obvious: vhs draws
+the terminal in a headless Chromium, AppArmor blocks the unprivileged user namespace that
+Chromium's zygote sandbox needs, and Chromium aborts with a stack trace ending in
+`content::ZygoteHostImpl::Init()` and the single line `recording failed`.
+
+```sh
+sysctl kernel.apparmor_restrict_unprivileged_userns   # 1 on Ubuntu 24.04 and later
+```
+
+Turning that sysctl off fixes it machine-wide and is the worse trade. The variable disables
+the sandbox for one throwaway Chromium rendering a terminal on the local machine, which loads
+nothing from the network.
 
 ## How it is wired
 

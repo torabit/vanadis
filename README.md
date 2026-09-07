@@ -118,7 +118,9 @@ vanadis apply nord              # write it, and run each target's reload
 
 ## 🎨 What it looks like
 
-`~/.config/vanadis/config.toml` — one entry per file vanadis writes:
+`~/.config/vanadis/config.toml` — one entry per file vanadis writes.
+[`docs/examples/config.toml`](docs/examples/config.toml) is the whole of one, with eleven
+targets in it; these are three of them:
 
 ```toml
 [auto]

@@ -1,0 +1,20 @@
+#!/bin/sh
+# Runs a program with the demo's environment, whatever the shell above it did.
+#
+# herdr starts each pane with the recorder's own $SHELL, which reads the recorder's rc
+# files, and one of those is very likely to export XDG_CONFIG_HOME back to $HOME/.config.
+# Exporting before the server starts is not enough: the value survives into the server and
+# is then overwritten by every interactive shell it spawns. nvim reading the recorder's
+# config and loading their plugin manager is what that looks like.
+set -eu
+root=$(cd "$(dirname "$0")/../.." && pwd)
+
+export COLORTERM=truecolor
+export VANADIS_CONFIG="$root/demo/vanadis"
+export XDG_CONFIG_HOME="$root/demo/home"
+export XDG_DATA_HOME="$root/demo/home/share"
+export XDG_STATE_HOME="$root/demo/home/state"
+export STARSHIP_CONFIG="$root/demo/home/starship.toml"
+export HERDR_CONFIG_PATH="$root/demo/home/herdr/config.toml"
+
+exec "$@"

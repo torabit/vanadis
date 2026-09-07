@@ -1,15 +1,8 @@
-# The shell the demo's prompt pane runs, so no part of the recorder's own bashrc shows up
-# in the frame. starship re-reads its config on every prompt, which is why this pane
-# follows a theme with no reload command anywhere.
+# The shell the demo's prompt pane runs, so no part of the recorder's own rc files shows up
+# in the frame. demo/bin/demo-env has already put the demo's environment in place.
 #
-# Panes inherit their cwd from the pane they were split off, which the tape leaves at the
-# repository root.
-
-export COLORTERM=truecolor
-export VANADIS_CONFIG="$PWD/demo/vanadis"
-export XDG_CONFIG_HOME="$PWD/demo/home"
-export STARSHIP_CONFIG="$PWD/demo/home/starship.toml"
-export HERDR_CONFIG_PATH="$PWD/demo/home/herdr/config.toml"
+# starship re-reads its config on every prompt, which is why this pane follows a theme with
+# no reload command anywhere.
 
 export PS1='$ '
 eval "$(starship init bash)"

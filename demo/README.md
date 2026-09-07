@@ -122,9 +122,20 @@ herdr's sidebar takes 26 columns before either split gets any: `Set Width 1500` 
 columns and it drew a black rectangle. 1700 leaves it about 90. Shrinking the recording
 without looking at that pane is how the TUI ends up blank.
 
-**Set `XDG_DATA_HOME` and `XDG_STATE_HOME` too, not just `XDG_CONFIG_HOME`.** nvim loads
-plugins from `XDG_DATA_HOME`, so the recorder's own plugins turn up in the demo's nvim
-otherwise, statusline glyphs and all. vanadis keeps the theme it applied last under
+**Start every pane through `demo/bin/demo-env`.** Exporting the demo's variables before the
+server starts is not enough. herdr gives each pane the recorder's own `$SHELL`, which reads
+the recorder's rc files, and a line as ordinary as
+
+```sh
+export XDG_CONFIG_HOME="$HOME/.config"
+```
+
+in `~/.zshrc` puts the recorder's config directory back for everything that pane launches.
+What that looks like is nvim opening the recorder's plugin manager and btop drawing in the
+recorder's theme, in a recording that is supposed to be showing off a different one.
+
+Three variables matter and only one of them is obvious. nvim loads plugins from
+`XDG_DATA_HOME`, not `XDG_CONFIG_HOME`. vanadis keeps the theme it applied last under
 `XDG_STATE_HOME`, so a recording without it overwrites what the recorder had applied.
 
 ## Putting them in the README

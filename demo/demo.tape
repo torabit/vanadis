@@ -51,9 +51,10 @@ Type "export XDG_CONFIG_HOME=$PWD/demo/home" Enter
 Type "export STARSHIP_CONFIG=$PWD/demo/home/starship.toml" Enter
 Type "export HERDR_CONFIG_PATH=$PWD/demo/home/herdr/config.toml" Enter
 
-# nvim's plugins come from XDG_DATA_HOME and not from XDG_CONFIG_HOME, so without this the
-# recorder's own plugins load into the demo's nvim. vanadis keeps the theme it applied last
-# under XDG_STATE_HOME, so without this a recording overwrites the recorder's.
+# nvim's plugins come from XDG_DATA_HOME and not from XDG_CONFIG_HOME. vanadis keeps the
+# theme it applied last under XDG_STATE_HOME, so without this a recording overwrites the
+# recorder's. These are for the commands run here; every pane goes through demo/bin/demo-env,
+# because the pane shells read the recorder's rc files and put their own values back.
 Type "export XDG_DATA_HOME=$PWD/demo/home/share" Enter
 Type "export XDG_STATE_HOME=$PWD/demo/home/state" Enter
 
@@ -81,13 +82,13 @@ Sleep 1s
 Type "herdr --session vanadis-demo pane split w1:p2 --direction down --ratio 0.55 --cwd $PWD --no-focus >/dev/null" Enter
 Sleep 2s
 
-Type "herdr --session vanadis-demo pane run w1:p2 btop" Enter
+Type "herdr --session vanadis-demo pane run w1:p2 demo/bin/demo-env btop" Enter
 Sleep 2s
-Type "herdr --session vanadis-demo pane run w1:p3 bash --rcfile demo/home/bashrc" Enter
+Type "herdr --session vanadis-demo pane run w1:p3 demo/bin/demo-env bash --rcfile demo/home/bashrc" Enter
 Sleep 2s
 Type "herdr --session vanadis-demo pane run w1:p3 clear" Enter
 Sleep 1s
-Type "herdr --session vanadis-demo pane run w1:p1 nvim --listen $PWD/demo/home/nvim.sock demo/vanadis/config.toml" Enter
+Type "herdr --session vanadis-demo pane run w1:p1 demo/bin/demo-env nvim --listen $PWD/demo/home/nvim.sock demo/vanadis/config.toml" Enter
 Sleep 3s
 Type "herdr --session vanadis-demo pane focus --pane w1:p2 --direction down >/dev/null" Enter
 Sleep 1s

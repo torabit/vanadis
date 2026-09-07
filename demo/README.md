@@ -58,7 +58,7 @@ demo/
   home/             XDG_CONFIG_HOME. herdr, nvim, btop and the shell read from here
   bin/              demo-env, btop-loop, reload-herdr
   adopt/ghostty/    the config init.tape adopts
-  .run/             a copy of the two above, written into by init.tape, gitignored
+  .run/             a throwaway HOME, written into by init.tape, gitignored
 ```
 
 Three of the four templates read core tokens only. The herdr one also reads

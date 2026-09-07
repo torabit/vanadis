@@ -26,28 +26,34 @@ Hide
 # The swatch beside each hex is only drawn when the terminal says it can show the exact
 # colour. vhs does not set COLORTERM, so without this the column is blank.
 Type "export COLORTERM=truecolor" Enter
-Type "export XDG_CONFIG_HOME=$PWD/demo/home" Enter
 
-# A throwaway tree, so init writes its theme, template and target entry somewhere the
-# repository does not track.
-Type "rm -rf demo/.run && mkdir -p demo/.run" Enter
-Type "cp -r demo/vanadis demo/.run/vanadis && cp -r demo/adopt demo/.run/adopt" Enter
-Type "export VANADIS_CONFIG=$PWD/demo/.run/vanadis" Enter
+# A throwaway HOME, so init writes its theme, template and target entry somewhere the
+# repository does not track, and so the paths on screen are the ones a real run prints.
+# Pointing VANADIS_CONFIG at the copy would work too and would put `demo/.run` in every
+# path in the summary, which reads as scaffolding rather than as somebody's config.
+Type "rm -rf demo/.run && mkdir -p demo/.run/.config" Enter
+Type "cp -r demo/vanadis demo/.run/.config/vanadis" Enter
+Type "cp -r demo/adopt/ghostty demo/.run/.config/ghostty" Enter
+Type "export HOME=$PWD/demo/.run" Enter
+
+# With HOME redirected, the default paths are the demo's, so neither variable is wanted.
+Type "unset XDG_CONFIG_HOME VANADIS_CONFIG XDG_STATE_HOME" Enter
 Type "clear" Enter
 Sleep 1s
 
 Show
 
 Sleep 1s
-Type "vanadis init demo/.run/adopt/ghostty/config" Sleep 500ms Enter
+Type "vanadis init ~/.config/ghostty/config" Sleep 500ms Enter
 Sleep 2s
 
-# Two themes sit in themes/, so there is nothing to offer and the name is typed.
+# Two themes sit in themes/, so there is nothing to offer. This is the only answer typed.
 Type "papercolor-light" Sleep 300ms Enter
 Sleep 1s
 
-# The suggested name comes from the filename, which for ghostty is `config`.
-Type "ghostty" Sleep 300ms Enter
+# The suggested name comes from the path, and for a file called `config` that is the
+# directory holding it. It is already right, so this one is the return key too.
+Enter
 Sleep 1500ms
 
 # Every one of the six is already in the palette, so every answer is the return key.

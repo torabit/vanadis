@@ -21,7 +21,7 @@ pub mod theme;
 pub mod token;
 pub mod vocabulary;
 
-pub use apply::{Applied, ApplyError, Plan, Rendered, apply, plan, render};
+pub use apply::{Applied, ApplyError, Plan, Rendered, apply, landing, plan, render};
 pub use catalog::{Catalog, CatalogError};
 pub use check::{CheckError, Disk, Finding, Report, check, compare};
 pub use config::{Config, ConfigError, Cycle, Target, TargetName};

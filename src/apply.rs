@@ -394,6 +394,39 @@ fn write(renders: &[Rendered]) -> Result<(), ApplyError> {
     Ok(())
 }
 
+/// The file a write to `output` would replace, when that is not `output` itself.
+///
+/// [`stage`] creates the directories on the way, writes beside the output and renames onto
+/// it, so what a write lands on is `output`'s directory resolved and `output`'s own name. The
+/// final component is not followed: `docs/config.md` decides that an output which is a symlink
+/// is replaced rather than written through, so the file that changes is the link.
+///
+/// The directory need not exist yet, since an apply creates it. The deepest ancestor that does
+/// exist is what resolves, which is what catches a linked `~/.config/bat` under a `themes/`
+/// nothing has created.
+///
+/// `None` when nothing on the way resolves elsewhere, which is every output on a machine with
+/// no links between it and the config, and `None` when no ancestor exists to resolve at all.
+#[must_use]
+pub fn landing(output: &Path) -> Option<PathBuf> {
+    let mut tail = vec![output.file_name()?];
+    let mut directory = output.parent()?;
+
+    let resolved = loop {
+        if let Ok(resolved) = std::fs::canonicalize(directory) {
+            break resolved;
+        }
+        tail.push(directory.file_name()?);
+        directory = directory.parent()?;
+    };
+
+    let landing = tail
+        .iter()
+        .rev()
+        .fold(resolved, |path, name| path.join(name));
+    (landing != output).then_some(landing)
+}
+
 /// Writes one render beside the file it is going to, and returns where it put it.
 fn stage(render: &Rendered) -> Result<PathBuf, ApplyError> {
     let failed = |path: &Path, source: std::io::Error| ApplyError::Write {
@@ -469,4 +502,78 @@ fn reload(renders: &[Rendered]) -> (Vec<TargetName>, Vec<ReloadError>) {
     }
 
     (reloaded, failures)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// An empty directory to build paths in, named after the test.
+    ///
+    /// `CARGO_TARGET_TMPDIR` is set only for integration and bench targets, so a unit test has
+    /// to find its own. The process id is in the path because two `cargo test` runs at once
+    /// would otherwise share it, and the first thing this does is delete it.
+    fn directory(test: &str) -> PathBuf {
+        let directory = std::env::temp_dir()
+            .join(format!("vanadis-apply-{}", std::process::id()))
+            .join(test);
+        let _ = std::fs::remove_dir_all(&directory);
+        std::fs::create_dir_all(&directory).unwrap();
+
+        // The temporary directory is itself reached through a link on some machines, and this
+        // is testing what links under it do.
+        std::fs::canonicalize(&directory).unwrap()
+    }
+
+    #[test]
+    fn resolves_nothing_for_an_output_with_no_link_on_the_way() {
+        let root = directory("plain");
+        assert_eq!(landing(&root.join("themes/one.conf")), None);
+    }
+
+    #[test]
+    fn resolves_nothing_for_a_path_with_no_ancestor_at_all() {
+        assert_eq!(landing(Path::new("/")), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn resolves_an_output_under_a_linked_directory() {
+        let root = directory("linked-parent");
+        std::fs::create_dir_all(root.join("dotfiles/bat")).unwrap();
+        std::os::unix::fs::symlink(root.join("dotfiles/bat"), root.join("bat")).unwrap();
+
+        assert_eq!(
+            landing(&root.join("bat/one.conf")),
+            Some(root.join("dotfiles/bat/one.conf"))
+        );
+    }
+
+    /// The write replaces the link, so the file that changes is the link and not what it
+    /// points at.
+    #[cfg(unix)]
+    #[test]
+    fn does_not_follow_an_output_that_is_itself_a_link() {
+        let root = directory("linked-output");
+        std::fs::create_dir_all(root.join("dotfiles")).unwrap();
+        std::fs::write(root.join("dotfiles/one.conf"), "bg=#000000\n").unwrap();
+        std::os::unix::fs::symlink(root.join("dotfiles/one.conf"), root.join("one.conf")).unwrap();
+
+        assert_eq!(landing(&root.join("one.conf")), None);
+    }
+
+    /// The case the linked parent hides: an apply creates the directory, so there is nothing
+    /// to canonicalize below the link.
+    #[cfg(unix)]
+    #[test]
+    fn resolves_through_a_directory_that_does_not_exist_yet() {
+        let root = directory("missing-directory");
+        std::fs::create_dir_all(root.join("dotfiles/bat")).unwrap();
+        std::os::unix::fs::symlink(root.join("dotfiles/bat"), root.join("bat")).unwrap();
+
+        assert_eq!(
+            landing(&root.join("bat/themes/one.conf")),
+            Some(root.join("dotfiles/bat/themes/one.conf"))
+        );
+    }
 }

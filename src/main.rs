@@ -353,6 +353,20 @@ fn preview(plan: &Plan, diff: bool) -> anyhow::Result<ExitCode> {
             }
         };
         changing.push(render.name().clone());
+
+        // `docs/config.md` decides that a write resolving elsewhere is named. A linked
+        // directory on the way is invisible in the path the config spells, and under a symlink
+        // farm it is the ordinary shape rather than an edge case.
+        if let Some(landing) = vanadis::landing(render.output()) {
+            writeln!(
+                out,
+                "{}: {} resolves to {}",
+                render.name(),
+                render.output().display(),
+                landing.display()
+            )?;
+        }
+
         if let (true, Some(current)) = (diff, current) {
             write!(
                 out,

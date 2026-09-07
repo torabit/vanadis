@@ -62,6 +62,7 @@ not travel with it.
 | `vanadis get <token> --theme <id>` | reads that theme instead of the applied one, and is the only way to query before any apply |
 | `vanadis get --json` | the whole resolved theme, flat, keyed by token path |
 | `vanadis render <template> --theme <id>` | one template against one named theme, to stdout. Reads no target and writes no file — this is how a theme is written out as a base16 scheme or any other format |
+| `vanadis render --target <name>` | what an apply would write for that target, to stdout, writing no file. The theme resolves the way `check` resolves it, so `render --target x > <its output>` leaves `check --only x` clean |
 | `vanadis init <file>` | interactive. Hand it to the user — see below. |
 
 `apply` overwrites files the user wrote. Show `vanadis apply <theme> --diff` and get their

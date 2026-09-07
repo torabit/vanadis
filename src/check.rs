@@ -165,11 +165,7 @@ impl Assigned<'_> {
     fn theme(&self, target: &Target) -> ThemeId {
         match self {
             Self::Named(theme) => (*theme).clone(),
-            Self::Recorded(state) => state
-                .targets()
-                .get(target.name())
-                .unwrap_or_else(|| state.theme())
-                .clone(),
+            Self::Recorded(state) => state.theme_for(target.name()).clone(),
         }
     }
 }

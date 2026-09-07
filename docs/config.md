@@ -424,21 +424,46 @@ template writes.
 scans, and reports the files that will not load, which is right for a command a person runs
 and wrong for one a prompt hook runs on every line. A broken theme is `list`'s to report.
 
-## Rendering one theme, once
+## Rendering to stdout
 
 ```
 vanadis render <TEMPLATE> --theme <ID>
+vanadis render --target <NAME> [--theme <ID> | --variant <dark|light>]
 ```
 
-Renders `TEMPLATE` against the named theme and writes the result to stdout. It reads no
-`[[targets]]` entry, writes no file, reloads nothing, and records nothing.
+Renders one thing and writes it to stdout. It writes no file, reloads nothing and records
+nothing, either way. What is named settles everything else: a `TEMPLATE` is a path, and a
+`--target` is a `[[targets]]` entry.
 
-It exists because everything else in this document renders the *active* theme to *every*
-target. [docs/theme-format.md](theme-format.md#import-and-export-are-not-symmetric) states that
-writing a base16 scheme out of a theme is a template and not a feature. Such a template
-registered as a target would have `gruvbox.yaml` overwritten with whatever theme is current the
-next time anything is applied. A per-target `themes` table pins a target to one theme forever,
-which is a different thing from naming a theme for one render.
+**The template form exists** because everything else in this document renders the *active*
+theme to *every* target.
+[docs/theme-format.md](theme-format.md#import-and-export-are-not-symmetric) states that writing
+a base16 scheme out of a vanadis theme is a template and not a feature.
+Such a template registered as a target would have `gruvbox.yaml` overwritten with whatever
+theme is current the next time anything is applied. A per-target `themes` table pins a target
+to one theme forever, which is a different thing from naming a theme for one render.
+
+**The target form answers "does this template still produce this file".** That is the question
+adopting a config already on disk starts from, and until this existed the only way to ask it
+was to point a target's `output` at the file that was already there, run [Checking](#checking),
+and then rewrite `output` to the name the target should actually take. It is also the
+per-target half of what `--dry-run` and `--diff` answer for a whole apply, and it answers it
+without reading a state file that has anything in it yet.
+
+**`--theme` is required with `TEMPLATE`.** Falling back to the applied theme is the one
+behaviour that form exists to avoid, so there is no spelling of it. A target has an applied
+theme; a file sitting in a directory does not.
+
+**A target resolves its theme the way [Checking](#checking) does**: the one `--theme` names, or
+the one `[auto]` holds for `--variant`, or the one the state file records for that target,
+which is the applied theme unless a partial apply moved it. Naming none of the three with
+nothing applied is an error, and the same error `check` gives. The target's own `themes` table
+is then resolved on top, so what is printed is what an apply would write, byte for byte:
+
+```
+vanadis render --target btop > ~/.config/btop/themes/current.theme
+vanadis check --only btop
+```
 
 **stdout, not a `--out` path.** `get` already answers on stdout and nothing else, and a
 redirect is what a person writes anyway:
@@ -451,23 +476,28 @@ Taking a path would mean deciding whether it may overwrite, whether the write is
 what mode the file takes — three decisions this command can simply not have. Adding `--out`
 later is not a breaking change; removing it would be.
 
-**`--theme` is required.** Falling back to the applied theme is the one behaviour this command
-exists to avoid, so there is no spelling of it. `apply` is what renders the applied theme.
-
 **`TEMPLATE` is resolved against the working directory**, not the config directory, which is
-what [Paths](#paths) does for a target's `template`. The two rules differ because this command
+what [Paths](#paths) does for a target's `template`. The two rules differ because that form
 does not read `config.toml` at all: a command that never opens the config file has no business
 resolving paths against the directory it sits in. It also means a template that is not part of
 anyone's config — the usual case for an export — is named the way every other program is given
-a file.
+a file. A `--target` renders the template its entry names, so [Paths](#paths) applies to it
+unchanged.
 
-Only the named theme is loaded, the way [Querying](#querying) has `get` load one. Scanning
-`themes/` would parse every other file and warn about a broken one, which has nothing to do
-with this render.
+The template form loads only the named theme, the way [Querying](#querying) has `get` load one.
+Scanning `themes/` would parse every other file and warn about a broken one, which has nothing
+to do with that render. The target form scans, because a target may pin itself to a theme
+other than the one being rendered, which is a name only the catalogue can resolve.
 
-The template is rendered whole before anything is printed, so an undefined token leaves stdout
-empty rather than holding the prefix of the file that resolved. That is
-[Order](#order)'s guarantee in the shape a command with no output file can have it.
+Both forms render whole before anything is printed, so an undefined token leaves stdout empty
+rather than holding the prefix of the file that resolved. That is [Order](#order)'s guarantee
+in the shape a command with no output file can have it.
+
+**`<TARGET>` is a flag and not a positional.** The positional is the template path, which
+landed first, and one positional cannot be both without deciding what `vanadis render btop`
+means when `btop` is also a file in the working directory. A command that reads the config to
+find out what its argument meant is the kind of resolution this document rejects everywhere
+else.
 
 ## Rejected alternatives
 

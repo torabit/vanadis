@@ -154,9 +154,9 @@ in this tool can have, and a row keyed by `#878787` has no order to get wrong.
 
 Two more things follow from the answers being a file. It is reviewable before anything is
 written, and `init` refuses to overwrite for that reason already; a plan makes the same
-argument one step earlier. And it does not depend on how the questions are painted, where
-`tests/init.rs` drives the command by piping lines to stdin and a full-screen interface would
-take that path away.
+argument one step earlier. And it says nothing about how the questions are asked: the prompts
+have since gained a block of colour in front of every hex, which moved every byte of the
+dialogue and not one row of a plan.
 
 Both runs print the [report](#what-is-reported) of colours that were recognised and not
 substituted. Nothing in the plan answers it.
@@ -488,9 +488,8 @@ reversible by deleting what it names.
 
 **One run that writes the plan, opens `$EDITOR` and reads it back.** It is fewer steps for a
 person, and it takes away the reason the plan exists. A run that spawns an editor cannot be
-driven by a script, and it is untestable in the way the stdin dialogue becomes untestable the
-moment the questions are painted full-screen. Two runs cost one more command and are the same
-path for a person, a test and an agent.
+driven by a script and cannot be driven by a test. Two runs cost one more command and are the
+same path for a person, a test and an agent.
 
 **A digest of `FILE` stored in the plan.** It would pin a plan to the bytes it was written
 from, and the checks in
@@ -502,3 +501,35 @@ plans that are still exactly right, because a comment edited three lines away ch
 whole input to a run. Those three have flags already, so the plan would be a second place to
 say each of them and `--plan --theme` would need a rule for which one wins. The plan holds
 what the colours mean, which is the part with no flag.
+
+**A full-screen interface over the plan, repainting the file as tokens are assigned.** The
+panel that would earn it cannot repaint. `init` builds the theme out of the file's own
+values, so every name a value can be given resolves to that same value on the theme being
+written, and the rendered file is the original whichever name is chosen. That is not an
+accident to design around; it is the invariant
+[verifying before writing](#verifying-before-writing) enforces, and a run that broke it would
+write nothing.
+
+Measured on `tests/fixtures/expected/hunk/config.toml`: naming `#878787` `role.comment` and
+naming it `role.inactive` give two templates that differ on four lines and one rendered
+output, byte for byte the file `init` read. A live preview would show the file the user
+already has, and go on showing it.
+
+The question that preview was to answer — whether `role.comment` is the right name for this
+place — has an answer only on a theme where the two names hold different colours, and there
+is already a command for it. `vanadis render --target <NAME> --theme <ID>`, which
+[docs/config.md](config.md#rendering-to-stdout) decides, prints what an apply would write
+without writing it; the two templates above diverge under a theme where `comment` and
+`inactive` differ. Changing an answer afterwards is the other thing a full-screen interface
+would buy, and [answering from a file](#answering-from-a-file) buys it in the editor the user
+has already configured.
+
+What is left is presentation, against a cost that is large for one command. `ratatui` and
+`crossterm` go on top of the ten dependencies there are, and they bring a second thing to
+keep working over SSH, at forty columns, and on a terminal that does not say truecolor, where
+the swatch beside each prompt deliberately paints nothing at all.
+
+**What would reopen it** is a preview against a theme other than the one being written: a
+target seen under themes it has not been applied to. That is a different command from `init`,
+where the file being adopted is its own answer, and it would need its own case rather than a
+screen bolted onto this one.

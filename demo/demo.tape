@@ -26,15 +26,16 @@ Set Shell "bash"
 # full width, which doubles every cell and halves the grid without any error at all.
 Set FontFamily "JetBrains Mono"
 Set FontSize 14
-Set Width 1500
+Set Width 1700
 Set Height 950
 Set Padding 0
 Set Framerate 24
 Set TypingSpeed 70ms
 
 # The size is not a matter of taste. btop refuses to draw below 80x24 and prints
-# "Terminal size too small" instead. 1500x950 at font size 14 is about 178x56 cells,
-# which leaves btop's pane 88x30 once herdr's sidebar and the splits have taken theirs.
+# "Terminal size too small" instead. 1500 wide left it 77x26 and it drew nothing; the cell
+# is about 9.3px, not the 8.4 the font size suggests, and herdr's sidebar takes 26 columns
+# before the split gets any. 1700 leaves btop about 90 columns.
 
 # The terminal vhs draws is not a target, so its own palette never changes. herdr paints
 # over all of it, but the seed is papercolor-light so nothing flashes before the attach.
@@ -49,6 +50,12 @@ Type "export VANADIS_CONFIG=$PWD/demo/vanadis" Enter
 Type "export XDG_CONFIG_HOME=$PWD/demo/home" Enter
 Type "export STARSHIP_CONFIG=$PWD/demo/home/starship.toml" Enter
 Type "export HERDR_CONFIG_PATH=$PWD/demo/home/herdr/config.toml" Enter
+
+# nvim's plugins come from XDG_DATA_HOME and not from XDG_CONFIG_HOME, so without this the
+# recorder's own plugins load into the demo's nvim. vanadis keeps the theme it applied last
+# under XDG_STATE_HOME, so without this a recording overwrites the recorder's.
+Type "export XDG_DATA_HOME=$PWD/demo/home/share" Enter
+Type "export XDG_STATE_HOME=$PWD/demo/home/state" Enter
 
 # A session that already exists keeps its panes, and every new run splits three more onto
 # the end. The btop target names a pane by id, so the run has to start from nothing. A

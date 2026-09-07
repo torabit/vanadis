@@ -6,6 +6,11 @@ home/btop/themes/vanadis.theme
 home/starship.toml
 home/nvim.sock
 
+# XDG_DATA_HOME and XDG_STATE_HOME for the recording: nvim's plugin tree and shada, and
+# the theme vanadis applied last.
+home/share/
+home/state/
+
 # The throwaway config tree init.tape writes into, so a recording leaves demo/vanadis alone.
 .run/
 

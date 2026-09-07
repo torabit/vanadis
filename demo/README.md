@@ -117,9 +117,15 @@ buffer instead of a shell. Nothing about that failure is visible while recording
 setup is inside `Hide`.
 
 **btop needs 80x24 in its own pane.** Below that it prints "Terminal size too small" and draws
-nothing. `Set Width 1500` and `Set Height 950` at font size 14 is about 178x56 cells, which
-leaves btop 88x30 once herdr's sidebar and the two splits have taken theirs. Shrinking the
-recording without checking that pane is how the TUI ends up blank.
+nothing. The cell is about 9.3px wide at font size 14, not the 8.4 the font size suggests, and
+herdr's sidebar takes 26 columns before either split gets any: `Set Width 1500` left btop 77
+columns and it drew a black rectangle. 1700 leaves it about 90. Shrinking the recording
+without looking at that pane is how the TUI ends up blank.
+
+**Set `XDG_DATA_HOME` and `XDG_STATE_HOME` too, not just `XDG_CONFIG_HOME`.** nvim loads
+plugins from `XDG_DATA_HOME`, so the recorder's own plugins turn up in the demo's nvim
+otherwise, statusline glyphs and all. vanadis keeps the theme it applied last under
+`XDG_STATE_HOME`, so a recording without it overwrites what the recorder had applied.
 
 ## Putting them in the README
 

@@ -30,10 +30,12 @@ wrote:
 
 ```
 vanadis init <FILE> [--theme <ID>] [--name <NAME>] [--variant <dark|light>]
+                    [--write-plan <PATH> | --plan <PATH>]
 ```
 
 `FILE` is one config file that already exists. Every flag is optional and is asked for
-instead when it is left out.
+instead when it is left out. `--write-plan` and `--plan` are the two halves of
+[answering from a file](#answering-from-a-file) rather than at a prompt.
 
 **One file per run.** Taking several paths would have to interleave their dialogues or run
 them in sequence, and running it again says the second thing without deciding anything.
@@ -56,7 +58,7 @@ occurrences shown.
 | --- | --- |
 | a bare name | `role.<name>` |
 | a name with a `.` | that token path, as written |
-| several names | the value means more than one thing; ask per occurrence |
+| several names, `-` allowed among them | the value means more than one thing; ask per occurrence |
 | empty | take the default, or skip the value when there is no default |
 | `-` | skip the value even when there is a default |
 
@@ -99,6 +101,182 @@ are the file's own.
 
 The user pays the fine-grained cost exactly where they said the value carries more than one
 meaning. On a palette shaped like the reference one that is two prompts out of fifteen.
+
+**`-` is one of the names a per-value answer may list.** A value that is a colour in one
+place and not in another needs the split and the skip together.
+`tests/fixtures/expected/herdr/host-colors.py` writes `#444444` at line 7 inside prose
+describing a terminal bug and at line 41 as the foreground, and the template that ships keeps
+the first as a literal. So `fg -` opens the pass and `which? [fg/-]` decides each occurrence.
+
+The rule as first written took `-` only on its own, as the whole answer, which left that
+template unreachable from the dialogue that is supposed to produce it.
+
+## Answering from a file
+
+**The answers are a document keyed by the value, and the prompts above are one way of
+filling it in.** A person at a terminal answers questions. Everything else — an agent, a
+script, a test — hands `init` the same answers as a file.
+
+```
+$ vanadis init ~/.config/hunk/config.toml --write-plan plan.toml
+wrote plan.toml: 12 distinct values, 20 occurrences
+```
+
+```toml
+# hunk/config.toml
+
+["#eeeeee"]              # 1 occurrence: line 18
+token = "role.bg"        # this theme already resolves role.bg here
+
+["#af0000"]              # 3 occurrences: lines 28, 32, 37
+token = "role.error"
+
+["#008700"]              # 3 occurrences: lines 27, 31, 35
+token = "role.ok"
+```
+
+`tests/fixtures/expected/hunk/config.toml` is the file, and every count and line above is
+that file's.
+
+Edited, then read back:
+
+```
+$ vanadis init ~/.config/hunk/config.toml --plan plan.toml \
+    --theme papercolor-light --name hunk
+```
+
+Answers read off stdin are positional: the Nth line answers the Nth question, and the
+questions appear in the order the values first occur. A script that is one line out fails
+silently, because the template still renders back byte for byte. The verification
+[below](#verifying-before-writing) passes, `check` stays clean, and the colours sit under the
+wrong names until the first theme where two of them differ. That is the worst shape a defect
+in this tool can have, and a row keyed by `#878787` has no order to get wrong.
+
+Two more things follow from the answers being a file. It is reviewable before anything is
+written, and `init` refuses to overwrite for that reason already; a plan makes the same
+argument one step earlier. And it does not depend on how the questions are painted, where
+`tests/init.rs` drives the command by piping lines to stdin and a full-screen interface would
+take that path away.
+
+Both runs print the [report](#what-is-reported) of colours that were recognised and not
+substituted. Nothing in the plan answers it.
+
+### Two runs
+
+`--write-plan` scans the file, writes the plan and writes nothing else. `--plan` reads one
+and asks nothing about colours. The two flags are exclusive.
+
+`--write-plan` asks nothing at all. `--theme <ID>` fills each row's `token` with what that
+theme already resolves the value to, which is the default the dialogue offers. Without it the
+rows come out empty. `--theme`, `--name` and `--variant` are what a `--plan` run still needs,
+so those four flags together are a run with no dialogue in it.
+
+`--write-plan` refuses to overwrite a plan that is already there, and makes the refusals that
+do not depend on an answer: `FILE` unreadable, `FILE` already some target's `output`. A plan
+is never written for a run that cannot succeed.
+
+### The rows
+
+The key is the literal as it is written in the file: quoted, lowercase `#rrggbb`, which is
+[all that is substituted](#colour-notations).
+
+| in a row | meaning |
+| --- | --- |
+| `token = "<path>"` | that token path, for every occurrence of the value |
+| `token = "-"` | skip the value, keeping the literal |
+| `[[<value>.at]]` | the value means more than one thing: `line`, `column` and `token` per occurrence |
+
+`token` and `at` are exclusive, and one of them is required. A table with neither is a value
+nobody has answered for, which is what `--write-plan` writes wherever it has no default to
+offer.
+
+**The token path is written in full.** The dialogue reads a bare `comment` as `role.comment`
+because it saves typing under a prompt. A plan is read more often than it is written, and the
+shorthand buys five characters in exchange for a rule the reader has to know.
+
+A value that means two things names every occurrence. This is the `#878787` the dialogue
+[above](#why-the-prompt-is-per-value-and-per-occurrence-only-when-asked-for) splits, written
+as a plan:
+
+```toml
+# 4 occurrences, and two of them do not mean the same thing
+[["#878787".at]]         # accentMuted = "#878787"       # inactive
+line = 22
+column = 16
+token = "role.inactive"
+
+[["#878787".at]]         # muted = "#878787"             # comment
+line = 24
+column = 10
+token = "role.comment"
+
+[["#878787".at]]         # badgeNeutral = "#878787"
+line = 33
+column = 17
+token = "role.comment"
+
+[["#878787".at]]         # fileUntracked = "#878787"
+line = 39
+column = 18
+token = "role.comment"
+```
+
+`line` and `column` are 1-based and `column` counts characters up to the `#`. The text beside
+the table header is a comment `--write-plan` writes and nothing reads.
+
+An `at` entry takes `-` for its `token`, the same as a whole-value row does, which is what
+the herdr file [above](#why-the-prompt-is-per-value-and-per-occurrence-only-when-asked-for)
+needs.
+
+**A position appears only on the rows where it carries meaning.** A whole-value row is keyed
+by the literal, so it binds every occurrence correctly wherever in the file they have moved
+to. The split row is the one place an occurrence has to be identified, and there it is
+identified exhaustively.
+
+### When the plan does not describe the file
+
+Any of these reports and writes nothing:
+
+- a value in the file that no row names
+- a row naming a value the file does not hold
+- a split row that does not name every occurrence of its value exactly once, at a line and
+  column the scan produces
+- a row with neither `token` nor `at`
+- a `token` that is neither `-` nor a token path
+
+```
+$ vanadis init ~/.config/hunk/config.toml --plan plan.toml
+plan.toml does not describe this file
+
+  named but not in the file:
+    #d70087
+
+  in the file but not named:
+    #5f8700   line 21
+    #5f8700   line 26
+
+nothing was written
+```
+
+**Leaving a value no row names as a literal, and carrying on, is rejected.** It is the
+reading that lets a plan written against an older copy of the file through, and a value left
+as a literal is the same silent failure as a value under the wrong name: the template renders
+back byte for byte and `check` finds nothing. The disagreement is the evidence that the file
+has changed since a person decided about it, and the other rows were decided at the same
+moment.
+
+The cost is answering again after an edit to the file. It is smaller than it looks: the
+default in each row comes from what the theme already resolves, so a second `--write-plan`
+against a theme `init` has written comes back mostly filled in.
+
+### The dialogue produces the same document
+
+The plan is what the dialogue builds as it goes, and the file is that document written down.
+The two ways in cannot disagree about what an answer means, because there is one thing an
+answer is.
+
+An interactive run does not write the plan out. It would be a fourth file nobody asked for,
+and `init` prints what it wrote.
 
 ## Colour notations
 
@@ -277,6 +455,8 @@ Any of these reports and writes nothing at all:
 - `FILE` cannot be read, or is not UTF-8
 - `FILE` is already some target's `output`
 - the template path already exists
+- the plan path already exists, on a `--write-plan` run
+- the plan does not parse, or does not describe `FILE`
 - the theme exists and does not load
 - the verification above does not match
 
@@ -305,3 +485,20 @@ changes for an unrelated reason.
 **A `--dry-run`.** `apply` has one because it overwrites files that exist. `init` writes
 three files that do not exist yet and refuses to overwrite any of them, so the run is already
 reversible by deleting what it names.
+
+**One run that writes the plan, opens `$EDITOR` and reads it back.** It is fewer steps for a
+person, and it takes away the reason the plan exists. A run that spawns an editor cannot be
+driven by a script, and it is untestable in the way the stdin dialogue becomes untestable the
+moment the questions are painted full-screen. Two runs cost one more command and are the same
+path for a person, a test and an agent.
+
+**A digest of `FILE` stored in the plan.** It would pin a plan to the bytes it was written
+from, and the checks in
+[when the plan does not describe the file](#when-the-plan-does-not-describe-the-file) already
+refuse every plan that could bind a colour to the wrong name. What a digest adds is refusing
+plans that are still exactly right, because a comment edited three lines away changes it.
+
+**Carrying `--theme`, `--name` and `--variant` in the plan.** It would make the plan the
+whole input to a run. Those three have flags already, so the plan would be a second place to
+say each of them and `--plan --theme` would need a rule for which one wins. The plan holds
+what the colours mean, which is the part with no flag.

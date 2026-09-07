@@ -104,6 +104,11 @@ and `reload` is an argv with no shell. herdr needs one, but it prints its JSON r
 stdout and vanadis does not capture a reload's output, so the reply would land in the middle
 of the frame.
 
+`demo.tape` also turns off `pane_gaps`, `pane_outer_borders` and `pane_scrollbars` through
+the template's `[ui]` block. Each of them is an area herdr leaves unpainted, and what shows
+through is the terminal's own background, which vhs fixes to one colour for the whole
+recording. On the dark theme that is a light frame drawn around every pane.
+
 herdr is a target and not just a stage. The terminal vhs draws is not a target and its palette
 never moves, so without herdr painting `panel_bg`, `sidebar_bg` and the rest, the frame around
 the panes would sit still while the panes flipped. `Set Padding 0` keeps the terminal itself

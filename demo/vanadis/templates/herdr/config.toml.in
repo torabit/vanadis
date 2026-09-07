@@ -42,6 +42,17 @@ peach = "{{role.accent-warm}}"
 accent = "{{role.accent}}"
 window_title = "vanadis demo"
 
+# Gaps and the outer frame are areas herdr leaves unpainted, so what shows through them is
+# the terminal's own background. vhs fixes that to one colour for the whole recording, which
+# on the dark theme is a light frame drawn around every pane. Sharing the divider borders
+# leaves nothing unpainted.
+pane_gaps = false
+pane_outer_borders = false
+pane_borders = true
+
+# The scrollbar column is another thing the theme does not reach, and btop wants the width.
+pane_scrollbars = false
+
 [server]
 # The size the headless server lays out at before a client attaches, so the panes the
 # tape creates are already the shape the recording wants.

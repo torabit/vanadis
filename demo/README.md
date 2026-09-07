@@ -56,7 +56,7 @@ nothing from the network.
 demo/
   vanadis/          VANADIS_CONFIG. config.toml, four templates, two themes
   home/             XDG_CONFIG_HOME. herdr, nvim, btop and the shell read from here
-  bin/reload-btop   the one reload that needs two calls
+  bin/              demo-env, btop-loop, reload-herdr
   adopt/ghostty/    the config init.tape adopts
   .run/             a copy of the two above, written into by init.tape, gitignored
 ```
@@ -97,12 +97,16 @@ The four targets follow a theme differently, and that difference is the point of
 | starship | re-reads its config on every prompt, so nothing runs at all |
 | herdr | `herdr server reload-config`, and the sidebar, tab bar, borders and pane backgrounds redraw |
 | nvim | `nvim --server … --remote-send` over its own RPC socket, which re-executes the colorscheme |
-| btop | quit and start again, because btop reads a theme once, at startup |
+| btop | one `q`, because btop reads a theme once and `demo/bin/btop-loop` starts it again |
 
-Two of them go through `demo/bin/` rather than straight into `reload`. btop needs two calls
-and `reload` is an argv with no shell. herdr needs one, but it prints its JSON reply on
-stdout and vanadis does not capture a reload's output, so the reply would land in the middle
-of the frame.
+herdr goes through `demo/bin/reload-herdr` rather than straight into `reload`, because
+`herdr server reload-config` prints its JSON reply on stdout and vanadis does not capture a
+reload's output, so the reply would land in the middle of the frame.
+
+btop's pane runs `demo/bin/btop-loop` rather than btop, which is what lets its reload be one
+keystroke. Sending `q` and then starting btop again takes two calls, and the second races the
+first: on the second cycle the command text arrived while btop was still on screen, so btop
+alone kept the theme it already had while the rest of the frame changed.
 
 `demo.tape` also turns off `pane_gaps`, `pane_outer_borders` and `pane_scrollbars` through
 the template's `[ui]` block. Each of them is an area herdr leaves unpainted, and what shows

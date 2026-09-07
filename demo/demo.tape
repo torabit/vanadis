@@ -82,7 +82,7 @@ Sleep 1s
 Type "herdr --session vanadis-demo pane split w1:p2 --direction down --ratio 0.55 --cwd $PWD --no-focus >/dev/null" Enter
 Sleep 2s
 
-Type "herdr --session vanadis-demo pane run w1:p2 demo/bin/demo-env btop" Enter
+Type "herdr --session vanadis-demo pane run w1:p2 demo/bin/demo-env demo/bin/btop-loop" Enter
 Sleep 2s
 Type "herdr --session vanadis-demo pane run w1:p3 demo/bin/demo-env bash --rcfile demo/home/bashrc" Enter
 Sleep 2s

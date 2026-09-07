@@ -40,15 +40,21 @@ template = "templates/nvim/vanadis.lua.in"
 output = "../home/nvim/colors/vanadis.lua"
 reload = ["nvim", "--server", "demo/home/nvim.sock", "--remote-send", "<Esc>:colorscheme vanadis<CR>"]
 
-# btop reads its theme once, at startup. Quitting it and starting it again is the reload,
-# and two calls do not fit in one argv, so a script holds them. It is the one target left
-# that names a pane, and the id only holds on a session with nothing else in it, which is
-# why demo.tape deletes the session before it starts.
+# btop reads its theme once, at startup, so quitting it is the reload. demo.tape runs it
+# inside `while true; do btop; done`, which is what makes that one keystroke enough: btop
+# exits, the loop starts it again, and the new process reads the new theme.
+#
+# Quitting and then running it again from here instead needs two calls, and the second one
+# raced the first: on the second cycle the command text arrived while btop was still on
+# screen, so btop kept the theme it already had while everything else changed.
+#
+# It is the one target that names a pane, and the id only holds on a session with nothing
+# else in it, which is why demo.tape deletes the session before it starts.
 [[targets]]
 name = "btop"
 template = "templates/btop/vanadis.theme.in"
 output = "../home/btop/themes/vanadis.theme"
-reload = ["demo/bin/reload-btop", "w1:p2"]
+reload = ["herdr", "--session", "vanadis-demo", "pane", "send-keys", "w1:p2", "q"]
 
 # starship re-reads its config on every prompt. Nothing to run.
 [[targets]]

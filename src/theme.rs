@@ -249,6 +249,32 @@ fn metadata(tokens: &Tokens, line: usize) -> Result<(String, Variant), Problem> 
     }
 }
 
+/// `value` as red, green and blue, or `None` when it is not a hex literal.
+///
+/// `docs/theme-format.md` decides that a hex literal is `#` and six hex digits. Three-digit
+/// shorthand and eight-digit `#rrggbbaa` are rejected rather than expanded or truncated,
+/// neither of which the file that holds them asked for. Either case is read: a theme stores
+/// lowercase, and an upstream scheme is under no such rule.
+pub(crate) fn rgb(value: &str) -> Option<[u8; 3]> {
+    let digits = value.strip_prefix('#')?.as_bytes();
+    let [r0, r1, g0, g1, b0, b1] = <[u8; 6]>::try_from(digits).ok()?;
+    let channel = |high: u8, low: u8| -> Option<u8> { Some(nibble(high)? * 16 + nibble(low)?) };
+    Some([channel(r0, r1)?, channel(g0, g1)?, channel(b0, b1)?])
+}
+
+/// What one hex digit is worth, in either case.
+///
+/// Decoded here rather than through `u8::from_str_radix`, which also accepts a leading `+`
+/// and would let `#+f+f+f` through as a colour.
+fn nibble(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::fmt::Write as _;
@@ -648,5 +674,35 @@ mod tests {
     #[test]
     fn writes_a_variant_the_way_a_theme_file_spells_it() {
         assert_eq!(Variant::Dark.to_string(), "dark");
+    }
+
+    #[test]
+    fn reads_the_three_channels_of_a_hex_literal() {
+        assert_eq!(rgb("#1d2021"), Some([0x1d, 0x20, 0x21]));
+    }
+
+    #[test]
+    fn reads_a_hex_literal_written_in_either_case() {
+        assert_eq!(rgb("#EEEEEE"), rgb("#eeeeee"));
+    }
+
+    #[test]
+    fn rejects_a_literal_without_a_hash() {
+        assert_eq!(rgb("1d2021"), None);
+    }
+
+    #[test]
+    fn rejects_three_digit_shorthand() {
+        assert_eq!(rgb("#eee"), None);
+    }
+
+    #[test]
+    fn rejects_eight_digits() {
+        assert_eq!(rgb("#eeeeeeff"), None);
+    }
+
+    #[test]
+    fn rejects_a_signed_digit_that_from_str_radix_would_take() {
+        assert_eq!(rgb("#+f+f+f"), None);
     }
 }

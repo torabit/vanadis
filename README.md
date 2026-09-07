@@ -173,6 +173,12 @@ theme, where it can be read.
 | `vanadis search <query>`           | find a scheme in the cache, offline                                               |
 | `vanadis import <scheme>`          | convert one into a theme                                                          |
 
+`init` and `list` show each colour as a block beside its hex, on a terminal that says
+`COLORTERM=truecolor` or `COLORTERM=24bit`. A 256-colour approximation would show a colour the
+theme does not hold, so nothing is painted where the exact colour cannot be. Piped output,
+`NO_COLOR`, and `TERM=dumb` each turn it off; `get` never paints, so `$(vanadis get role.bg)`
+stays a colour and nothing else.
+
 ## 🤖 The agent skill
 
 `init` removes the mechanical half of adoption. The half it cannot remove is judgement: where a

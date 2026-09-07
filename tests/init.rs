@@ -154,6 +154,20 @@ fn writes_the_three_files_it_says_it_writes() {
 }
 
 #[test]
+fn writes_no_escape_sequence_when_its_output_is_not_a_terminal() {
+    // The dialogue shows a swatch beside each hex on a terminal that says truecolor. This
+    // run is a pipe, so the bytes are the ones a run before the swatch existed produced.
+    let machine = Machine::new("no-escape");
+    let file = machine.adopt("hunk/config.toml");
+    let output = machine.run(
+        &["init", file.to_str().unwrap()],
+        &format!("paper-light\nlight\nhunk\n{}", answers(&HUNK)),
+    );
+    assert!(succeeded(&output), "{}", stderr(&output));
+    assert!(!stdout(&output).contains('\x1b'), "{}", stdout(&output));
+}
+
+#[test]
 fn leaves_the_file_it_read_exactly_as_it_found_it() {
     let machine = Machine::new("untouched");
     let file = machine.adopt("hunk/config.toml");

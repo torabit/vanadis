@@ -168,40 +168,16 @@ fn luma([red, green, blue]: [u8; 3]) -> f64 {
     0.2126 * scaled(red) + 0.7152 * scaled(green) + 0.0722 * scaled(blue)
 }
 
-/// `value` as red, green and blue, or [`ConvertError::Hex`].
+/// `value` as red, green and blue, or [`ConvertError::Hex`] naming the slot it came from.
 ///
-/// `docs/theme-format.md` decides that a hex literal is `#` and six hex digits, stored
-/// lowercase. Upstream schemes write exactly that, in either case, so the converter accepts
-/// exactly that: three-digit shorthand and eight-digit `#rrggbbaa` are rejected rather than
-/// expanded or truncated, neither of which the scheme asked for.
-///
-/// The channels are parsed here rather than re-read off the literal later, so no caller has
-/// to handle a colour it has already validated failing to parse.
+/// [`crate::theme::rgb`] decides what a hex literal is. The channels are read here rather
+/// than off the literal later, so no caller has to handle a colour it has already validated
+/// failing to parse.
 fn hex(slot: &str, value: &str) -> Result<[u8; 3], ConvertError> {
-    let malformed = || ConvertError::Hex {
+    crate::theme::rgb(value).ok_or_else(|| ConvertError::Hex {
         slot: slot.to_owned(),
         value: value.to_owned(),
-    };
-    let digits = value.strip_prefix('#').ok_or_else(malformed)?.as_bytes();
-    let [r0, r1, g0, g1, b0, b1] = <[u8; 6]>::try_from(digits).map_err(|_| malformed())?;
-    let channel = |high: u8, low: u8| match (nibble(high), nibble(low)) {
-        (Some(high), Some(low)) => Ok(high * 16 + low),
-        _ => Err(malformed()),
-    };
-    Ok([channel(r0, r1)?, channel(g0, g1)?, channel(b0, b1)?])
-}
-
-/// What one hex digit is worth, in either case.
-///
-/// Decoded here rather than through `u8::from_str_radix`, which also accepts a leading `+`
-/// and would let `#+f+f+f` through as a colour.
-fn nibble(byte: u8) -> Option<u8> {
-    match byte {
-        b'0'..=b'9' => Some(byte - b'0'),
-        b'a'..=b'f' => Some(byte - b'a' + 10),
-        b'A'..=b'F' => Some(byte - b'A' + 10),
-        _ => None,
-    }
+    })
 }
 
 /// Red, green and blue as the hex literal a theme file holds.

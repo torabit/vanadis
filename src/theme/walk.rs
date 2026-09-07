@@ -242,12 +242,9 @@ fn is_slot(key: &str) -> bool {
         .is_ok_and(|slot| slot <= 15 && key == slot.to_string())
 }
 
-/// Whether `text` is `#` and six hex digits.
+/// Whether `text` is a hex literal, which [`super::rgb`] decides.
 fn is_hex(text: &str) -> bool {
-    let Some(digits) = text.strip_prefix('#') else {
-        return false;
-    };
-    digits.len() == 6 && digits.bytes().all(|byte| byte.is_ascii_hexdigit())
+    super::rgb(text).is_some()
 }
 
 /// `prefix.key`, or `None` when `key` is not a valid segment.

@@ -213,14 +213,8 @@ installed anywhere, and the fish CI runs on is the fish this document claims.
 
 ## Rejected alternatives
 
-**Watching the state file.** Covered above: it changes when a target that is not this one is
-applied, and it makes the snippet depend on a path and a file format it otherwise never needs.
-
-**A top-level `[shell]` or `[hook]` table.** A second place naming targets, and it cannot hold
-two shells without becoming the per-target key with extra steps.
-
-**Reading `config.toml` at prompt time.** A fork and a TOML parse per prompt, to remove a
-staleness that one `eval` fixes.
+The state file as the signal, a top-level table naming shell targets, and a config read at
+prompt time are each decided in the section above that raises them.
 
 **A stamp file per shell, compared with `[[ output -nt stamp ]]`.** bash's `-nt` is a builtin
 and `: > "$stamp"` updates a stamp without forking, so this does reach zero forks per prompt.

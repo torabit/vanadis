@@ -12,6 +12,8 @@ the file it was taken from.
 `[[targets]]` entry from a config file that already exists.
 [docs/schemes.md](schemes.md) decides the one path this document does not cover: the cache
 `vanadis remote update` writes the tinted-theming collection into.
+[docs/hook.md](hook.md) decides how a target whose output a shell sources follows an apply,
+which is the one case [`reload`](#reload) below cannot reach.
 
 ## Layout
 
@@ -231,7 +233,11 @@ still reachable by writing a script and naming it here.
 | herdr, a terminal multiplexer | `herdr server reload-config` | yes |
 | starship, a shell prompt | next prompt | nothing to run |
 | nvim, btop, hunk, lazygit — an editor, a system monitor, a diff viewer, a git UI | restart the program | not a command |
-| zsh with fzf, a shell and a fuzzy finder | `exec zsh` | no: it replaces the user's shell, and vanadis is a child process |
+| zsh with fzf, a shell and a fuzzy finder | the shell sources the output again | no: `exec zsh` replaces the user's shell, and vanadis is a child process |
+
+The last row is the one `reload` cannot be spelled for at all, because the shell to fix is
+vanadis's parent. [docs/hook.md](hook.md) decides `vanadis hook`, the prompt hook that lets such
+a target follow an apply, and the `shell` key that marks it.
 
 So `reload` is optional and absent means nothing runs. It is not a hook system, and there is
 no `pre` counterpart: nothing in the corpus needs work done before a write.

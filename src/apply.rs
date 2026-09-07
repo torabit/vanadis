@@ -99,8 +99,8 @@ pub enum ApplyError {
         /// The name that was asked for.
         name: TargetName,
     },
-    /// `--only` was used before any theme was applied to every target.
-    #[error("--only needs a theme applied to every target first")]
+    /// `--only` was used to write before any theme was applied to every target.
+    #[error("--only needs a theme applied to every target first: run `vanadis apply <theme>` once")]
     NoWholeApply,
     /// A template could not be read.
     #[error("{}: {source}", .path.display())]
@@ -171,15 +171,16 @@ impl Rendered {
     }
 }
 
-/// Every target rendered, and the state the apply would leave behind.
+/// Every target rendered, and what it takes to record the apply.
 ///
 /// Holding one is the point at which an apply is known to succeed as far as rendering goes.
-/// [`Plan::commit`] is what writes; dropping the plan writes nothing.
+/// [`Plan::commit`] is what reads the state file and writes; dropping the plan reads nothing
+/// and writes nothing, which is what lets a preview run before any theme has been applied.
 #[derive(Debug)]
 pub struct Plan {
     theme: ThemeId,
     state: PathBuf,
-    next: State,
+    whole: bool,
     renders: Vec<Rendered>,
 }
 
@@ -198,13 +199,23 @@ impl Plan {
 
     /// Writes every render, records the theme, and runs each reload.
     ///
+    /// The state the apply leaves behind is worked out first, so a partial apply with nothing
+    /// to diverge from fails before the first byte is written.
+    ///
     /// # Errors
     ///
     /// Returns what stopped the write. A failed reload is reported in [`Applied::failures`]
     /// rather than here: the files are written by then.
     pub fn commit(self) -> Result<Applied, ApplyError> {
+        let next = advance(
+            State::load(&self.state)?,
+            &self.theme,
+            &self.renders,
+            self.whole,
+        )?;
+
         write(&self.renders)?;
-        self.next.store(&self.state)?;
+        next.store(&self.state)?;
 
         let (reloaded, failures) = reload(&self.renders);
         Ok(Applied {
@@ -237,7 +248,8 @@ pub fn apply(
 /// Renders what applying `theme` would write, without writing any of it.
 ///
 /// This is the whole of an apply up to the first byte hitting disk, so a caller that wants to
-/// show a diff runs exactly what a caller that wants to write runs.
+/// show a diff runs exactly what a caller that wants to write runs. The state file is not
+/// read here: `--only` changes which targets render and nothing about what one renders to.
 ///
 /// # Errors
 ///
@@ -250,8 +262,6 @@ pub fn plan(
     state: &Path,
 ) -> Result<Plan, ApplyError> {
     let targets = select(config, only).map_err(|name| ApplyError::UnknownTarget { name })?;
-    let next = advance(State::load(state)?, theme, &targets, only.is_empty())?;
-
     let renders = targets
         .iter()
         .map(|target| render(catalog, target, theme))
@@ -260,7 +270,7 @@ pub fn plan(
     Ok(Plan {
         theme: theme.clone(),
         state: state.to_owned(),
-        next,
+        whole: only.is_empty(),
         renders,
     })
 }
@@ -341,12 +351,12 @@ pub(crate) fn pinned(
 
 /// The state after this apply.
 ///
-/// A whole apply replaces it. A partial one moves the targets it names off a theme that is
+/// A whole apply replaces it. A partial one moves the targets it writes off a theme that is
 /// already recorded, so there has to be one.
 fn advance(
     previous: Option<State>,
     theme: &ThemeId,
-    targets: &[&Target],
+    renders: &[Rendered],
     whole: bool,
 ) -> Result<State, ApplyError> {
     if whole {
@@ -354,8 +364,8 @@ fn advance(
     }
 
     let mut state = previous.ok_or(ApplyError::NoWholeApply)?;
-    for target in targets {
-        state.record(target.name().clone(), theme.clone());
+    for render in renders {
+        state.record(render.name.clone(), theme.clone());
     }
     Ok(state)
 }

@@ -7,6 +7,12 @@ All notable changes to this project are documented here. The format is
 Entries below 0.4.0 were written by hand. Everything after is written by release-plz from the
 Conventional Commits in the history.
 
+## [0.3.3](https://github.com/torabit/vanadis/compare/v0.3.2...v0.3.3) - 2026-09-07
+
+### Added
+
+- *(paint)* show the colour beside the hex
+
 ## [0.3.2](https://github.com/torabit/vanadis/compare/v0.3.1...v0.3.2) - 2026-09-07
 
 ### Other

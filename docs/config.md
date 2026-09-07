@@ -388,6 +388,29 @@ The list `--dry-run` prints is shorter than the one a real apply prints afterwar
 `--dry-run` answers "what would change". An apply writes every target it rendered, whether or
 not the bytes moved.
 
+**A write that resolves elsewhere is named.** A directory on the way to an `output` can be a
+link, which the path `config.toml` spells does not show and `ls -l` on the output does not
+show either. `~/.config/bat/themes/gruvbox.tmTheme` reads as a file under `~/.config`, and
+lands inside a dotfiles repository when `~/.config/bat` is a link into one.
+[Managing vanadis with a symlink farm](#managing-vanadis-with-a-symlink-farm) makes that the
+ordinary shape rather than an edge case, so `--dry-run` and `--diff` print the file each named
+target would actually be written to, whenever it is not the one the config spells:
+
+```
+bat: /home/ada/.config/bat/themes/gruvbox.tmTheme resolves to /home/ada/dotfiles/bat/themes/gruvbox.tmTheme
+```
+
+Only the directories on the way are resolved. The output's own name is not followed, because
+[An output that is a symlink is replaced](#an-output-that-is-a-symlink-is-replaced): the file
+that changes is the link itself. An output that resolves to itself prints nothing at all, which
+is every target on a machine with no links between the config and the file.
+
+**Refusing the write, or warning outside `--dry-run`, is not done.** The write is not wrong;
+the surprise is. Deciding whether the destination sits inside a git work tree is not done
+either: under a symlink farm that is the ordinary case, so the warning would fire on every
+apply and be trained away. That the path resolved elsewhere is a fact, and it needs no guess
+about what the user meant by it.
+
 ## Querying
 
 `vanadis get role.bg` prints the value that token resolves to and nothing else, so

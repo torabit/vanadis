@@ -216,6 +216,12 @@ the user manages dotfiles with Stow, chezmoi or `ln -s`, the generated config is
 artifact: it is not symlinked and not committed, and only `config.toml`, `templates/` and
 `themes/` go in the repository. `docs/config.md` records this under Output.
 
+A parent directory can be a link too, and that one is invisible: `~/.config/bat` linked into a
+dotfiles repository makes `~/.config/bat/themes/x.tmTheme` land inside the repository while
+reading like an ordinary path. `vanadis apply <theme> --dry-run` prints
+`<name>: <output> resolves to <file>` for every target that happens to, so run it before the
+first apply of a target you just wrote.
+
 ### `[[targets]]` keys
 
 | key | required | value |

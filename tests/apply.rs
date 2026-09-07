@@ -446,3 +446,70 @@ fn says_a_config_that_writes_no_cycle_has_nothing_to_step_through() {
     assert!(!output.status.success());
     assert!(stderr(&output).contains("[cycle]"), "{}", stderr(&output));
 }
+
+/// A directory on the way to an output can be a link, which the path `config.toml` spells
+/// does not show. The dry-run names the file the write would land on.
+#[test]
+fn names_the_file_a_write_resolves_to() {
+    let (config, state) = workspace("apply-dry-run-resolved", "apply");
+    let elsewhere = config.join("elsewhere");
+    fs::create_dir_all(&elsewhere).unwrap();
+    std::os::unix::fs::symlink(&elsewhere, config.join("out")).unwrap();
+
+    let output = vanadis(&config, &state, &["apply", "paper-light", "--dry-run"]);
+    let printed = stdout(&output);
+    let expected = format!(
+        "one: {} resolves to {}",
+        config.join("out/one.conf").display(),
+        fs::canonicalize(&elsewhere)
+            .unwrap()
+            .join("one.conf")
+            .display()
+    );
+    assert!(printed.contains(&expected), "{printed}");
+}
+
+#[test]
+fn names_the_file_a_diff_would_be_written_to() {
+    let (config, state) = workspace("apply-diff-resolved", "apply");
+    let elsewhere = config.join("elsewhere");
+    fs::create_dir_all(&elsewhere).unwrap();
+    std::os::unix::fs::symlink(&elsewhere, config.join("out")).unwrap();
+
+    let output = vanadis(&config, &state, &["apply", "paper-light", "--diff"]);
+    assert!(
+        stdout(&output).contains("resolves to"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+#[test]
+fn says_nothing_about_an_output_that_resolves_to_itself() {
+    let (config, state) = workspace("apply-dry-run-unresolved", "apply");
+    let output = vanadis(&config, &state, &["apply", "paper-light", "--dry-run"]);
+    assert!(
+        !stdout(&output).contains("resolves to"),
+        "{}",
+        stdout(&output)
+    );
+}
+
+/// An output that is itself a link is replaced rather than written through, so the file the
+/// write lands on is the link and there is nothing to resolve.
+#[test]
+fn does_not_follow_an_output_that_is_itself_a_link() {
+    let (config, state) = workspace("apply-dry-run-linked-output", "apply");
+    let elsewhere = config.join("elsewhere");
+    fs::create_dir_all(&elsewhere).unwrap();
+    fs::write(elsewhere.join("one.conf"), "bg=#000000\n").unwrap();
+    fs::create_dir_all(config.join("out")).unwrap();
+    std::os::unix::fs::symlink(elsewhere.join("one.conf"), config.join("out/one.conf")).unwrap();
+
+    let output = vanadis(&config, &state, &["apply", "paper-light", "--dry-run"]);
+    assert!(
+        !stdout(&output).contains("resolves to"),
+        "{}",
+        stdout(&output)
+    );
+}

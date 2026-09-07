@@ -1,0 +1,43 @@
+# The config the README's GIFs are recorded against. Self-contained: `VANADIS_CONFIG`
+# points here and `XDG_CONFIG_HOME` points at ../home, so nothing outside demo/ is read
+# or written. See demo/README.md.
+#
+# Every template reads core tokens only, so both themes render against all four targets.
+
+[auto]
+light = "papercolor-light"
+dark = "papercolor-dark"
+
+# What `vanadis cycle` walks. The GIF runs it twice and lands back where it started, so
+# the loop has no seam.
+[cycle]
+themes = ["papercolor-light", "papercolor-dark"]
+
+# tmux redraws on `source-file`, so the pane backgrounds, borders and status bar are the
+# part of the frame that changes with no restart at all.
+[[targets]]
+name = "tmux"
+template = "templates/tmux/vanadis.conf.in"
+output = "../home/tmux/vanadis.conf"
+reload = ["tmux", "source-file", "demo/home/tmux/vanadis.conf"]
+
+# A running nvim cannot be told to re-read a file from outside, but it can be sent the
+# keys that do it. `:colorscheme vanadis` re-executes the generated file in place.
+[[targets]]
+name = "nvim"
+template = "templates/nvim/vanadis.lua.in"
+output = "../home/nvim/colors/vanadis.lua"
+reload = ["tmux", "send-keys", "-t", "vanadis-demo:0.0", "Escape", ":colorscheme vanadis", "Enter"]
+
+# btop reads its theme once, at startup. Replacing the pane's process is the reload.
+[[targets]]
+name = "btop"
+template = "templates/btop/vanadis.theme.in"
+output = "../home/btop/themes/vanadis.theme"
+reload = ["tmux", "respawn-pane", "-k", "-t", "vanadis-demo:0.1", "btop"]
+
+# starship re-reads its config on every prompt. Nothing to run.
+[[targets]]
+name = "starship"
+template = "templates/starship/starship.toml.in"
+output = "../home/starship.toml"

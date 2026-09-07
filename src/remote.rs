@@ -150,7 +150,7 @@ pub(crate) fn fetch(url: &str) -> Result<Vec<u8>, RemoteError> {
 
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_global(Some(TIMEOUT))
-        .user_agent(concat!("vanadis/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("coloris/", env!("CARGO_PKG_VERSION")))
         .build()
         .into();
 
@@ -350,7 +350,7 @@ mod tests {
     /// once would otherwise share it, and the first thing this does is delete it.
     fn target(test: &str) -> PathBuf {
         let directory = std::env::temp_dir()
-            .join(format!("vanadis-remote-{}", std::process::id()))
+            .join(format!("coloris-remote-{}", std::process::id()))
             .join(test);
         let _ = std::fs::remove_dir_all(&directory);
         std::fs::create_dir_all(&directory).unwrap();
@@ -426,7 +426,7 @@ mod tests {
         let schemes = target("absolute");
         let bytes = archive(&[
             ("schemes-spec-0.11/base16/nord.yaml", NORD),
-            ("/etc/vanadis-escaped.yaml", NORD),
+            ("/etc/coloris-escaped.yaml", NORD),
         ]);
         let installed = install(&bytes, &schemes).unwrap();
         assert_eq!(installed.total(), 1);
@@ -508,14 +508,14 @@ mod tests {
 
     #[test]
     fn reports_a_source_it_cannot_reach() {
-        let error = fetch("https://vanadis.invalid/schemes.tar.gz").unwrap_err();
+        let error = fetch("https://coloris.invalid/schemes.tar.gz").unwrap_err();
         assert!(matches!(error, RemoteError::Fetch { .. }), "{error:?}");
     }
 
     #[test]
     fn names_the_source_it_could_not_reach() {
-        let error = fetch("https://vanadis.invalid/schemes.tar.gz").unwrap_err();
-        assert!(error.to_string().contains("vanadis.invalid"), "{error}");
+        let error = fetch("https://coloris.invalid/schemes.tar.gz").unwrap_err();
+        assert!(error.to_string().contains("coloris.invalid"), "{error}");
     }
 
     #[test]
@@ -524,17 +524,17 @@ mod tests {
         // constructs both variants directly and checks only that the source answering with
         // a status is not mistaken, in its message, for the source not answering at all.
         let status = RemoteError::Status {
-            url: "https://vanadis.invalid/schemes.tar.gz".to_owned(),
+            url: "https://coloris.invalid/schemes.tar.gz".to_owned(),
             status: 404,
         };
         let fetch = RemoteError::Fetch {
-            url: "https://vanadis.invalid/schemes.tar.gz".to_owned(),
+            url: "https://coloris.invalid/schemes.tar.gz".to_owned(),
             source: Box::new(ureq::Error::HostNotFound),
         };
         assert_ne!(status.to_string(), fetch.to_string());
         assert_eq!(
             status.to_string(),
-            "https://vanadis.invalid/schemes.tar.gz answered 404"
+            "https://coloris.invalid/schemes.tar.gz answered 404"
         );
     }
 }

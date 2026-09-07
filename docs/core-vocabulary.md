@@ -129,7 +129,7 @@ value cannot be produced at all. Incompleteness is not one of them.
 
 Treating it as one would also be disproportionate. Themes are discovered by enumerating a
 directory, so a hard load error on incompleteness would mean one unfinished file makes
-`vanadis list` fail, and with it every command that has to enumerate themes. A broken theme
+`coloris list` fail, and with it every command that has to enumerate themes. A broken theme
 should cost the user that theme, not the tool.
 
 **`check` is the only place the core is enforced.** It reports every missing core token by
@@ -239,7 +239,7 @@ theme.
 
 ## Versioning
 
-The core list is compiled into vanadis. It is not read from a file and a theme cannot extend
+The core list is compiled into coloris. It is not read from a file and a theme cannot extend
 it.
 
 **Adding a core token is a breaking change** and bumps `meta.format`, because every existing
@@ -260,7 +260,7 @@ the names are at least the ones a Vim or Neovim config author already knows.
 arbitrary templates from a vocabulary the theme author chooses, and adopting a fixed
 sixteen-slot core would put the fixed list back in the one place it was removed from. The
 rejection rests on the niche rather than on any measurement, so it stands as long as the
-niche does: a vanadis that only ever rendered base16 schemes would have no reason to refuse
+niche does: a coloris that only ever rendered base16 schemes would have no reason to refuse
 base16's vocabulary.
 
 **Promoting `colors.purple`, `colors.brown` and `colors.slate` to `role`.** They are the only
@@ -278,7 +278,7 @@ Nothing would read it. `check` finds an undefined token by resolving the templat
 theme, which needs no declaration, and a declaration that disagreed with the file would be a
 third thing to keep in sync.
 
-**Deriving the core from the templates at runtime.** vanadis could compute "core" as the
+**Deriving the core from the templates at runtime.** coloris could compute "core" as the
 intersection of tokens all installed templates use, which needs no hardcoded list. It is
 rejected because the core would then change when a user adds a template, and the guarantee a
 theme author is working against would depend on somebody else's config directory.

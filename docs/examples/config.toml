@@ -2,31 +2,31 @@
 # docs/config.md. tests/fixtures/MANIFEST.tsv maps each template back to the file it was
 # taken from.
 #
-# Template paths mirror tests/fixtures/templates/ under the vanadis config directory, so
+# Template paths mirror tests/fixtures/templates/ under the coloris config directory, so
 # every entry here reads across to one fixture. Output paths are where the tool actually
 # looks.
 
-# Consulted by `vanadis apply --variant dark`. Optional: naming a theme works without it.
+# Consulted by `coloris apply --variant dark`. Optional: naming a theme works without it.
 [auto]
 light = "papercolor-light"
 dark = "papercolor-dark"
 
 # bat matches a theme by the name inside the tmTheme, not by the filename, so the file is
-# named for vanadis rather than for the theme it currently holds. `bat cache --build` is not
+# named for coloris rather than for the theme it currently holds. `bat cache --build` is not
 # optional: without it bat keeps serving the cached theme.
 [[targets]]
 name = "bat"
 template = "templates/bat/PaperColor-Light.tmTheme.in"
-output = "~/.config/bat/themes/vanadis.tmTheme"
+output = "~/.config/bat/themes/coloris.tmTheme"
 reload = ["bat", "cache", "--build"]
 
 # btop scans its themes directory and lists what it finds, so the output is named for
-# vanadis. A file named papercolor-light.theme would still be called that after a switch to
+# coloris. A file named papercolor-light.theme would still be called that after a switch to
 # gruvbox.
 [[targets]]
 name = "btop"
 template = "templates/btop/papercolor-light.theme.in"
-output = "~/.config/btop/themes/vanadis.theme"
+output = "~/.config/btop/themes/coloris.theme"
 
 # Three targets belong to herdr, so `name` is the target's identifier rather than the tool's.
 [[targets]]
@@ -67,7 +67,7 @@ template = "templates/neovim/palette.lua.in"
 output = "~/.config/nvim/lua/palette.lua"
 themes = { light = "gruvbox-light", dark = "gruvbox-dark" }
 
-# rio runs on the machine the terminal is on, which is not always the machine vanadis runs
+# rio runs on the machine the terminal is on, which is not always the machine coloris runs
 # on. This entry writes the config rio would read locally.
 [[targets]]
 name = "rio"
@@ -81,7 +81,7 @@ template = "templates/starship/starship.toml.in"
 output = "~/.config/starship.toml"
 
 # fzf reads these colours from the environment, so the shell has to be replaced for a change
-# to show. `exec zsh` replaces the user's shell and vanadis runs as a child process, so it
+# to show. `exec zsh` replaces the user's shell and coloris runs as a child process, so it
 # cannot be a reload command.
 [[targets]]
 name = "zsh"

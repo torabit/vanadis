@@ -27,7 +27,7 @@ const EXTENSIONS: [&str; 2] = ["yaml", "yml"];
 ///
 /// The same suffix `init` stages with, so a run interrupted by either leaves the same kind of
 /// file behind.
-const STAGED: &str = ".vanadis-new";
+const STAGED: &str = ".coloris-new";
 
 /// What one run of [`import`] wrote.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -193,7 +193,7 @@ enum Source {
 /// # Errors
 ///
 /// Returns [`ImportError`] when the scheme cannot be found, read, fetched, converted or
-/// written, when it declares no system vanadis reads, when the name it would take is not a
+/// written, when it declares no system coloris reads, when the name it would take is not a
 /// theme identifier, or when the theme is already there and `force` is not set.
 pub fn import(
     argument: &str,
@@ -223,7 +223,7 @@ pub fn import(
     }
 
     let file = format!(
-        "# imported by vanadis from {origin}\n{}",
+        "# imported by coloris from {origin}\n{}",
         emit(converted.name(), converted.variant(), converted.tokens())?
     );
     write(&path, &file)?;
@@ -249,7 +249,7 @@ pub fn import(
 /// # Errors
 ///
 /// Returns [`ImportError::Convert`] when the bytes are not UTF-8 and [`ImportError::System`]
-/// when they do not declare a system vanadis reads.
+/// when they do not declare a system coloris reads.
 fn declared(bytes: &[u8], origin: &str) -> Result<System, ImportError> {
     let text = std::str::from_utf8(bytes).map_err(|source| ImportError::Convert {
         origin: origin.to_owned(),
@@ -383,7 +383,7 @@ fn stem(source: &Source) -> String {
 
 /// Writes `contents` to `path`, through a file beside it.
 ///
-/// The staged file is renamed over the destination, the way every other write in vanadis is
+/// The staged file is renamed over the destination, the way every other write in coloris is
 /// done, so a `--force` that fails part-way leaves the theme that was there intact.
 ///
 /// # Errors
@@ -409,7 +409,7 @@ mod tests {
     use super::*;
 
     fn schemes() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/cache/vanadis/schemes")
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/cache/coloris/schemes")
     }
 
     fn resolved(argument: &str) -> Source {

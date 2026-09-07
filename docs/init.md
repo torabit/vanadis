@@ -1,17 +1,17 @@
 # init
 
-This document decides how `vanadis init` turns a config file somebody already has into a
+This document decides how `coloris init` turns a config file somebody already has into a
 template, a theme and a `[[targets]]` entry. It builds on
 [docs/config.md](config.md), which decides where those files live, and
 [docs/theme-format.md](theme-format.md), which decides what a theme value may hold.
 
 Hand-writing a template for every tool already configured is the largest cost of adopting
-vanadis, and most of that cost is mechanical: find the colour literals, replace each with a
+coloris, and most of that cost is mechanical: find the colour literals, replace each with a
 token, write the values into a theme. `init` does the mechanical half. Deciding what a
 colour means is the half a person keeps.
 
 ```
-$ vanadis init ~/.config/nvim/lua/palette.lua
+$ coloris init ~/.config/nvim/lua/palette.lua
 found 10 hex values
 
   #eeeeee  1 occurrence   token name? > bg
@@ -21,15 +21,15 @@ found 10 hex values
   ...
 
 wrote:
-  ~/.config/vanadis/themes/papercolor-light.toml
-  ~/.config/vanadis/templates/nvim/palette.lua.in
-  ~/.config/vanadis/config.toml   (added 1 target)
+  ~/.config/coloris/themes/papercolor-light.toml
+  ~/.config/coloris/templates/nvim/palette.lua.in
+  ~/.config/coloris/config.toml   (added 1 target)
 ```
 
 ## The command
 
 ```
-vanadis init <FILE> [--theme <ID>] [--name <NAME>] [--variant <dark|light>]
+coloris init <FILE> [--theme <ID>] [--name <NAME>] [--variant <dark|light>]
 ```
 
 `FILE` is one config file that already exists. Every flag is optional and is asked for
@@ -39,7 +39,7 @@ instead when it is left out.
 them in sequence, and running it again says the second thing without deciding anything.
 
 **`FILE` is never modified.** It stays where it is and becomes the target's `output`, so the
-next `vanadis apply` writes over it with what the template renders. That is the whole point
+next `coloris apply` writes over it with what the template renders. That is the whole point
 of the byte-identical guarantee [below](#verifying-before-writing): the file the user has is
 the file they keep.
 
@@ -150,9 +150,9 @@ the user stops reading, which costs more than the names it would have caught.
 ## What it writes
 
 ```
-$VANADIS_CONFIG/themes/<id>.toml
-$VANADIS_CONFIG/templates/<name>/<basename>.in
-$VANADIS_CONFIG/config.toml
+$COLORIS_CONFIG/themes/<id>.toml
+$COLORIS_CONFIG/templates/<name>/<basename>.in
+$COLORIS_CONFIG/config.toml
 ```
 
 The config directory and `themes/` are created when they do not exist. `init` is the command
@@ -220,7 +220,7 @@ core tokens still undefined (11):
 
 **The skeleton is not written into the theme file as commented-out lines.** That was the
 earlier reading of [docs/core-vocabulary.md](core-vocabulary.md#a-missing-core-token-is-not-a-load-error),
-and it is rejected here. A commented list is a second copy of a list vanadis already compiles
+and it is rejected here. A commented list is a second copy of a list coloris already compiles
 in, so a later run has to find and delete the right comment line, and a user who edits or
 deletes the block leaves `init` guessing what it means. `check` is where an incomplete theme
 is reported and stays reported; the printed list is the same answer offered at the moment it
@@ -241,7 +241,7 @@ somebody has been editing by hand.
 the original file, before writing anything.** A single differing byte and it reports the
 mismatch and writes nothing.
 
-`check` is core to this tool because vanadis generates output. `init` generates output too,
+`check` is core to this tool because coloris generates output. `init` generates output too,
 and it generates it in the one situation where the correct answer is known exactly: the
 original file is on disk. So the acceptance condition — that an apply straight after an init
 reproduces the file — is an invariant `init` enforces on itself rather than a property a test
@@ -265,7 +265,7 @@ It costs `{{ columns }}` being written `{{{{ columns }}}}` where it would have s
 untouched. That is the right way round.
 [docs/theme-format.md](theme-format.md#escaping) introduces the escape for rio precisely
 because `{{columns}}` and `{{ columns }}` are the same thing to rio and different things to
-vanadis, and a template that says which one it means does not depend on the spacing.
+coloris, and a template that says which one it means does not depend on the spacing.
 
 Without the escaping the verification fails, which is the point: the check finds the case
 rather than the user finding it later.

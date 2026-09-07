@@ -1,6 +1,6 @@
-//! Where vanadis keeps its files.
+//! Where coloris keeps its files.
 //!
-//! `docs/config.md` decides the layout: `$VANADIS_CONFIG` replaces the whole config
+//! `docs/config.md` decides the layout: `$COLORIS_CONFIG` replaces the whole config
 //! directory, and the state file stays outside it, under `$XDG_STATE_HOME`.
 //! `docs/schemes.md` decides that the scheme cache stays outside it too, under
 //! `$XDG_CACHE_HOME`.
@@ -12,7 +12,7 @@ use thiserror::Error;
 /// The variables the paths are resolved out of.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Environment {
-    vanadis_config: Option<PathBuf>,
+    coloris_config: Option<PathBuf>,
     xdg_config_home: Option<PathBuf>,
     xdg_state_home: Option<PathBuf>,
     xdg_cache_home: Option<PathBuf>,
@@ -37,7 +37,7 @@ impl Environment {
     #[must_use]
     pub fn read() -> Self {
         Self {
-            vanadis_config: variable("VANADIS_CONFIG"),
+            coloris_config: variable("COLORIS_CONFIG"),
             xdg_config_home: variable("XDG_CONFIG_HOME"),
             xdg_state_home: variable("XDG_STATE_HOME"),
             xdg_cache_home: variable("XDG_CACHE_HOME"),
@@ -57,14 +57,14 @@ impl Environment {
     ///
     /// Returns [`PathsError::NoHome`] when nothing names it and there is no home directory.
     pub fn config_dir(&self) -> Result<PathBuf, PathsError> {
-        if let Some(directory) = set(self.vanadis_config.as_ref()) {
+        if let Some(directory) = set(self.coloris_config.as_ref()) {
             return Ok(directory.clone());
         }
         if let Some(directory) = set(self.xdg_config_home.as_ref()) {
-            return Ok(directory.join("vanadis"));
+            return Ok(directory.join("coloris"));
         }
         self.under_home(
-            &[".config", "vanadis"],
+            &[".config", "coloris"],
             "config directory",
             "XDG_CONFIG_HOME",
         )
@@ -86,10 +86,10 @@ impl Environment {
     /// Returns [`PathsError::NoHome`] when nothing names it and there is no home directory.
     pub fn state_file(&self) -> Result<PathBuf, PathsError> {
         if let Some(directory) = set(self.xdg_state_home.as_ref()) {
-            return Ok(directory.join("vanadis").join("state.toml"));
+            return Ok(directory.join("coloris").join("state.toml"));
         }
         self.under_home(
-            &[".local", "state", "vanadis", "state.toml"],
+            &[".local", "state", "coloris", "state.toml"],
             "state file",
             "XDG_STATE_HOME",
         )
@@ -97,7 +97,7 @@ impl Environment {
 
     /// The directory downloaded data is cached in.
     ///
-    /// This does not move with `$VANADIS_CONFIG`. `docs/schemes.md` decides that the cache
+    /// This does not move with `$COLORIS_CONFIG`. `docs/schemes.md` decides that the cache
     /// is downloaded data rather than something a user writes, so it follows
     /// `$XDG_CACHE_HOME` and is safe to delete.
     ///
@@ -106,9 +106,9 @@ impl Environment {
     /// Returns [`PathsError::NoHome`] when nothing names it and there is no home directory.
     pub fn cache_dir(&self) -> Result<PathBuf, PathsError> {
         if let Some(directory) = set(self.xdg_cache_home.as_ref()) {
-            return Ok(directory.join("vanadis"));
+            return Ok(directory.join("coloris"));
         }
-        self.under_home(&[".cache", "vanadis"], "cache directory", "XDG_CACHE_HOME")
+        self.under_home(&[".cache", "coloris"], "cache directory", "XDG_CACHE_HOME")
     }
 
     /// The directory the tinted-theming scheme collection is cached in.
@@ -150,7 +150,7 @@ mod tests {
 
     fn environment() -> Environment {
         Environment {
-            vanadis_config: None,
+            coloris_config: None,
             xdg_config_home: None,
             xdg_state_home: None,
             xdg_cache_home: None,
@@ -159,9 +159,9 @@ mod tests {
     }
 
     #[test]
-    fn takes_the_config_directory_from_vanadis_config() {
+    fn takes_the_config_directory_from_coloris_config() {
         let environment = Environment {
-            vanadis_config: Some(PathBuf::from("/srv/themes")),
+            coloris_config: Some(PathBuf::from("/srv/themes")),
             xdg_config_home: Some(PathBuf::from("/home/ada/.config")),
             ..environment()
         };
@@ -176,7 +176,7 @@ mod tests {
         };
         assert_eq!(
             environment.config_dir().unwrap(),
-            Path::new("/home/ada/.config/vanadis")
+            Path::new("/home/ada/.config/coloris")
         );
     }
 
@@ -184,7 +184,7 @@ mod tests {
     fn falls_back_to_dot_config_under_the_home_directory() {
         assert_eq!(
             environment().config_dir().unwrap(),
-            Path::new("/home/ada/.config/vanadis")
+            Path::new("/home/ada/.config/coloris")
         );
     }
 
@@ -204,7 +204,7 @@ mod tests {
     fn scans_themes_under_the_config_directory() {
         assert_eq!(
             environment().themes_dir().unwrap(),
-            Path::new("/home/ada/.config/vanadis/themes")
+            Path::new("/home/ada/.config/coloris/themes")
         );
     }
 
@@ -216,7 +216,7 @@ mod tests {
         };
         assert_eq!(
             environment.state_file().unwrap(),
-            Path::new("/home/ada/.local/state/vanadis/state.toml")
+            Path::new("/home/ada/.local/state/coloris/state.toml")
         );
     }
 
@@ -224,7 +224,7 @@ mod tests {
     fn falls_back_to_dot_local_state_under_the_home_directory() {
         assert_eq!(
             environment().state_file().unwrap(),
-            Path::new("/home/ada/.local/state/vanadis/state.toml")
+            Path::new("/home/ada/.local/state/coloris/state.toml")
         );
     }
 
@@ -236,7 +236,7 @@ mod tests {
         };
         assert_eq!(
             environment.cache_dir().unwrap(),
-            Path::new("/home/ada/.cache/vanadis")
+            Path::new("/home/ada/.cache/coloris")
         );
     }
 
@@ -244,19 +244,19 @@ mod tests {
     fn falls_back_to_dot_cache_under_the_home_directory() {
         assert_eq!(
             environment().cache_dir().unwrap(),
-            Path::new("/home/ada/.cache/vanadis")
+            Path::new("/home/ada/.cache/coloris")
         );
     }
 
     #[test]
-    fn keeps_the_cache_out_of_the_directory_vanadis_config_names() {
+    fn keeps_the_cache_out_of_the_directory_coloris_config_names() {
         let environment = Environment {
-            vanadis_config: Some(PathBuf::from("/srv/themes")),
+            coloris_config: Some(PathBuf::from("/srv/themes")),
             ..environment()
         };
         assert_eq!(
             environment.cache_dir().unwrap(),
-            Path::new("/home/ada/.cache/vanadis")
+            Path::new("/home/ada/.cache/coloris")
         );
     }
 
@@ -264,7 +264,7 @@ mod tests {
     fn scans_schemes_under_the_cache_directory() {
         assert_eq!(
             environment().schemes_dir().unwrap(),
-            Path::new("/home/ada/.cache/vanadis/schemes")
+            Path::new("/home/ada/.cache/coloris/schemes")
         );
     }
 
@@ -276,19 +276,19 @@ mod tests {
         };
         assert_eq!(
             environment.cache_dir().unwrap(),
-            Path::new("/home/ada/.cache/vanadis")
+            Path::new("/home/ada/.cache/coloris")
         );
     }
 
     #[test]
-    fn keeps_the_state_file_out_of_the_directory_vanadis_config_names() {
+    fn keeps_the_state_file_out_of_the_directory_coloris_config_names() {
         let environment = Environment {
-            vanadis_config: Some(PathBuf::from("/srv/themes")),
+            coloris_config: Some(PathBuf::from("/srv/themes")),
             ..environment()
         };
         assert_eq!(
             environment.state_file().unwrap(),
-            Path::new("/home/ada/.local/state/vanadis/state.toml")
+            Path::new("/home/ada/.local/state/coloris/state.toml")
         );
     }
 
@@ -300,7 +300,7 @@ mod tests {
         };
         assert_eq!(
             environment.config_dir().unwrap(),
-            Path::new("/home/ada/.config/vanadis")
+            Path::new("/home/ada/.config/coloris")
         );
     }
 }

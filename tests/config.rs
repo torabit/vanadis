@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use vanadis::{Config, TargetName, Variant};
+use coloris::{Config, TargetName, Variant};
 
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).to_owned()
@@ -56,6 +56,6 @@ fn expands_an_output_path_against_the_home_directory() {
     let config = reference();
     assert_eq!(
         config.targets()[0].output(),
-        Path::new("/home/ada/.config/bat/themes/vanadis.tmTheme")
+        Path::new("/home/ada/.config/bat/themes/coloris.tmTheme")
     );
 }

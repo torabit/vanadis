@@ -25,18 +25,18 @@ There is no `pre` counterpart and no hook system.
 | bat | pager | `bat cache --build`, **mandatory** — without it bat keeps serving the cached theme | `["bat", "cache", "--build"]` |
 | herdr | terminal multiplexer | `herdr server reload-config` | `["herdr", "server", "reload-config"]` |
 | starship | shell prompt | rereads its config on the next prompt | nothing to run |
-| nvim | editor | restart, or `:luafile` the generated file | not a command vanadis can run |
+| nvim | editor | restart, or `:luafile` the generated file | not a command coloris can run |
 | btop | system monitor | restart | not a command |
 | hunk | diff viewer | restart | not a command |
 | lazygit | git UI | restart | not a command |
-| zsh with fzf | shell and fuzzy finder | `exec zsh` — fzf reads its colours from the environment | **no**: it replaces the user's shell, and vanadis is a child process |
-| rio | terminal emulator | rereads its config; note it runs on the machine the terminal is on, which over SSH is not the machine vanadis runs on | nothing to run |
+| zsh with fzf | shell and fuzzy finder | `exec zsh` — fzf reads its colours from the environment | **no**: it replaces the user's shell, and coloris is a child process |
+| rio | terminal emulator | rereads its config; note it runs on the machine the terminal is on, which over SSH is not the machine coloris runs on | nothing to run |
 
-Two of these nine have a command vanadis can usefully run. That ratio is the normal case, not a
+Two of these nine have a command coloris can usefully run. That ratio is the normal case, not a
 gap in the format.
 
 `bat` is the one to remember. It is the only entry where skipping the reload leaves the tool
-showing the old theme with no error anywhere — the file on disk is correct and `vanadis check`
+showing the old theme with no error anywhere — the file on disk is correct and `coloris check`
 is clean.
 
 ## Working out a tool that is not in the table

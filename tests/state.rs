@@ -3,7 +3,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use vanadis::{State, ThemeId};
+use coloris::{State, ThemeId};
 
 /// An empty directory to write state into.
 fn directory(test: &str) -> PathBuf {
@@ -26,7 +26,7 @@ fn reads_back_the_state_it_wrote() {
 
 #[test]
 fn creates_the_directories_leading_to_the_state_file() {
-    let path = directory("store-mkdir").join("vanadis/state.toml");
+    let path = directory("store-mkdir").join("coloris/state.toml");
     state("nord").store(&path).unwrap();
     assert!(path.is_file());
 }

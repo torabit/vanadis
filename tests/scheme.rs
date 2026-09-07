@@ -12,7 +12,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use vanadis::{System, Template, Theme, ThemeId, TokenPath, Variant, convert, vocabulary};
+use coloris::{System, Template, Theme, ThemeId, TokenPath, Variant, convert, vocabulary};
 
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).to_owned()
@@ -31,7 +31,7 @@ fn theme(system: System, scheme: &str, id: &str) -> Theme {
     let converted = convert(system, &bytes).unwrap();
     let id = ThemeId::parse(id).unwrap();
     let file =
-        vanadis::init::theme(converted.name(), converted.variant(), converted.tokens()).unwrap();
+        coloris::init::theme(converted.name(), converted.variant(), converted.tokens()).unwrap();
     Theme::parse(&root().join("themes").join(format!("{id}.toml")), &file).unwrap()
 }
 

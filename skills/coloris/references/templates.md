@@ -28,7 +28,7 @@ Right when the file is nearly all colour anyway — a btop theme, a bat tmTheme,
 or when the tool has no include mechanism at all, as with herdr and starship.
 
 Put a line near the top of the template saying the file is generated and naming the `.in` to
-edit instead. The template writes it; vanadis knows nothing about output formats and adds no
+edit instead. The template writes it; coloris knows nothing about output formats and adds no
 header of its own. Where the line goes depends on the format: a tmTheme has an XML declaration
 and a DOCTYPE first, so the notice is the third line.
 
@@ -50,7 +50,7 @@ unescaped `{{` for a substitution to run into, and it is the shorter rule.
 The cost is that `{{ columns }}` gets written `{{{{ columns }}}}` where it would have survived
 untouched. That is the right way round. rio matches its own placeholders with
 `\{\{(.*?)\}\}` and then trims and lowercases, so `{{ columns }}` and `{{columns}}` are one
-thing to rio and two things to vanadis; a template that escapes says which it means regardless
+thing to rio and two things to coloris; a template that escapes says which it means regardless
 of the spacing.
 
 ## Colour notations
@@ -79,7 +79,7 @@ template written against that cannot be generated.
 
 **Never put the theme's name in the output path.** Apply gruvbox over `papercolor-light.theme`
 and it is still called that. btop lists whatever it finds in its themes directory, so the stale
-name is visible in the tool's own UI. Write `vanadis.theme`, `vanadis.tmTheme`.
+name is visible in the tool's own UI. Write `coloris.theme`, `coloris.tmTheme`.
 
 **bat has a second layer the config cannot reach.** It selects a theme by the `name` inside the
 tmTheme, not by the filename. A template writing `{{meta.name}}` there moves the name bat has to
@@ -100,7 +100,7 @@ place to state it is a second place for it to disagree.
 
 Every target renders before anything is written. A failure at any target — an undefined token, a
 missing theme, an unreadable template — writes nothing at all. A half-applied set of configs is
-not a state vanadis can produce, so a failed apply never needs unpicking.
+not a state coloris can produce, so a failed apply never needs unpicking.
 
 Writes happen in the order the targets appear in `config.toml`; reloads run after every write,
 in the same order.

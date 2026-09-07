@@ -76,7 +76,7 @@ pub enum Problem {
         value: String,
     },
     /// A `meta.format` this version does not read.
-    #[error("line {line}: meta.format is `{found}`, and this version of vanadis reads format 1")]
+    #[error("line {line}: meta.format is `{found}`, and this version of coloris reads format 1")]
     MetaFormat {
         /// The line the key is written on.
         line: usize,

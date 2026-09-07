@@ -36,7 +36,7 @@ impl fmt::Display for TargetName {
     }
 }
 
-/// The themes a bare `vanadis apply --variant` resolves through.
+/// The themes a bare `coloris apply --variant` resolves through.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Auto {
     light: ThemeId,
@@ -54,7 +54,7 @@ impl Auto {
     }
 }
 
-/// The themes `vanadis cycle` steps through, in the order the file writes them.
+/// The themes `coloris cycle` steps through, in the order the file writes them.
 ///
 /// At least two, and no repeats. Both are the parser's to enforce and both follow from how
 /// [`Cycle::next`] finds where it is: it looks the applied theme up in the list rather than

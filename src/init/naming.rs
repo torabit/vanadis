@@ -91,7 +91,7 @@ mod tests {
     #[test]
     fn names_a_target_after_the_tool_rather_than_the_file() {
         assert_eq!(
-            suggested("/home/ada/.config/btop/themes/vanadis.theme"),
+            suggested("/home/ada/.config/btop/themes/coloris.theme"),
             Some("btop".to_owned())
         );
     }

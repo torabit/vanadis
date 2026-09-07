@@ -1,17 +1,17 @@
 [package]
-name = "vanadis"
-version = "0.3.0"
+name = "coloris"
+version = "0.4.0"
 edition = "2024"
 rust-version = "1.98"
 description = "Build your CLI tool configs from one palette. Templates in, themed configs out."
-repository = "https://github.com/torabit/vanadis"
+repository = "https://github.com/torabit/coloris"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["theme", "colorscheme", "dotfiles", "palette", "terminal"]
 categories = ["command-line-utilities"]
 
 # The crate is the binary and the library it is built from, plus the documents that decide how
-# both behave and the tests that hold them to it. What is left out is how vanadis itself is
+# both behave and the tests that hold them to it. What is left out is how coloris itself is
 # built: the agent instructions and the CI workflow are of no use to anyone installing it.
 exclude = [".claude/", ".github/", "CLAUDE.md"]
 

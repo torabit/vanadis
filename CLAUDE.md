@@ -1,4 +1,4 @@
-# vanadis
+# coloris
 
 ## What it is
 
@@ -10,19 +10,19 @@ A build tool for dotfiles, not a theme distribution system.
 - `tinty` copies pre-built theme files out of template repositories. It does not render.
 - `flavours` renders, but only base16's 16 slots.
 - `Stylix` renders system-wide, and requires Nix.
-- `vanadis` renders arbitrary templates from an arbitrary token vocabulary. That
+- `coloris` renders arbitrary templates from an arbitrary token vocabulary. That
   intersection is the whole niche.
 
 Two things follow and neither is negotiable:
 
-- `check` is core. vanadis generates output, so it verifies output.
+- `check` is core. coloris generates output, so it verifies output.
 - The template language is `{{token}}` substitution and nothing else. No conditionals,
   loops, filters or includes.
 
 ## What ships
 
 `skills/`, `plugin.json` and `.claude-plugin/` are the plugin. Everything else exists to
-build vanadis and is never shipped.
+build coloris and is never shipped.
 
 The shipped skill covers a user's `config.toml` and templates. It carries nothing about this
 codebase.

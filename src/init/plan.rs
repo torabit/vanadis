@@ -237,7 +237,7 @@ fn stage(file: &Written) -> Result<PathBuf, InitError> {
         std::fs::create_dir_all(parent).map_err(failed(parent))?;
     }
     let mut name = file.path.as_os_str().to_os_string();
-    name.push(".vanadis-new");
+    name.push(".coloris-new");
     let staged = PathBuf::from(name);
     std::fs::write(&staged, &file.contents).map_err(failed(&staged))?;
     Ok(staged)
@@ -273,7 +273,7 @@ mod tests {
     use super::*;
     use crate::init::scan;
 
-    const CONFIG: &str = "/home/ada/.config/vanadis";
+    const CONFIG: &str = "/home/ada/.config/coloris";
     const OUTPUT: &str = "/home/ada/.config/nvim/lua/palette.lua";
 
     fn path(text: &str) -> TokenPath {
@@ -332,7 +332,7 @@ mod tests {
         let plan = planned("bg = \"#eeeeee\"\n").unwrap();
         assert_eq!(
             plan.template().path(),
-            Path::new("/home/ada/.config/vanadis/templates/nvim/palette.lua.in")
+            Path::new("/home/ada/.config/coloris/templates/nvim/palette.lua.in")
         );
     }
 
@@ -347,7 +347,7 @@ mod tests {
         let plan = planned("bg = \"#eeeeee\"\n").unwrap();
         assert_eq!(
             plan.theme().path(),
-            Path::new("/home/ada/.config/vanadis/themes/papercolor-light.toml")
+            Path::new("/home/ada/.config/coloris/themes/papercolor-light.toml")
         );
     }
 

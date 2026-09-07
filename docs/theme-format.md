@@ -139,7 +139,7 @@ The rule is on keys, not on paths, which also settles two cases TOML does not:
   and quietly remove slot 1. Sub-tables under `[ansi]` are rejected.
 
 **The theme's filename, minus `.toml`, must also be a valid segment.** It is the identifier
-`vanadis apply papercolor-light` takes and the one the config file pins in `[auto]`, so it
+`coloris apply papercolor-light` takes and the one the config file pins in `[auto]`, so it
 cannot be `PaperColor Light.toml`.
 
 ## Values
@@ -265,7 +265,7 @@ items carry spans, and walk it by hand.
 | key | required | use |
 | --- | --- | --- |
 | `format` | yes | format version, `1` for this document |
-| `name` | yes | display name, `vanadis list`, `{{meta.name}}` |
+| `name` | yes | display name, `coloris list`, `{{meta.name}}` |
 | `variant` | yes | `dark` or `light`, nothing else, no default |
 | `author` | no | provenance only |
 
@@ -277,7 +277,7 @@ one later.
 
 `meta.id` is readable as a token but is not written in the file: it is the filename, which is
 the identifier. **The filename is the identifier, `meta.name` is the display name.** They need
-not match, and vanadis never resolves a theme by `meta.name`. Two names look redundant, but
+not match, and coloris never resolves a theme by `meta.name`. Two names look redundant, but
 the upstream schemes carry a display name a converter would otherwise discard, and deriving
 either from the other loses capitalisation.
 
@@ -286,8 +286,8 @@ either from the other loses capitalisation.
 light/dark pairing in `[auto]` depend on a background colour someone might change for
 unrelated reasons. The variant is a statement of intent, so the author states it.
 
-`author` is optional. It is provenance, and nothing in vanadis reads it. Requiring it would
-mean `vanadis init` has to invent a value or refuse to finish, for a palette its user wrote
+`author` is optional. It is provenance, and nothing in coloris reads it. Requiring it would
+mean `coloris init` has to invent a value or refuse to finish, for a palette its user wrote
 themselves. Converters fill it from the upstream scheme, so a theme that came from somewhere
 still says where.
 
@@ -301,7 +301,7 @@ binary will still link a YAML parser once the importer lands; that is the import
 the author's.
 
 **`{token}` in themes, `{{token}}` in templates.** The current JSON fixture uses single
-braces. Unifying them makes one rule true everywhere: `{{...}}` is vanadis's, `{...}` is the
+braces. Unifying them makes one rule true everywhere: `{{...}}` is coloris's, `{...}` is the
 target tool's. The two sides still need separate code — a theme value is one whole-string
 reference, a template is a scan — so the saving is the shared token-path grammar, not a shared
 implementation.
@@ -450,14 +450,14 @@ that selection and writing it back out is lossless, because the choosing happene
 
 **Export is not a feature. It is a template.** A base16 scheme is YAML with sixteen colours,
 `name`, `author` and `variant` in it, so it is `base16.yaml.in` with sixteen `{{colors...}}`
-and three `{{meta...}}` in it. Putting knowledge of output formats into vanadis is what
+and three `{{meta...}}` in it. Putting knowledge of output formats into coloris is what
 rendering through templates exists to prevent, and the converter is an importer: its stated
 work is reading scheme bytes into this model, and nothing in this document extends it.
 
 Rendering one named theme once, rather than the active theme to every target, is what makes
 that possible: the config file's model writes every target on every apply, which would
-overwrite `gruvbox.yaml` with whatever theme is active. `vanadis render <template> --theme <id>`
-is that mechanism and it keeps vanadis ignorant of formats.
+overwrite `gruvbox.yaml` with whatever theme is active. `coloris render <template> --theme <id>`
+is that mechanism and it keeps coloris ignorant of formats.
 [docs/config.md](config.md#rendering-one-theme-once) decides it.
 `tests/fixtures/export/base16.yaml.in` is the template, and `tests/export.rs` holds the claim
 to account: a scheme imported, rendered back out, and imported again carries the same sixteen

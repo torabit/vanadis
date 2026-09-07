@@ -21,7 +21,7 @@ pub struct Cache {
 #[derive(Debug, Error)]
 pub enum CacheError {
     /// Nothing has been cached yet.
-    #[error("no scheme cache under {}\nrun `vanadis remote update` to fetch it", .path.display())]
+    #[error("no scheme cache under {}\nrun `coloris remote update` to fetch it", .path.display())]
     Missing {
         /// Where the cache would be.
         path: PathBuf,
@@ -123,7 +123,7 @@ mod tests {
     use super::*;
 
     fn directory() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/cache/vanadis/schemes")
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/cache/coloris/schemes")
     }
 
     fn cache() -> Cache {
@@ -237,7 +237,7 @@ mod tests {
         let missing = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/nowhere");
         let error = Cache::scan(&missing).unwrap_err();
         assert!(
-            error.to_string().contains("vanadis remote update"),
+            error.to_string().contains("coloris remote update"),
             "{error}"
         );
     }

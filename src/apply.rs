@@ -100,7 +100,7 @@ pub enum ApplyError {
         name: TargetName,
     },
     /// `--only` was used to write before any theme was applied to every target.
-    #[error("--only needs a theme applied to every target first: run `vanadis apply <theme>` once")]
+    #[error("--only needs a theme applied to every target first: run `coloris apply <theme>` once")]
     NoWholeApply,
     /// A template could not be read.
     #[error("{}: {source}", .path.display())]
@@ -412,7 +412,7 @@ fn stage(render: &Rendered) -> Result<PathBuf, ApplyError> {
         ));
     };
     let mut staged = name.to_owned();
-    staged.push(".vanadis-new");
+    staged.push(".coloris-new");
     let staged = render.output.with_file_name(staged);
 
     std::fs::write(&staged, &render.contents).map_err(|source| failed(&staged, source))?;

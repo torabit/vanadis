@@ -1,6 +1,6 @@
-# A base16 scheme, written out of a vanadis theme.
+# A base16 scheme, written out of a coloris theme.
 #
-# This is the whole of "export" in vanadis: nineteen substitutions and no code. It is not a
+# This is the whole of "export" in coloris: nineteen substitutions and no code. It is not a
 # golden template like the ones in tests/fixtures/templates/, which came out of real dotfiles;
 # it is here because docs/theme-format.md states that a base16 scheme is a template and this
 # file is what that claim costs.

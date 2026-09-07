@@ -33,7 +33,7 @@ impl Machine {
             fs::create_dir_all(directory).unwrap();
         }
         for scheme in schemes {
-            let destination = machine.cache.join("vanadis/schemes").join(scheme);
+            let destination = machine.cache.join("coloris/schemes").join(scheme);
             fs::create_dir_all(destination.parent().unwrap()).unwrap();
             fs::copy(fixture(scheme), &destination).unwrap();
         }
@@ -41,9 +41,9 @@ impl Machine {
     }
 
     fn run(&self, args: &[&str]) -> Output {
-        Command::new(env!("CARGO_BIN_EXE_vanadis"))
+        Command::new(env!("CARGO_BIN_EXE_coloris"))
             .args(args)
-            .env("VANADIS_CONFIG", &self.config)
+            .env("COLORIS_CONFIG", &self.config)
             .env("XDG_STATE_HOME", &self.state)
             .env("XDG_CACHE_HOME", &self.cache)
             .output()
@@ -107,7 +107,7 @@ fn records_where_the_scheme_came_from() {
     assert!(
         machine
             .written("nord")
-            .starts_with("# imported by vanadis from base16/nord\n[meta]\n"),
+            .starts_with("# imported by coloris from base16/nord\n[meta]\n"),
         "{}",
         machine.written("nord")
     );
@@ -192,7 +192,7 @@ fn writes_over_a_theme_when_force_says_to() {
     assert!(
         machine
             .written("nord")
-            .starts_with("# imported by vanadis from tinted8/nord\n"),
+            .starts_with("# imported by coloris from tinted8/nord\n"),
         "{}",
         machine.written("nord")
     );
@@ -224,7 +224,7 @@ fn records_a_file_on_disk_by_its_path() {
     machine.run(&["import", scheme.to_str().unwrap()]);
     assert!(
         machine.written("solarized-light").starts_with(&format!(
-            "# imported by vanadis from {}\n",
+            "# imported by coloris from {}\n",
             scheme.display()
         )),
         "{}",
@@ -252,7 +252,7 @@ fn says_how_to_fill_a_cache_that_is_not_there() {
     let output = machine.run(&["import", "nord"]);
     assert!(!output.status.success());
     assert!(
-        stderr(&output).contains("vanadis remote update"),
+        stderr(&output).contains("coloris remote update"),
         "{}",
         stderr(&output)
     );
@@ -264,7 +264,7 @@ fn says_how_to_look_for_an_identifier_the_cache_does_not_hold() {
     let output = machine.run(&["import", "solarized"]);
     assert!(!output.status.success());
     assert!(
-        stderr(&output).contains("vanadis search"),
+        stderr(&output).contains("coloris search"),
         "{}",
         stderr(&output)
     );

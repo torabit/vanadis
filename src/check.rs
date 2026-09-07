@@ -1,6 +1,6 @@
 //! Verifying what is on disk: render every target in memory, then compare.
 //!
-//! `check` is the command vanadis has that a theme distribution system cannot: it generated
+//! `check` is the command coloris has that a theme distribution system cannot: it generated
 //! the file, so it can say whether the file is still what it generated. See
 //! `docs/core-vocabulary.md` for why that is the differentiator.
 //!
@@ -208,7 +208,7 @@ pub fn check(
     // `themes/`. `check` asks whether the machine is consistent, and a theme no target is on is
     // not part of that: making one break the run is the shape `docs/core-vocabulary.md` rejects
     // for the loader, where an unfinished file costs the user that theme rather than the tool.
-    // `vanadis check <theme>` is how a theme that is not applied yet gets the same question.
+    // `coloris check <theme>` is how a theme that is not applied yet gets the same question.
     let mut resolved: Vec<ThemeId> = Vec::new();
     for target in &targets {
         // The same resolution `render` does: the applied theme states the mode, and a target

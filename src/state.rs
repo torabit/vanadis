@@ -13,7 +13,7 @@ use toml_edit::{Document, Item};
 use crate::config::TargetName;
 use crate::theme::ThemeId;
 
-/// What vanadis last applied.
+/// What coloris last applied.
 ///
 /// `theme` is what a whole apply wrote. `targets` holds the targets a later `--only` apply
 /// moved off it, which is the only way the two can disagree.
@@ -204,7 +204,7 @@ impl State {
     /// escaping.
     fn to_toml(&self) -> String {
         let mut file = format!(
-            "# written by vanadis; the theme it last applied\ntheme = \"{}\"\n",
+            "# written by coloris; the theme it last applied\ntheme = \"{}\"\n",
             self.theme.as_str()
         );
         if !self.targets.is_empty() {

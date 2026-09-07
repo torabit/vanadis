@@ -1,4 +1,4 @@
-//! `vanadis check`, driven as the user drives it.
+//! `coloris check`, driven as the user drives it.
 //!
 //! The golden tree is assembled rather than checked in: `tests/fixtures/check/config.toml`
 //! points at `tests/fixtures/templates/` and `tests/fixtures/expected/`, and the helper
@@ -62,10 +62,10 @@ fn copy(from: &Path, to: &Path) {
     }
 }
 
-fn vanadis(config: &Path, state: &Path, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_vanadis"))
+fn coloris(config: &Path, state: &Path, args: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_coloris"))
         .args(args)
-        .env("VANADIS_CONFIG", config)
+        .env("COLORIS_CONFIG", config)
         .env("XDG_STATE_HOME", state)
         .output()
         .unwrap()
@@ -82,7 +82,7 @@ fn stderr(output: &Output) -> String {
 #[test]
 fn finds_nothing_wrong_with_the_golden_outputs() {
     let (config, state) = golden("check-golden");
-    let output = vanadis(&config, &state, &["check", "papercolor-light"]);
+    let output = coloris(&config, &state, &["check", "papercolor-light"]);
     assert!(output.status.success(), "{}", stdout(&output));
     assert_eq!(stdout(&output), "checked 11 targets\n");
 }
@@ -94,7 +94,7 @@ fn reports_an_output_that_was_edited_by_hand() {
     let text = fs::read_to_string(&edited).unwrap();
     fs::write(&edited, text.replace("#eeeeee", "#ffffff")).unwrap();
 
-    let output = vanadis(&config, &state, &["check", "papercolor-light"]);
+    let output = coloris(&config, &state, &["check", "papercolor-light"]);
     assert!(!output.status.success());
     assert!(stdout(&output).contains("hunk"), "{}", stdout(&output));
 }
@@ -106,7 +106,7 @@ fn leaves_every_other_target_alone_when_one_has_drifted() {
     let text = fs::read_to_string(&edited).unwrap();
     fs::write(&edited, text.replace("#eeeeee", "#ffffff")).unwrap();
 
-    let output = vanadis(&config, &state, &["check", "papercolor-light"]);
+    let output = coloris(&config, &state, &["check", "papercolor-light"]);
     assert_eq!(stdout(&output).lines().count(), 1, "{}", stdout(&output));
 }
 
@@ -115,7 +115,7 @@ fn reports_an_output_that_does_not_exist() {
     let (config, state) = golden("check-missing");
     fs::remove_file(config.join("expected/zsh/palette.zsh")).unwrap();
 
-    let output = vanadis(&config, &state, &["check", "papercolor-light"]);
+    let output = coloris(&config, &state, &["check", "papercolor-light"]);
     assert!(!output.status.success());
     assert!(stdout(&output).contains("zsh"), "{}", stdout(&output));
 }
@@ -123,7 +123,7 @@ fn reports_an_output_that_does_not_exist() {
 #[test]
 fn reports_every_token_the_assigned_theme_does_not_define() {
     let (config, state) = tree("check-undefined", "apply-broken");
-    let output = vanadis(&config, &state, &["check", "paper-light"]);
+    let output = coloris(&config, &state, &["check", "paper-light"]);
     assert!(!output.status.success());
     assert!(
         stdout(&output).contains("colors.nope"),
@@ -135,7 +135,7 @@ fn reports_every_token_the_assigned_theme_does_not_define() {
 #[test]
 fn checks_only_the_target_that_was_named() {
     let (config, state) = tree("check-only", "apply-broken");
-    let output = vanadis(
+    let output = coloris(
         &config,
         &state,
         &["check", "paper-light", "--only", "first"],
@@ -152,20 +152,20 @@ fn checks_only_the_target_that_was_named() {
 #[test]
 fn checks_the_theme_the_state_file_records() {
     let (config, state) = tree("check-state", "apply");
-    let applied = vanadis(&config, &state, &["apply", "paper-light"]);
+    let applied = coloris(&config, &state, &["apply", "paper-light"]);
     assert!(applied.status.success(), "{}", stderr(&applied));
 
-    let output = vanadis(&config, &state, &["check"]);
+    let output = coloris(&config, &state, &["check"]);
     assert!(output.status.success(), "{}", stdout(&output));
 }
 
 #[test]
 fn reports_a_target_edited_since_it_was_applied() {
     let (config, state) = tree("check-state-drift", "apply");
-    vanadis(&config, &state, &["apply", "paper-light"]);
+    coloris(&config, &state, &["apply", "paper-light"]);
     fs::write(config.join("out/one.conf"), "bg=#ffffff\n").unwrap();
 
-    let output = vanadis(&config, &state, &["check"]);
+    let output = coloris(&config, &state, &["check"]);
     assert!(!output.status.success());
     assert!(stdout(&output).contains("one"), "{}", stdout(&output));
 }
@@ -173,17 +173,17 @@ fn reports_a_target_edited_since_it_was_applied() {
 #[test]
 fn follows_the_theme_a_partial_apply_moved_a_target_to() {
     let (config, state) = tree("check-state-only", "apply");
-    vanadis(&config, &state, &["apply", "paper-light"]);
-    vanadis(&config, &state, &["apply", "nord", "--only", "two"]);
+    coloris(&config, &state, &["apply", "paper-light"]);
+    coloris(&config, &state, &["apply", "nord", "--only", "two"]);
 
-    let output = vanadis(&config, &state, &["check"]);
+    let output = coloris(&config, &state, &["check"]);
     assert!(output.status.success(), "{}", stdout(&output));
 }
 
 #[test]
 fn refuses_a_check_that_names_no_theme_before_one_is_applied() {
     let (config, state) = tree("check-unapplied", "apply");
-    let output = vanadis(&config, &state, &["check"]);
+    let output = coloris(&config, &state, &["check"]);
     assert!(!output.status.success());
     assert!(!stderr(&output).is_empty());
 }
@@ -191,16 +191,16 @@ fn refuses_a_check_that_names_no_theme_before_one_is_applied() {
 #[test]
 fn resolves_a_theme_through_the_auto_table() {
     let (config, state) = tree("check-auto", "apply");
-    vanadis(&config, &state, &["apply", "--variant", "dark"]);
+    coloris(&config, &state, &["apply", "--variant", "dark"]);
 
-    let output = vanadis(&config, &state, &["check", "--variant", "dark"]);
+    let output = coloris(&config, &state, &["check", "--variant", "dark"]);
     assert!(output.status.success(), "{}", stdout(&output));
 }
 
 #[test]
 fn refuses_an_only_that_names_no_target() {
     let (config, state) = tree("check-unknown-target", "apply");
-    let output = vanadis(&config, &state, &["check", "paper-light", "--only", "nope"]);
+    let output = coloris(&config, &state, &["check", "paper-light", "--only", "nope"]);
     assert!(!output.status.success());
     assert!(!stderr(&output).is_empty());
 }
@@ -219,7 +219,7 @@ fn undefine(config: &Path, id: &str, token: &str) {
 /// An applied tree, so the only thing left for `check` to find is what a test puts there.
 fn applied(test: &str) -> (PathBuf, PathBuf) {
     let (config, state) = tree(test, "apply");
-    let output = vanadis(&config, &state, &["apply", "paper-light"]);
+    let output = coloris(&config, &state, &["apply", "paper-light"]);
     assert!(output.status.success(), "{}", stderr(&output));
     (config, state)
 }
@@ -229,7 +229,7 @@ fn reports_a_core_role_the_theme_does_not_define() {
     let (config, state) = applied("check-core-role");
     undefine(&config, "paper-light", "linenr");
 
-    let output = vanadis(&config, &state, &["check", "paper-light"]);
+    let output = coloris(&config, &state, &["check", "paper-light"]);
     assert!(!output.status.success());
     assert!(
         stdout(&output).contains("role.linenr"),
@@ -243,7 +243,7 @@ fn reports_a_core_ansi_slot_the_theme_does_not_define() {
     let (config, state) = applied("check-core-ansi");
     undefine(&config, "paper-light", "7");
 
-    let output = vanadis(&config, &state, &["check", "paper-light"]);
+    let output = coloris(&config, &state, &["check", "paper-light"]);
     assert!(!output.status.success());
     assert!(stdout(&output).contains("ansi.7"), "{}", stdout(&output));
 }
@@ -251,7 +251,7 @@ fn reports_a_core_ansi_slot_the_theme_does_not_define() {
 #[test]
 fn passes_a_theme_that_defines_the_whole_core() {
     let (config, state) = applied("check-core-whole");
-    let output = vanadis(&config, &state, &["check", "paper-light"]);
+    let output = coloris(&config, &state, &["check", "paper-light"]);
     assert!(output.status.success(), "{}", stdout(&output));
 }
 
@@ -260,7 +260,7 @@ fn names_the_incomplete_theme_once_however_many_targets_are_on_it() {
     let (config, state) = applied("check-core-once");
     undefine(&config, "paper-light", "linenr");
 
-    let output = vanadis(&config, &state, &["check", "paper-light"]);
+    let output = coloris(&config, &state, &["check", "paper-light"]);
     let named = stdout(&output)
         .lines()
         .filter(|line| line.starts_with("paper-light:"))
@@ -274,7 +274,7 @@ fn says_nothing_about_a_theme_no_target_in_the_run_is_on() {
     undefine(&config, "sea-light", "linenr");
 
     // Only `pinned` is on sea-light, and `--only two` leaves it out of the run.
-    let output = vanadis(&config, &state, &["check", "paper-light", "--only", "two"]);
+    let output = coloris(&config, &state, &["check", "paper-light", "--only", "two"]);
     assert!(output.status.success(), "{}", stdout(&output));
 }
 
@@ -283,7 +283,7 @@ fn reports_the_theme_a_pinned_target_is_on() {
     let (config, state) = applied("check-core-pinned");
     undefine(&config, "sea-light", "linenr");
 
-    let output = vanadis(&config, &state, &["check", "paper-light"]);
+    let output = coloris(&config, &state, &["check", "paper-light"]);
     assert!(!output.status.success());
     assert!(stdout(&output).contains("sea-light"), "{}", stdout(&output));
 }

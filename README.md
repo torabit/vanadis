@@ -1,17 +1,17 @@
-<h1 align="center">vanadis</h1>
+<h1 align="center">coloris</h1>
 
 <p align="center">
-  <a href="https://github.com/torabit/vanadis/actions"
+  <a href="https://github.com/torabit/coloris/actions"
     ><img
-      src="https://img.shields.io/github/actions/workflow/status/torabit/vanadis/ci.yml?branch=main&label=ci&style=flat-square"
+      src="https://img.shields.io/github/actions/workflow/status/torabit/coloris/ci.yml?branch=main&label=ci&style=flat-square"
       alt="CI status"
   /></a>
-  <a href="https://crates.io/crates/vanadis"
+  <a href="https://crates.io/crates/coloris"
     ><img
-      src="https://img.shields.io/crates/v/vanadis?style=flat-square"
+      src="https://img.shields.io/crates/v/coloris?style=flat-square"
       alt="crates.io version"
   /></a>
-  <a href="https://github.com/torabit/vanadis/blob/main/LICENSE-MIT"
+  <a href="https://github.com/torabit/coloris/blob/main/LICENSE-MIT"
     ><img
       src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue?style=flat-square"
       alt="MIT OR Apache-2.0"
@@ -25,53 +25,57 @@
   ·
   <a href="docs/theme-format.md">Theme format</a>
   ·
-  <a href="skills/vanadis/SKILL.md">Agent skill</a>
+  <a href="skills/coloris/SKILL.md">Agent skill</a>
 </p>
 
 Colour lives in every tool's own config file. Changing one shade means editing ten of them,
 and they drift apart; switching between light and dark means editing them all again.
 
-**vanadis renders every one of those files from a single palette, and reloads the tools that
+**coloris renders every one of those files from a single palette, and reloads the tools that
 can reload.** You write the templates and you choose the token names. There is no spec to
 conform to and no template repository to maintain.
 
-- **Yours:** your templates, your vocabulary. `role.accent` or `colors.mauve` — vanadis does
+- **Yours:** your templates, your vocabulary. `role.accent` or `colors.mauve` — coloris does
   not have a list of names to squeeze into.
-- **Checked:** `vanadis check` re-renders every target and names the ones that no longer match.
+- **Checked:** `coloris check` re-renders every target and names the ones that no longer match.
 - **All or nothing:** every target renders before anything is written. A failure at any one of
   them writes no files at all.
-- **Adoptive:** `vanadis init` turns a config file you already have into a template and a
+- **Adoptive:** `coloris init` turns a config file you already have into a template and a
   theme, so nothing has to be rewritten by hand.
-- **Stocked:** `vanadis import` converts base16, base24 and tinted8 schemes out of the
+- **Stocked:** `coloris import` converts base16, base24 and tinted8 schemes out of the
   [tinted-theming collection](https://github.com/tinted-theming/schemes), 538 of them, offline
   after one fetch.
-- **Scriptable:** `vanadis get role.bg` prints one colour and nothing else, for a tool that
+- **Scriptable:** `coloris get role.bg` prints one colour and nothing else, for a tool that
   would rather ask than read a file.
 
 <a name="-installation"></a>
 
 ## 🚀 Installation
 
-### Step 1. Install vanadis
+### Step 1. Install coloris
 
 | Repository      | Instructions                     |
 | --------------- | -------------------------------- |
-| **[crates.io]** | `cargo install vanadis --locked` |
+| **[crates.io]** | `cargo install coloris --locked` |
 
 Or from this repository, without waiting for a release:
 
 ```sh
-cargo install --git https://github.com/torabit/vanadis --locked
+cargo install --git https://github.com/torabit/coloris --locked
 ```
 
 Pre-built binaries and a Homebrew tap are not published yet.
 
+Up to 0.3.0 this was published as `vanadis`. Coming from it means moving three directories:
+`~/.config/vanadis`, `~/.local/state/vanadis` and `~/.cache/vanadis`. `$VANADIS_CONFIG` is now
+`$COLORIS_CONFIG`.
+
 ### Step 2. Get a theme
 
 ```sh
-vanadis remote update           # cache the tinted-theming collection, once
-vanadis search nord             # then search it offline
-vanadis import nord             # convert one into ~/.config/vanadis/themes/nord.toml
+coloris remote update           # cache the tinted-theming collection, once
+coloris search nord             # then search it offline
+coloris import nord             # convert one into ~/.config/coloris/themes/nord.toml
 ```
 
 Or write your own: [`docs/examples/papercolor-light.toml`](docs/examples/papercolor-light.toml)
@@ -80,7 +84,7 @@ is a complete theme, and [`docs/theme-format.md`](docs/theme-format.md) is the f
 ### Step 3. Adopt a config you already have
 
 ```sh
-vanadis init ~/.config/hunk/config.toml
+coloris init ~/.config/hunk/config.toml
 ```
 
 `init` reads the file, finds the colours in it, asks which token each one is, and writes three
@@ -90,13 +94,13 @@ things: a template beside your config, the colours into a theme, and a target en
 ### Step 4. Apply
 
 ```sh
-vanadis apply nord --diff       # what would change
-vanadis apply nord              # write it, and run each target's reload
+coloris apply nord --diff       # what would change
+coloris apply nord              # write it, and run each target's reload
 ```
 
 ## 🎨 What it looks like
 
-`~/.config/vanadis/config.toml` — one entry per file vanadis writes:
+`~/.config/coloris/config.toml` — one entry per file coloris writes:
 
 ```toml
 [auto]
@@ -108,12 +112,12 @@ name = "hunk"
 template = "templates/hunk/config.toml.in"
 output = "~/.config/hunk/config.toml"
 
-# bat matches a theme by the name inside the file, so the output is named for vanadis rather
+# bat matches a theme by the name inside the file, so the output is named for coloris rather
 # than for the theme it currently holds.
 [[targets]]
 name = "bat"
 template = "templates/bat/theme.tmTheme.in"
-output = "~/.config/bat/themes/vanadis.tmTheme"
+output = "~/.config/bat/themes/coloris.tmTheme"
 reload = ["bat", "cache", "--build"]
 
 # An editor plugin colours far more than one palette carries, so nvim stays on gruvbox while
@@ -128,7 +132,7 @@ themes = { light = "gruvbox-light", dark = "gruvbox-dark" }
 A template is the tool's own config with the colours replaced. Nothing else:
 
 ```toml
-[themes.vanadis]
+[themes.coloris]
 background   = "{{role.bg}}"
 panel        = "{{role.hover-bg}}"
 border       = "{{role.border}}"
@@ -138,10 +142,10 @@ muted        = "{{role.comment}}"
 selectedHunk = "{{role.selection-bg}}"
 ```
 
-`vanadis apply papercolor-light` writes:
+`coloris apply papercolor-light` writes:
 
 ```toml
-[themes.vanadis]
+[themes.coloris]
 background   = "#eeeeee"
 panel        = "#e4e4e4"
 border       = "#bcbcbc"
@@ -159,18 +163,18 @@ theme, where it can be read.
 
 | command                            | what it does                                                                    |
 | ---------------------------------- | ------------------------------------------------------------------------------- |
-| `vanadis apply <theme>`            | renders every target, writes them, runs each `reload`                             |
-| `vanadis apply --variant dark`     | the theme `[auto]` names for dark, so a shell hook needs no theme names           |
-| `vanadis apply <theme> --diff`     | the change line by line, writing nothing                                          |
-| `vanadis cycle`                    | the theme after the one in use, from `[cycle]`                                    |
-| `vanadis check`                    | do the generated files still match their templates?                               |
-| `vanadis list` / `vanadis current` | the themes in `themes/`, and the one applied last                                 |
-| `vanadis get role.bg`              | one resolved colour, for a prompt or a script                                     |
-| `vanadis render <template>`        | one template against one named theme, to stdout — how a theme is exported         |
-| `vanadis init <file>`              | turn a config you already have into a template, a theme and a target              |
-| `vanadis remote update`            | cache the tinted-theming scheme collection                                        |
-| `vanadis search <query>`           | find a scheme in the cache, offline                                               |
-| `vanadis import <scheme>`          | convert one into a theme                                                          |
+| `coloris apply <theme>`            | renders every target, writes them, runs each `reload`                             |
+| `coloris apply --variant dark`     | the theme `[auto]` names for dark, so a shell hook needs no theme names           |
+| `coloris apply <theme> --diff`     | the change line by line, writing nothing                                          |
+| `coloris cycle`                    | the theme after the one in use, from `[cycle]`                                    |
+| `coloris check`                    | do the generated files still match their templates?                               |
+| `coloris list` / `coloris current` | the themes in `themes/`, and the one applied last                                 |
+| `coloris get role.bg`              | one resolved colour, for a prompt or a script                                     |
+| `coloris render <template>`        | one template against one named theme, to stdout — how a theme is exported         |
+| `coloris init <file>`              | turn a config you already have into a template, a theme and a target              |
+| `coloris remote update`            | cache the tinted-theming scheme collection                                        |
+| `coloris search <query>`           | find a scheme in the cache, offline                                               |
+| `coloris import <scheme>`          | convert one into a theme                                                          |
 
 ## 🤖 The agent skill
 
@@ -179,7 +183,7 @@ tool keeps its config, which lines carry colour, whether a colour is `role.accen
 `role.accent-alt`, what belongs in `reload`, and whether a failing `check` means the template
 is wrong or the theme is.
 
-[`skills/vanadis/SKILL.md`](skills/vanadis/SKILL.md) carries that judgement. An agent reads it
+[`skills/coloris/SKILL.md`](skills/coloris/SKILL.md) carries that judgement. An agent reads it
 and does the work; a person reads the same file and does the work by hand. It ships as a plugin
 under both the [Agent Plugins](https://agent-plugins.org/specification) manifest and Claude
 Code's, over the one `skills/` tree.
@@ -190,7 +194,7 @@ Code's, over the one `skills/` tree.
 other people already support, use [tinty](https://github.com/tinted-theming/tinty). That is what
 it is for and it does it well.
 
-vanadis is for the case tinty does not cover: you have written your own configs, for tools that
+coloris is for the case tinty does not cover: you have written your own configs, for tools that
 may have no template repository at all, in a palette that may not fit base16's sixteen slots.
 
 |                                                     | renders templates          | vocabulary                | needs          |
@@ -198,21 +202,21 @@ may have no template repository at all, in a palette that may not fit base16's s
 | [tinty](https://github.com/tinted-theming/tinty)     | no, copies pre-built files | base16 / base24 / tinted8 | template repos |
 | [flavours](https://github.com/Misterio77/flavours)   | yes                        | base16's 16 slots         | —              |
 | [Stylix](https://github.com/danth/stylix)            | yes                        | base16                    | Nix            |
-| vanadis                                              | yes                        | arbitrary                 | —              |
+| coloris                                              | yes                        | arbitrary                 | —              |
 
 The niche is the intersection: arbitrary templates **and** an arbitrary token vocabulary. It is
 a narrow one, and the three above are the better choice whenever they fit.
 
 One thing follows from it that is worth saying out loud. Template repository ecosystems are
 structurally behind: every new tool — ghostty, zellij, yazi, atuin, helix — has no template
-repository for months or years after it ships. With vanadis you write ten lines of template and
+repository for months or years after it ships. With coloris you write ten lines of template and
 it works the day the tool does.
 
 ## 📚 Documentation
 
-Every decision in vanadis is written down with the alternatives it rejected.
+Every decision in coloris is written down with the alternatives it rejected.
 
-- [`docs/config.md`](docs/config.md) — `config.toml`, the state file, and every path vanadis uses
+- [`docs/config.md`](docs/config.md) — `config.toml`, the state file, and every path coloris uses
 - [`docs/theme-format.md`](docs/theme-format.md) — the theme file, token paths, references
 - [`docs/core-vocabulary.md`](docs/core-vocabulary.md) — the tokens every theme must define
 - [`docs/schemes.md`](docs/schemes.md) — the scheme cache, `search`, and what `import` writes
@@ -222,4 +226,4 @@ Every decision in vanadis is written down with the alternatives it rejected.
 
 MIT OR Apache-2.0.
 
-[crates.io]: https://crates.io/crates/vanadis
+[crates.io]: https://crates.io/crates/coloris

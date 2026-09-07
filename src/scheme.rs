@@ -125,8 +125,8 @@ pub enum Problem {
     /// `variant` holds something that is neither `dark` nor `light`.
     #[error("`variant` is `{0}`, which is neither `dark` nor `light`")]
     Variant(String),
-    /// `system` names a system vanadis does not read.
-    #[error("`system` is `{0}`, which is not a scheme system vanadis reads")]
+    /// `system` names a system coloris does not read.
+    #[error("`system` is `{0}`, which is not a scheme system coloris reads")]
     System(String),
 }
 
@@ -292,7 +292,7 @@ impl Scheme {
 /// # Errors
 ///
 /// Returns [`Problem::Missing`] when the file declares no system, [`Problem::System`] when it
-/// declares one vanadis does not read, and whatever the YAML layer reports for a file that
+/// declares one coloris does not read, and whatever the YAML layer reports for a file that
 /// does not parse or does not hold a mapping.
 pub fn declared_system(source: &str) -> Result<System, Problem> {
     let root = yaml::document(source)?;
@@ -719,7 +719,7 @@ palette:
     }
 
     #[test]
-    fn reports_a_system_vanadis_does_not_read() {
+    fn reports_a_system_coloris_does_not_read() {
         let source = "system: \"base8\"\n";
         assert_eq!(
             declared_system(source).unwrap_err(),

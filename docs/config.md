@@ -1,6 +1,6 @@
 # Config format
 
-This document decides where vanadis keeps its files and how a user declares what to render.
+This document decides where coloris keeps its files and how a user declares what to render.
 It builds on [docs/theme-format.md](theme-format.md), which decides the theme file, and
 [docs/core-vocabulary.md](core-vocabulary.md), which decides what a theme must define.
 
@@ -8,15 +8,15 @@ It builds on [docs/theme-format.md](theme-format.md), which decides the theme fi
 `tests/fixtures/templates/`, with `tests/fixtures/MANIFEST.tsv` mapping each template back to
 the file it was taken from.
 
-[docs/init.md](init.md) decides how `vanadis init` produces a template, a theme and a
+[docs/init.md](init.md) decides how `coloris init` produces a template, a theme and a
 `[[targets]]` entry from a config file that already exists.
 [docs/schemes.md](schemes.md) decides the one path this document does not cover: the cache
-`vanadis remote update` writes the tinted-theming collection into.
+`coloris remote update` writes the tinted-theming collection into.
 
 ## Layout
 
 ```
-~/.config/vanadis/
+~/.config/coloris/
 ├── config.toml
 └── themes/
     ├── papercolor-light.toml
@@ -24,8 +24,8 @@ the file it was taken from.
     └── gruvbox-dark.toml
 ```
 
-The directory is `$XDG_CONFIG_HOME/vanadis`, falling back to `~/.config/vanadis` when
-`XDG_CONFIG_HOME` is unset. `$VANADIS_CONFIG` replaces the whole directory, not just the
+The directory is `$XDG_CONFIG_HOME/coloris`, falling back to `~/.config/coloris` when
+`XDG_CONFIG_HOME` is unset. `$COLORIS_CONFIG` replaces the whole directory, not just the
 file, so `themes/` moves with it. That is what lets an integration test point at a fixture
 tree, and it keeps the config and the themes it names from drifting to separate places.
 
@@ -52,8 +52,8 @@ cost the user that theme, not every command that enumerates the directory.
 
 ## State
 
-The theme that was applied last is recorded in `$XDG_STATE_HOME/vanadis/state.toml`, falling
-back to `~/.local/state/vanadis/state.toml` when `XDG_STATE_HOME` is unset.
+The theme that was applied last is recorded in `$XDG_STATE_HOME/coloris/state.toml`, falling
+back to `~/.local/state/coloris/state.toml` when `XDG_STATE_HOME` is unset.
 
 ```toml
 theme = "papercolor-light"
@@ -68,7 +68,7 @@ mark the applied theme, and a state file it cannot read costs that mark and noth
 The file is written beside its destination and renamed over it, so a state file that exists
 is one that was written whole.
 
-`vanadis apply --only nvim` writes the targets it names and leaves every other one alone, so
+`coloris apply --only nvim` writes the targets it names and leaves every other one alone, so
 one theme name stops describing the machine. Those targets are recorded under `[targets]`:
 
 ```toml
@@ -84,10 +84,10 @@ writes fails before any whole apply, because there is no theme for the targets i
 name to be on. `--dry-run` and `--diff` record nothing and so are not held to that: reading
 one target's diff is exactly what a config being built up a target at a time needs.
 
-**`$VANADIS_CONFIG` does not move it.** The config directory holds what the user wrote, and
+**`$COLORIS_CONFIG` does not move it.** The config directory holds what the user wrote, and
 is what gets version controlled or copied between machines. The state file records which
 theme this machine is currently showing, which is the one thing that must not travel with it.
-The separation also means a test can point `$VANADIS_CONFIG` at a fixture tree without a run
+The separation also means a test can point `$COLORIS_CONFIG` at a fixture tree without a run
 leaving a file behind in it.
 
 **It is TOML rather than the bare identifier.** A file holding `papercolor-light` and nothing
@@ -97,7 +97,7 @@ changing how the file is read, and `toml_edit` is already a dependency.
 
 ## The file
 
-Every name below is the user's. vanadis ships no themes and carries no list of tools, so
+Every name below is the user's. coloris ships no themes and carries no list of tools, so
 `papercolor-light` is a file in `themes/` and `herdr` is whatever the user called that entry.
 
 ```toml
@@ -126,28 +126,28 @@ themes = { light = "gruvbox-light", dark = "gruvbox-dark" }
 Optional. `light` and `dark` each name a theme, and both are required when the table is
 present.
 
-It is the table `vanadis apply --variant dark` resolves through, so a shell hook can flip
+It is the table `coloris apply --variant dark` resolves through, so a shell hook can flip
 the whole set without knowing theme names. Naming a theme directly works with or without it.
 
-`vanadis apply` with neither a theme nor `--variant` fails, whether or not `[auto]` is
+`coloris apply` with neither a theme nor `--variant` fails, whether or not `[auto]` is
 present. Re-rendering the theme the state file records was considered for that case and
 rejected: an apply overwrites files, and a command that does it with no argument is one
-stray return key away from a write the user did not ask for. `vanadis apply $(vanadis current)`
+stray return key away from a write the user did not ask for. `coloris apply $(coloris current)`
 says the same thing and says it out loud.
 
 **`[auto]` is a table, not appearance detection.** Reading the desktop's light/dark setting
 was considered and left out: the setting lives on the machine the terminal is on, which over
-SSH is not the machine vanadis runs on. Anything that needs to detect it can call
-`vanadis apply --variant dark`.
+SSH is not the machine coloris runs on. Anything that needs to detect it can call
+`coloris apply --variant dark`.
 
 ### `[cycle]`
 
-Optional. `themes` is the list `vanadis cycle` steps through, in the order it is written.
+Optional. `themes` is the list `coloris cycle` steps through, in the order it is written.
 
 ```
-$ vanadis current
+$ coloris current
 papercolor-light
-$ vanadis cycle
+$ coloris cycle
 applied nord
 wrote herdr nvim
 ```
@@ -225,13 +225,13 @@ still reachable by writing a script and naming it here.
 
 **Most targets cannot be reloaded, and the format does not pretend otherwise.** Of the eleven:
 
-| target | how a change takes effect | vanadis can run it |
+| target | how a change takes effect | coloris can run it |
 | --- | --- | --- |
 | bat, a pager | `bat cache --build`, mandatory | yes |
 | herdr, a terminal multiplexer | `herdr server reload-config` | yes |
 | starship, a shell prompt | next prompt | nothing to run |
 | nvim, btop, hunk, lazygit — an editor, a system monitor, a diff viewer, a git UI | restart the program | not a command |
-| zsh with fzf, a shell and a fuzzy finder | `exec zsh` | no: it replaces the user's shell, and vanadis is a child process |
+| zsh with fzf, a shell and a fuzzy finder | `exec zsh` | no: it replaces the user's shell, and coloris is a child process |
 
 So `reload` is optional and absent means nothing runs. It is not a hook system, and there is
 no `pre` counterpart: nothing in the corpus needs work done before a write.
@@ -242,7 +242,7 @@ are already written by then and a reload failure does not make them wrong.
 ### `themes`
 
 The per-target override, and the reason someone with a favourite editor theme can adopt
-vanadis at all. A scheme's editor plugin colours far more than sixteen slots, so its base16
+coloris at all. A scheme's editor plugin colours far more than sixteen slots, so its base16
 port loses fidelity, and being told to give that up to use the tool is where adoption stops.
 
 Selection works in three steps:
@@ -265,7 +265,7 @@ before anything is written.
 generated theme for btop, a system monitor, is `papercolor-light.theme`, and bat's is
 `PaperColor-Light.tmTheme`; applying gruvbox to either leaves a file still named for
 papercolor, and btop lists whatever it finds in its themes directory. The reference config
-writes `vanadis.theme` and `vanadis.tmTheme`.
+writes `coloris.theme` and `coloris.tmTheme`.
 
 bat has a second layer that the config cannot reach: it selects a theme by the `name` inside
 the tmTheme, so a template writing `{{meta.name}}` moves the name bat has to be configured
@@ -279,7 +279,7 @@ place for it to disagree.
 
 ### An output that is a symlink is replaced
 
-Every write is staged as `<output>.vanadis-new` and renamed over the output, which is what
+Every write is staged as `<output>.coloris-new` and renamed over the output, which is what
 [Order](#order) needs: a rename is the one operation that cannot leave a half-written file
 where a config was. A rename also replaces a symlink with a regular file. So a target whose
 `output` is a symlink has the link the first time it is applied, and a regular file every time
@@ -288,7 +288,7 @@ after.
 ```
 $ ls -l ~/.config/hunk/config.toml
 lrwxrwxrwx  ~/.config/hunk/config.toml -> ~/dotfiles/hunk/config.toml
-$ vanadis apply nord
+$ coloris apply nord
 $ ls -l ~/.config/hunk/config.toml
 -rw-r--r--  ~/.config/hunk/config.toml
 ```
@@ -301,31 +301,31 @@ also makes an apply write into a path the user did not name: the output would be
 link happens to point, which for a dotfiles repository is a tracked file. Naming the file to be
 written is what `output` is for, and a rename cannot both preserve a link and stay atomic.
 
-### Managing vanadis with a symlink farm
+### Managing coloris with a symlink farm
 
-This matters because symlink farms are how dotfiles are managed, and vanadis is a build tool
+This matters because symlink farms are how dotfiles are managed, and coloris is a build tool
 for dotfiles. The arrangement that works treats a generated config as a build artifact, which
 is not something to symlink or to commit:
 
 ```
-dotfiles/vanadis/.config/vanadis/     stowed, tracked
+dotfiles/coloris/.config/coloris/     stowed, tracked
 ├── config.toml
 ├── templates/
 └── themes/
 
-~/.config/<tool>/...                  written by vanadis, not stowed, not tracked
-~/.local/state/vanadis/state.toml     not tracked, and outside the config directory already
+~/.config/<tool>/...                  written by coloris, not stowed, not tracked
+~/.local/state/coloris/state.toml     not tracked, and outside the config directory already
 ```
 
-An `output` names a file vanadis owns. Switching themes then changes nothing the repository can
+An `output` names a file coloris owns. Switching themes then changes nothing the repository can
 see, because [State](#state) already keeps the applied theme out of the config directory for
 this reason. Importing a theme shows up as one new file under `themes/`, which is a source and
 is meant to be committed.
 
-The trade is that a machine without vanadis has no config for those tools until it runs one
+The trade is that a machine without coloris has no config for those tools until it runs one
 apply. Pointing `output` at the real file inside the repository rather than at the link keeps
 the symlink working, at the cost of a diff on every theme switch. Both are arrangements the
-format allows; neither is one vanadis enforces.
+format allows; neither is one coloris enforces.
 
 ## Order
 
@@ -339,7 +339,7 @@ Writes happen in the order targets appear. Reloads run after every write, also i
 
 ## Checking
 
-`vanadis check` renders every target in memory and compares the result against the file on
+`coloris check` renders every target in memory and compares the result against the file on
 disk. It reports five things, and any of them exits non-zero:
 
 | finding | what it means |
@@ -363,15 +363,15 @@ target is on is not part of that answer. Auditing the whole directory instead wo
 unfinished file failing every run, which is the shape
 [docs/core-vocabulary.md](core-vocabulary.md#a-missing-core-token-is-not-a-load-error) rejects
 for the loader and for the same reason. A theme that is not applied yet is asked the same
-question by naming it: `vanadis check <theme>`.
+question by naming it: `coloris check <theme>`.
 
 A target that cannot be checked costs that target and nothing else. The remaining targets are
 still checked, which is the call
 [the theme scan](#layout) already makes for a file that will not load.
 
-`vanadis check` with no argument checks against the state file, so `[targets]` is honoured and
-a machine left on a partial apply reports clean. `vanadis check <theme>` and
-`vanadis check --variant dark` check against that theme instead. That is what makes it a CI
+`coloris check` with no argument checks against the state file, so `[targets]` is honoured and
+a machine left on a partial apply reports clean. `coloris check <theme>` and
+`coloris check --variant dark` check against that theme instead. That is what makes it a CI
 step: a fresh checkout has no state file, and CI knows which theme the committed outputs were
 generated from.
 
@@ -380,7 +380,7 @@ performing one, and the answer is stale by the time an apply runs. An unwritable
 `apply`'s to report, and it reports it before replacing anything, because every write is
 staged beside its destination first.
 
-`vanadis apply <theme> --dry-run` renders the same way and writes nothing, naming the targets
+`coloris apply <theme> --dry-run` renders the same way and writes nothing, naming the targets
 whose output would change and the reload commands that would run. `--diff` adds a unified
 diff of each, and implies `--dry-run`.
 
@@ -390,8 +390,8 @@ not the bytes moved.
 
 ## Querying
 
-`vanadis get role.bg` prints the value that token resolves to and nothing else, so
-`$(vanadis get role.bg)` is a colour. `vanadis get --json` prints the whole resolved theme.
+`coloris get role.bg` prints the value that token resolves to and nothing else, so
+`$(coloris get role.bg)` is a colour. `coloris get --json` prints the whole resolved theme.
 Exactly one of the two is required: a single value rendered as JSON is a quoted string with
 nothing to select out of it.
 
@@ -427,7 +427,7 @@ and wrong for one a prompt hook runs on every line. A broken theme is `list`'s t
 ## Rendering one theme, once
 
 ```
-vanadis render <TEMPLATE> --theme <ID>
+coloris render <TEMPLATE> --theme <ID>
 ```
 
 Renders `TEMPLATE` against the named theme and writes the result to stdout. It reads no
@@ -444,7 +444,7 @@ which is a different thing from naming a theme for one render.
 redirect is what a person writes anyway:
 
 ```
-vanadis render base16.yaml.in --theme nord > nord.yaml
+coloris render base16.yaml.in --theme nord > nord.yaml
 ```
 
 Taking a path would mean deciding whether it may overwrite, whether the write is staged, and
@@ -478,8 +478,8 @@ picking it answers no question a tool asks.
 
 **No config: scan for `*.in` and write the sibling path.** This is what the reference
 JavaScript renderer does, and it needs no config file at all. It works there because it scans
-one repository that it owns. vanadis's templates live wherever each tool's config lives, and
-scanning `~/.config` for `*.in` would claim files vanadis never wrote, with no way to know
+one repository that it owns. coloris's templates live wherever each tool's config lives, and
+scanning `~/.config` for `*.in` would claim files coloris never wrote, with no way to know
 whether the sibling path is safe to overwrite. There is also nowhere to attach `reload` or a
 per-target theme.
 
@@ -496,7 +496,7 @@ it and can disagree with the directory.
 **A `type` key separating colour-only outputs from whole-file outputs.** The distinction is
 real for the person writing templates: an output that is only colours gets included by a
 hand-written config, while a whole-file output is destroyed by editing it directly. It is
-invisible to vanadis, which renders a template to a path either way, so it belongs in a
+invisible to coloris, which renders a template to a path either way, so it belongs in a
 template-authoring guide rather than in a schema.
 
 **`enabled = false` per target.** Deleting the entry or commenting it out already says it,

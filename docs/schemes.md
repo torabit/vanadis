@@ -1,9 +1,9 @@
 # Remote schemes
 
-This document decides where vanadis gets the tinted-theming scheme collection, how it is
-cached, how `vanadis search` finds a scheme in it, and what `vanadis import` writes when it
+This document decides where coloris gets the tinted-theming scheme collection, how it is
+cached, how `coloris search` finds a scheme in it, and what `coloris import` writes when it
 turns one into a theme. It builds on [docs/config.md](config.md), which decides every other
-path vanadis uses.
+path coloris uses.
 
 The collection is the reason a new user has anything to apply on the first day. The mapping
 from a scheme's palette onto a theme's tokens is not decided here:
@@ -13,17 +13,17 @@ document stops at having the upstream files on disk, finding one, and putting th
 somewhere `apply` can reach it.
 
 ```
-$ vanadis remote update
+$ coloris remote update
 fetched 538 schemes: 338 base16, 196 base24, 4 tinted8
 
-$ vanadis search nord
+$ coloris search nord
   base16/nord        dark   Nord        arcticicestudio
   base16/nord-light  light  Nord Light  threddast, based on fuxialexander's doom-nord-light-theme (Doom Emacs)
   tinted8/nord       dark   Nord        Tinted Theming (https://github.com/tinted-theming)
 
-$ vanadis import nord
+$ coloris import nord
 imported base16/nord as nord
-  ~/.config/vanadis/themes/nord.toml  dark  Nord  arcticicestudio
+  ~/.config/coloris/themes/nord.toml  dark  Nord  arcticicestudio
 ```
 
 ## The source
@@ -47,12 +47,12 @@ directory of 538 files costs more than one request. The archive endpoint is one 
 the whole collection and is not part of that budget.
 
 **Not git.** Cloning would carry the collection's history, need git on the machine or a git
-library in the binary, and buy nothing: vanadis never reads a revision other than the tip.
+library in the binary, and buy nothing: coloris never reads a revision other than the tip.
 
 ## The cache
 
 ```
-~/.cache/vanadis/
+~/.cache/coloris/
 └── schemes/
     ├── LICENSE
     ├── base16/
@@ -62,8 +62,8 @@ library in the binary, and buy nothing: vanadis never reads a revision other tha
     └── tinted8/
 ```
 
-The directory is `$XDG_CACHE_HOME/vanadis`, falling back to `~/.cache/vanadis` when
-`XDG_CACHE_HOME` is unset. It follows `$XDG_CACHE_HOME` rather than `$VANADIS_CONFIG`, which
+The directory is `$XDG_CACHE_HOME/coloris`, falling back to `~/.cache/coloris` when
+`XDG_CACHE_HOME` is unset. It follows `$XDG_CACHE_HOME` rather than `$COLORIS_CONFIG`, which
 [docs/config.md](config.md#layout) lets replace the config directory, because this is
 downloaded data and not something a user writes or backs up. Deleting the whole directory
 costs one `remote update` and nothing else.
@@ -146,7 +146,7 @@ searching by author is looking for.
 **A YAML parser, not a line scanner.** Every field sits on its own line in every file,
 so scanning for `name: ` would work on the collection as it stands today — except that one
 base16 file writes `variant: dark` unquoted while every other file quotes it, which is
-already two spellings of one value. The collection is not vanadis's to keep uniform, and a
+already two spellings of one value. The collection is not coloris's to keep uniform, and a
 scanner would fail silently and per-file when it changes.
 
 A file that does not parse, or that is missing a field, costs the user that scheme and not
@@ -156,7 +156,7 @@ the command. It is skipped and reported, the same call
 ## search
 
 ```
-vanadis search <QUERY>
+coloris search <QUERY>
 ```
 
 A scheme matches when `QUERY`, compared without case, is a substring of any cell the line
@@ -188,7 +188,7 @@ prints no message: an empty result is an answer.
 ## import
 
 ```
-vanadis import <SOURCE> [--force]
+coloris import <SOURCE> [--force]
 ```
 
 Converts one upstream scheme and writes it as a theme file under `themes/`, which
@@ -258,7 +258,7 @@ Refusing turns that collision into a message; overwriting would turn it into whi
 ran last.
 
 The write is staged beside the destination and renamed over it, the way every other write in
-vanadis is. A `--force` that fails part way through leaves the theme that was there intact. It
+coloris is. A `--force` that fails part way through leaves the theme that was there intact. It
 also replaces a theme file that is a symlink with a regular file, for the reason
 [docs/config.md](config.md#an-output-that-is-a-symlink-is-replaced) gives about an output; a
 `themes/` directory linked as one folded directory is unaffected, and one holding a link per
@@ -272,7 +272,7 @@ a converter to fill. Where the file itself came from is the first line of the fi
 comment.
 
 ```toml
-# imported by vanadis from base16/nord
+# imported by coloris from base16/nord
 [meta]
 format = 1
 name = "Nord"
@@ -298,14 +298,14 @@ The cache does not hold it:
 
 ```
 error: the cache holds no scheme called `solarised`
-run `vanadis search` to find one
+run `coloris search` to find one
 ```
 
 Nothing has been cached and the source names a cached scheme:
 
 ```
-error: no scheme cache under /home/ada/.cache/vanadis/schemes
-run `vanadis remote update` to fetch it
+error: no scheme cache under /home/ada/.cache/coloris/schemes
+run `coloris remote update` to fetch it
 ```
 
 A path and a URL reach neither of those: neither reads the cache, so neither needs one.
@@ -313,7 +313,7 @@ A path and a URL reach neither of those: neither reads the cache, so neither nee
 The theme is already there:
 
 ```
-error: /home/ada/.config/vanadis/themes/nord.toml already exists
+error: /home/ada/.config/coloris/themes/nord.toml already exists
 pass `--force` to write over it
 ```
 
@@ -329,8 +329,8 @@ error: /home/ada/nord.yaml: cannot be converted
 Nothing has been cached yet:
 
 ```
-Error: no scheme cache under /home/ada/.cache/vanadis/schemes
-run `vanadis remote update` to fetch it
+Error: no scheme cache under /home/ada/.cache/coloris/schemes
+run `coloris remote update` to fetch it
 ```
 
 `remote update` cannot reach the source:
@@ -338,14 +338,14 @@ run `vanadis remote update` to fetch it
 ```
 error: cannot reach https://github.com/tinted-theming/schemes/archive/refs/heads/spec-0.11.tar.gz
   caused by: io: failed to lookup address information: Name or service not known
-the cached schemes are unchanged; `vanadis search` still reads them
+the cached schemes are unchanged; `coloris search` still reads them
 ```
 
 The source answers, but not with the archive:
 
 ```
 error: https://github.com/tinted-theming/schemes/archive/refs/heads/spec-0.11.tar.gz answered 404
-the cached schemes are unchanged; `vanadis search` still reads them
+the cached schemes are unchanged; `coloris search` still reads them
 ```
 
 There is no `caused by:` line: the message already says everything. A status gets its own
@@ -368,11 +368,11 @@ presentation concern into every signature on the way.
 extract time would let `search` read one file instead of 538. It is rejected because it
 creates a second source of truth that can disagree with the directory beside it, and it has
 to answer what happens when the index is missing, older than the schemes, or written by an
-older version of vanadis. The saving it buys is on 538 small files that are already on the
+older version of coloris. The saving it buys is on 538 small files that are already on the
 local disk.
 
 **Caching converted themes instead of the upstream files.** Running the converter at
-`remote update` time and storing vanadis theme files would make `apply` work directly against
+`remote update` time and storing coloris theme files would make `apply` work directly against
 the cache. It bakes one version of the converter's decisions into the cache, so improving a
 converter would silently disagree with everything already cached, and it discards the fields
 the converter does not use before anyone has decided that they are not needed.

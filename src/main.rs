@@ -9,14 +9,14 @@ use std::process::ExitCode;
 
 use anyhow::Context as _;
 use clap::{ArgGroup, Parser, Subcommand, ValueEnum};
-use vanadis::init::{Answer, Binding, Colour, Draft};
-use vanadis::{
+use coloris::init::{Answer, Binding, Colour, Draft};
+use coloris::{
     Cache, Catalog, Config, Disk, Environment, Plan, State, System, TargetName, Template, Theme,
     ThemeId, TokenPath, Tokens, Variant,
 };
 
 #[derive(Parser)]
-#[command(name = "vanadis", version, about, long_about = None)]
+#[command(name = "coloris", version, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -287,7 +287,7 @@ fn commit(
     dry_run: bool,
     diff: bool,
 ) -> anyhow::Result<ExitCode> {
-    let plan = vanadis::plan(config, catalog, theme, only, &environment.state_file()?)?;
+    let plan = coloris::plan(config, catalog, theme, only, &environment.state_file()?)?;
     if dry_run {
         return preview(&plan, diff);
     }
@@ -325,7 +325,7 @@ fn preview(plan: &Plan, diff: bool) -> anyhow::Result<ExitCode> {
     for render in plan.renders() {
         // An output that cannot be read is still going to be replaced, so it is named. It
         // cannot be diffed against, and diffing against nothing would call every line new.
-        let current = match vanadis::compare(render) {
+        let current = match coloris::compare(render) {
             Disk::Same => continue,
             Disk::Missing => Some(String::new()),
             Disk::Different(current) => Some(current),
@@ -339,7 +339,7 @@ fn preview(plan: &Plan, diff: bool) -> anyhow::Result<ExitCode> {
             write!(
                 out,
                 "{}",
-                vanadis::unified(render.output(), &current, render.contents())
+                coloris::unified(render.output(), &current, render.contents())
             )?;
         }
     }
@@ -372,7 +372,7 @@ fn check(
     let only = selected(only)?;
     let state = State::load(&environment.state_file()?)?;
 
-    let report = vanadis::check(&config, &catalog, theme.as_ref(), state.as_ref(), &only)?;
+    let report = coloris::check(&config, &catalog, theme.as_ref(), state.as_ref(), &only)?;
 
     let mut out = std::io::stdout().lock();
     for finding in report.findings() {
@@ -465,7 +465,7 @@ fn current(environment: &Environment) -> anyhow::Result<ExitCode> {
 /// Only the theme asked for is read. Scanning `themes/` would parse every other file and
 /// warn about a broken one, and this is the command a shell prompt hook calls.
 ///
-/// Nothing reaches stdout unless the whole lookup succeeded, so `$(vanadis get role.bg)` is
+/// Nothing reaches stdout unless the whole lookup succeeded, so `$(coloris get role.bg)` is
 /// empty exactly when there is no value to substitute.
 fn get(
     environment: &Environment,
@@ -482,7 +482,7 @@ fn get(
             .theme()
             .clone(),
     };
-    let theme = vanadis::catalog::load(&environment.themes_dir()?, &id)?;
+    let theme = coloris::catalog::load(&environment.themes_dir()?, &id)?;
 
     let mut out = std::io::stdout().lock();
     if json {
@@ -516,7 +516,7 @@ fn get(
 fn render(environment: &Environment, template: &Path, theme: &str) -> anyhow::Result<ExitCode> {
     let id =
         ThemeId::parse(theme).with_context(|| format!("`{theme}` is not a theme identifier"))?;
-    let theme = vanadis::catalog::load(&environment.themes_dir()?, &id)?;
+    let theme = coloris::catalog::load(&environment.themes_dir()?, &id)?;
     let source = std::fs::read_to_string(template)
         .with_context(|| format!("{}: cannot be read", template.display()))?;
 
@@ -541,7 +541,7 @@ fn width<'a>(values: impl Iterator<Item = &'a str>) -> usize {
 ///
 /// `docs/init.md` decides the dialogue and decides that the file being read is never
 /// modified. Nothing at all is written until the template it built renders back to that
-/// file byte for byte, which is [`vanadis::init::plan`]'s to establish.
+/// file byte for byte, which is [`coloris::init::plan`]'s to establish.
 fn init(
     environment: &Environment,
     file: &Path,
@@ -570,7 +570,7 @@ fn init(
         );
     }
 
-    let scan = vanadis::init::scan(&source);
+    let scan = coloris::init::scan(&source);
     let mut dialogue = Dialogue::new();
     Dialogue::found(&scan)?;
 
@@ -606,7 +606,7 @@ fn init(
         .map_or_else(Tokens::default, |theme| theme.tokens().clone());
     let (bindings, tokens) = dialogue.colours(&source, &scan, &known)?;
 
-    let plan = vanadis::init::plan(Draft {
+    let plan = coloris::init::plan(Draft {
         directory: &directory,
         home: environment.home(),
         name: &name,
@@ -653,7 +653,7 @@ fn init(
 /// when there is a cache, and no other command has a closing line that depends on disk.
 fn remote_update(environment: &Environment) -> anyhow::Result<ExitCode> {
     let schemes = environment.schemes_dir()?;
-    let installed = match vanadis::remote::update(&schemes) {
+    let installed = match coloris::remote::update(&schemes) {
         Ok(installed) => installed,
         Err(error) => {
             eprintln!("error: {error}");
@@ -663,7 +663,7 @@ fn remote_update(environment: &Environment) -> anyhow::Result<ExitCode> {
                 cause = next;
             }
             if schemes.is_dir() {
-                eprintln!("the cached schemes are unchanged; `vanadis search` still reads them");
+                eprintln!("the cached schemes are unchanged; `coloris search` still reads them");
             }
             return Ok(ExitCode::FAILURE);
         }
@@ -723,7 +723,7 @@ fn search(environment: &Environment, query: &str) -> anyhow::Result<ExitCode> {
 /// `docs/schemes.md` decides that a theme already under that name is refused rather than
 /// written over, and that `--force` is how it is written over.
 fn import(environment: &Environment, source: &str, force: bool) -> anyhow::Result<ExitCode> {
-    let imported = match vanadis::import(
+    let imported = match coloris::import(
         source,
         &environment.schemes_dir()?,
         &environment.themes_dir()?,
@@ -738,13 +738,13 @@ fn import(environment: &Environment, source: &str, force: bool) -> anyhow::Resul
                 cause = next;
             }
             match error {
-                vanadis::ImportError::NoCache { .. } => {
-                    eprintln!("run `vanadis remote update` to fetch it");
+                coloris::ImportError::NoCache { .. } => {
+                    eprintln!("run `coloris remote update` to fetch it");
                 }
-                vanadis::ImportError::Unknown { .. } => {
-                    eprintln!("run `vanadis search` to find one");
+                coloris::ImportError::Unknown { .. } => {
+                    eprintln!("run `coloris search` to find one");
                 }
-                vanadis::ImportError::Exists { .. } => {
+                coloris::ImportError::Exists { .. } => {
                     eprintln!("pass `--force` to write over it");
                 }
                 _ => {}
@@ -811,7 +811,7 @@ impl Dialogue {
     }
 
     /// Says what the file holds, and names every notation that cannot be substituted.
-    fn found(scan: &vanadis::Scan) -> anyhow::Result<()> {
+    fn found(scan: &coloris::Scan) -> anyhow::Result<()> {
         let mut out = std::io::stdout().lock();
         let count = scan.colours().len();
         writeln!(out, "found {count} hex {}", plural(count, "value"))?;
@@ -870,7 +870,7 @@ impl Dialogue {
     /// Asks what the target is called, offering the name the path suggests.
     fn name(&mut self, output: &Path, config: &Config) -> anyhow::Result<TargetName> {
         let taken = |name: &TargetName| config.targets().iter().any(|target| target.name() == name);
-        let suggested = vanadis::init::suggest(output).filter(|name| !taken(name));
+        let suggested = coloris::init::suggest(output).filter(|name| !taken(name));
         let prompt = suggested.as_ref().map_or_else(
             || "target name? > ".to_owned(),
             |name| format!("target name? [{name}] > "),
@@ -897,7 +897,7 @@ impl Dialogue {
     fn colours(
         &mut self,
         source: &str,
-        scan: &vanadis::Scan,
+        scan: &coloris::Scan,
         known: &Tokens,
     ) -> anyhow::Result<(Vec<Binding>, BTreeMap<TokenPath, String>)> {
         let mut bindings = Vec::new();
@@ -948,7 +948,7 @@ impl Dialogue {
 
         let names = loop {
             let answer = self.ask(&prompt)?;
-            match vanadis::init::answer(&answer) {
+            match coloris::init::answer(&answer) {
                 Ok(Answer::Skip) => return Ok(vec![None; count]),
                 Ok(Answer::Default) => match default {
                     Some(path) => break vec![path],
@@ -973,7 +973,7 @@ impl Dialogue {
     fn which(
         &mut self,
         source: &str,
-        occurrence: &vanadis::Occurrence,
+        occurrence: &coloris::Occurrence,
         names: &[TokenPath],
     ) -> anyhow::Result<Option<TokenPath>> {
         let short: Vec<&str> = names.iter().map(TokenPath::leaf).collect();

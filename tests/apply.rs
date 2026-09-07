@@ -1,4 +1,4 @@
-//! `vanadis apply` and `vanadis cycle`, driven as the user drives them, against a copy of a
+//! `coloris apply` and `coloris cycle`, driven as the user drives them, against a copy of a
 //! fixture tree.
 //!
 //! `cycle` is `apply` reached by a different route, so it is here rather than in a file of
@@ -40,10 +40,10 @@ fn copy(from: &Path, to: &Path) {
     }
 }
 
-fn vanadis(config: &Path, state: &Path, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_vanadis"))
+fn coloris(config: &Path, state: &Path, args: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_coloris"))
         .args(args)
-        .env("VANADIS_CONFIG", config)
+        .env("COLORIS_CONFIG", config)
         .env("XDG_STATE_HOME", state)
         .output()
         .unwrap()
@@ -68,7 +68,7 @@ fn mode(path: &Path) -> u32 {
 #[test]
 fn writes_every_target_from_the_theme_it_is_given() {
     let (config, state) = workspace("apply-all", "apply");
-    let output = vanadis(&config, &state, &["apply", "paper-light"]);
+    let output = coloris(&config, &state, &["apply", "paper-light"]);
     assert!(output.status.success(), "{}", stderr(&output));
     assert_eq!(read(&config.join("out/one.conf")), "bg=#eeeeee\n");
     assert_eq!(
@@ -80,14 +80,14 @@ fn writes_every_target_from_the_theme_it_is_given() {
 #[test]
 fn follows_a_target_pinned_to_its_own_theme() {
     let (config, state) = workspace("apply-pinned", "apply");
-    vanadis(&config, &state, &["apply", "paper-light"]);
+    coloris(&config, &state, &["apply", "paper-light"]);
     assert_eq!(read(&config.join("out/pinned.conf")), "bg=#e0f0ff\n");
 }
 
 #[test]
 fn resolves_a_theme_through_the_auto_table() {
     let (config, state) = workspace("apply-auto", "apply");
-    let output = vanadis(&config, &state, &["apply", "--variant", "dark"]);
+    let output = coloris(&config, &state, &["apply", "--variant", "dark"]);
     assert!(output.status.success(), "{}", stderr(&output));
     assert_eq!(read(&config.join("out/one.conf")), "bg=#111111\n");
 }
@@ -95,22 +95,22 @@ fn resolves_a_theme_through_the_auto_table() {
 #[test]
 fn flips_a_pinned_target_with_everything_else() {
     let (config, state) = workspace("apply-auto-pinned", "apply");
-    vanadis(&config, &state, &["apply", "--variant", "dark"]);
+    coloris(&config, &state, &["apply", "--variant", "dark"]);
     assert_eq!(read(&config.join("out/pinned.conf")), "bg=#2e3440\n");
 }
 
 #[test]
 fn records_the_theme_it_applied() {
     let (config, state) = workspace("apply-records", "apply");
-    vanadis(&config, &state, &["apply", "paper-light"]);
-    let output = vanadis(&config, &state, &["current"]);
+    coloris(&config, &state, &["apply", "paper-light"]);
+    let output = coloris(&config, &state, &["current"]);
     assert_eq!(stdout(&output), "paper-light\n");
 }
 
 #[test]
 fn reports_what_it_wrote() {
     let (config, state) = workspace("apply-reports", "apply");
-    let output = vanadis(&config, &state, &["apply", "paper-light"]);
+    let output = coloris(&config, &state, &["apply", "paper-light"]);
     assert!(stdout(&output).contains("one"), "{}", stdout(&output));
 }
 
@@ -128,25 +128,25 @@ fn gives_a_new_output_the_mode_of_its_template() {
         "the fixture template is executable"
     );
 
-    vanadis(&config, &state, &["apply", "paper-light"]);
+    coloris(&config, &state, &["apply", "paper-light"]);
     assert_eq!(mode(&config.join("out/host-colors.sh")), template);
 }
 
 #[test]
 fn leaves_an_output_the_mode_it_already_had() {
     let (config, state) = workspace("apply-mode-kept", "apply");
-    vanadis(&config, &state, &["apply", "paper-light"]);
+    coloris(&config, &state, &["apply", "paper-light"]);
 
     let script = config.join("out/host-colors.sh");
     fs::set_permissions(&script, fs::Permissions::from_mode(0o700)).unwrap();
-    vanadis(&config, &state, &["apply", "ink-dark"]);
+    coloris(&config, &state, &["apply", "ink-dark"]);
     assert_eq!(mode(&script), 0o700);
 }
 
 #[test]
 fn writes_nothing_when_one_template_reads_a_token_no_theme_defines() {
     let (config, state) = workspace("apply-undefined", "apply-broken");
-    let output = vanadis(&config, &state, &["apply", "paper-light"]);
+    let output = coloris(&config, &state, &["apply", "paper-light"]);
     assert!(!output.status.success());
     assert!(!config.join("out").exists());
 }
@@ -154,7 +154,7 @@ fn writes_nothing_when_one_template_reads_a_token_no_theme_defines() {
 #[test]
 fn keeps_the_write_when_a_reload_fails() {
     let (config, state) = workspace("apply-reload", "apply-reload");
-    let output = vanadis(&config, &state, &["apply", "paper-light"]);
+    let output = coloris(&config, &state, &["apply", "paper-light"]);
     assert!(!output.status.success());
     assert_eq!(read(&config.join("out/one.conf")), "bg=#eeeeee\n");
 }
@@ -162,8 +162,8 @@ fn keeps_the_write_when_a_reload_fails() {
 #[test]
 fn writes_only_the_target_that_was_named() {
     let (config, state) = workspace("apply-only", "apply");
-    vanadis(&config, &state, &["apply", "paper-light"]);
-    vanadis(&config, &state, &["apply", "nord", "--only", "two"]);
+    coloris(&config, &state, &["apply", "paper-light"]);
+    coloris(&config, &state, &["apply", "nord", "--only", "two"]);
 
     assert_eq!(read(&config.join("out/one.conf")), "bg=#eeeeee\n");
     assert_eq!(
@@ -175,20 +175,20 @@ fn writes_only_the_target_that_was_named() {
 #[test]
 fn shows_the_target_a_partial_apply_moved() {
     let (config, state) = workspace("apply-only-current", "apply");
-    vanadis(&config, &state, &["apply", "paper-light"]);
-    vanadis(&config, &state, &["apply", "nord", "--only", "two"]);
+    coloris(&config, &state, &["apply", "paper-light"]);
+    coloris(&config, &state, &["apply", "nord", "--only", "two"]);
 
-    let output = vanadis(&config, &state, &["current"]);
+    let output = coloris(&config, &state, &["current"]);
     assert_eq!(stdout(&output), "paper-light\ntwo  nord\n");
 }
 
 #[test]
 fn refuses_a_partial_apply_before_a_whole_one() {
     let (config, state) = workspace("apply-only-first", "apply");
-    let output = vanadis(&config, &state, &["apply", "nord", "--only", "two"]);
+    let output = coloris(&config, &state, &["apply", "nord", "--only", "two"]);
     assert!(!output.status.success());
     assert!(
-        stderr(&output).contains("vanadis apply <theme>"),
+        stderr(&output).contains("coloris apply <theme>"),
         "{}",
         stderr(&output)
     );
@@ -199,14 +199,14 @@ fn refuses_a_partial_apply_before_a_whole_one() {
 #[test]
 fn writes_nothing_when_a_partial_apply_is_refused() {
     let (config, state) = workspace("apply-only-first-writes", "apply");
-    vanadis(&config, &state, &["apply", "nord", "--only", "two"]);
+    coloris(&config, &state, &["apply", "nord", "--only", "two"]);
     assert!(!config.join("out").exists());
 }
 
 #[test]
 fn refuses_a_theme_that_is_not_in_the_themes_directory() {
     let (config, state) = workspace("apply-unknown-theme", "apply");
-    let output = vanadis(&config, &state, &["apply", "nope"]);
+    let output = coloris(&config, &state, &["apply", "nope"]);
     assert!(!output.status.success());
     assert!(!config.join("out").exists());
 }
@@ -214,15 +214,15 @@ fn refuses_a_theme_that_is_not_in_the_themes_directory() {
 #[test]
 fn refuses_an_only_that_names_no_target() {
     let (config, state) = workspace("apply-unknown-target", "apply");
-    vanadis(&config, &state, &["apply", "paper-light"]);
-    let output = vanadis(&config, &state, &["apply", "nord", "--only", "nope"]);
+    coloris(&config, &state, &["apply", "paper-light"]);
+    let output = coloris(&config, &state, &["apply", "nord", "--only", "nope"]);
     assert!(!output.status.success());
 }
 
 #[test]
 fn refuses_an_apply_that_names_neither_a_theme_nor_a_variant() {
     let (config, state) = workspace("apply-bare", "apply");
-    let output = vanadis(&config, &state, &["apply"]);
+    let output = coloris(&config, &state, &["apply"]);
     assert!(!output.status.success());
     assert!(!config.join("out").exists());
 }
@@ -230,7 +230,7 @@ fn refuses_an_apply_that_names_neither_a_theme_nor_a_variant() {
 #[test]
 fn writes_nothing_when_it_is_only_told_what_it_would_do() {
     let (config, state) = workspace("apply-dry-run", "apply");
-    let output = vanadis(&config, &state, &["apply", "paper-light", "--dry-run"]);
+    let output = coloris(&config, &state, &["apply", "paper-light", "--dry-run"]);
     assert!(output.status.success(), "{}", stderr(&output));
     assert!(!config.join("out").exists());
 }
@@ -238,7 +238,7 @@ fn writes_nothing_when_it_is_only_told_what_it_would_do() {
 #[test]
 fn names_the_targets_it_would_write() {
     let (config, state) = workspace("apply-dry-run-reports", "apply");
-    let output = vanadis(&config, &state, &["apply", "paper-light", "--dry-run"]);
+    let output = coloris(&config, &state, &["apply", "paper-light", "--dry-run"]);
     assert!(
         stdout(&output).contains("would write one"),
         "{}",
@@ -249,7 +249,7 @@ fn names_the_targets_it_would_write() {
 #[test]
 fn names_the_reload_it_would_run() {
     let (config, state) = workspace("apply-dry-run-reload", "apply");
-    let output = vanadis(&config, &state, &["apply", "paper-light", "--dry-run"]);
+    let output = coloris(&config, &state, &["apply", "paper-light", "--dry-run"]);
     assert!(
         stdout(&output).contains("would run: true"),
         "{}",
@@ -260,8 +260,8 @@ fn names_the_reload_it_would_run() {
 #[test]
 fn records_no_theme_when_it_is_only_told_what_it_would_do() {
     let (config, state) = workspace("apply-dry-run-state", "apply");
-    vanadis(&config, &state, &["apply", "paper-light", "--dry-run"]);
-    let output = vanadis(&config, &state, &["current"]);
+    coloris(&config, &state, &["apply", "paper-light", "--dry-run"]);
+    let output = coloris(&config, &state, &["current"]);
     assert!(!output.status.success());
 }
 
@@ -270,7 +270,7 @@ fn records_no_theme_when_it_is_only_told_what_it_would_do() {
 #[test]
 fn previews_a_partial_apply_before_a_whole_one() {
     let (config, state) = workspace("apply-dry-run-only", "apply");
-    let output = vanadis(
+    let output = coloris(
         &config,
         &state,
         &["apply", "nord", "--only", "two", "--dry-run"],
@@ -286,7 +286,7 @@ fn previews_a_partial_apply_before_a_whole_one() {
 #[test]
 fn diffs_one_target_before_a_whole_apply() {
     let (config, state) = workspace("apply-diff-only-first", "apply");
-    let output = vanadis(
+    let output = coloris(
         &config,
         &state,
         &["apply", "nord", "--only", "two", "--diff"],
@@ -302,8 +302,8 @@ fn diffs_one_target_before_a_whole_apply() {
 #[test]
 fn shows_a_unified_diff_of_what_would_change() {
     let (config, state) = workspace("apply-diff", "apply");
-    vanadis(&config, &state, &["apply", "paper-light"]);
-    let output = vanadis(&config, &state, &["apply", "nord", "--diff"]);
+    coloris(&config, &state, &["apply", "paper-light"]);
+    let output = coloris(&config, &state, &["apply", "nord", "--diff"]);
 
     assert!(output.status.success(), "{}", stderr(&output));
     let two = config.join("out/two.conf");
@@ -320,8 +320,8 @@ fn shows_a_unified_diff_of_what_would_change() {
 #[test]
 fn writes_nothing_when_it_is_only_showing_a_diff() {
     let (config, state) = workspace("apply-diff-writes", "apply");
-    vanadis(&config, &state, &["apply", "paper-light"]);
-    vanadis(&config, &state, &["apply", "nord", "--diff"]);
+    coloris(&config, &state, &["apply", "paper-light"]);
+    coloris(&config, &state, &["apply", "nord", "--diff"]);
     assert_eq!(
         read(&config.join("out/two.conf")),
         "background = \"#eeeeee\"\n"
@@ -331,8 +331,8 @@ fn writes_nothing_when_it_is_only_showing_a_diff() {
 #[test]
 fn shows_no_diff_for_a_target_that_would_not_change() {
     let (config, state) = workspace("apply-diff-unchanged", "apply");
-    vanadis(&config, &state, &["apply", "paper-light"]);
-    let output = vanadis(&config, &state, &["apply", "paper-light", "--diff"]);
+    coloris(&config, &state, &["apply", "paper-light"]);
+    let output = coloris(&config, &state, &["apply", "paper-light", "--diff"]);
     assert!(!stdout(&output).contains("---"), "{}", stdout(&output));
     assert!(
         !stdout(&output).contains("would write"),
@@ -345,8 +345,8 @@ fn shows_no_diff_for_a_target_that_would_not_change() {
 #[test]
 fn applies_the_theme_after_the_one_in_use() {
     let (config, state) = workspace("cycle-next", "apply");
-    vanadis(&config, &state, &["apply", "paper-light"]);
-    let output = vanadis(&config, &state, &["cycle"]);
+    coloris(&config, &state, &["apply", "paper-light"]);
+    let output = coloris(&config, &state, &["cycle"]);
     assert!(output.status.success(), "{}", stderr(&output));
     assert!(
         stdout(&output).starts_with("applied nord\n"),
@@ -358,8 +358,8 @@ fn applies_the_theme_after_the_one_in_use() {
 #[test]
 fn wraps_the_cycle_at_the_end_of_the_list() {
     let (config, state) = workspace("cycle-wrap", "apply");
-    vanadis(&config, &state, &["apply", "ink-dark"]);
-    let output = vanadis(&config, &state, &["cycle"]);
+    coloris(&config, &state, &["apply", "ink-dark"]);
+    let output = coloris(&config, &state, &["cycle"]);
     assert!(
         stdout(&output).starts_with("applied paper-light\n"),
         "{}",
@@ -371,7 +371,7 @@ fn wraps_the_cycle_at_the_end_of_the_list() {
 #[test]
 fn starts_the_cycle_when_nothing_has_been_applied() {
     let (config, state) = workspace("cycle-fresh", "apply");
-    let output = vanadis(&config, &state, &["cycle"]);
+    let output = coloris(&config, &state, &["cycle"]);
     assert!(output.status.success(), "{}", stderr(&output));
     assert!(
         stdout(&output).starts_with("applied paper-light\n"),
@@ -384,8 +384,8 @@ fn starts_the_cycle_when_nothing_has_been_applied() {
 #[test]
 fn starts_the_cycle_from_a_theme_the_list_does_not_name() {
     let (config, state) = workspace("cycle-outside", "apply");
-    vanadis(&config, &state, &["apply", "sea-light"]);
-    let output = vanadis(&config, &state, &["cycle"]);
+    coloris(&config, &state, &["apply", "sea-light"]);
+    let output = coloris(&config, &state, &["cycle"]);
     assert!(
         stdout(&output).starts_with("applied paper-light\n"),
         "{}",
@@ -396,8 +396,8 @@ fn starts_the_cycle_from_a_theme_the_list_does_not_name() {
 #[test]
 fn writes_the_outputs_of_the_theme_it_steps_to() {
     let (config, state) = workspace("cycle-writes", "apply");
-    vanadis(&config, &state, &["apply", "ink-dark"]);
-    vanadis(&config, &state, &["cycle"]);
+    coloris(&config, &state, &["apply", "ink-dark"]);
+    coloris(&config, &state, &["cycle"]);
     assert_eq!(read(&config.join("out/one.conf")), "bg=#eeeeee\n");
 }
 
@@ -405,9 +405,9 @@ fn writes_the_outputs_of_the_theme_it_steps_to() {
 #[test]
 fn steps_one_place_per_run() {
     let (config, state) = workspace("cycle-twice", "apply");
-    vanadis(&config, &state, &["apply", "paper-light"]);
-    vanadis(&config, &state, &["cycle"]);
-    let output = vanadis(&config, &state, &["cycle"]);
+    coloris(&config, &state, &["apply", "paper-light"]);
+    coloris(&config, &state, &["cycle"]);
+    let output = coloris(&config, &state, &["cycle"]);
     assert!(
         stdout(&output).starts_with("applied ink-dark\n"),
         "{}",
@@ -418,10 +418,10 @@ fn steps_one_place_per_run() {
 #[test]
 fn writes_nothing_on_a_dry_run() {
     let (config, state) = workspace("cycle-dry", "apply");
-    vanadis(&config, &state, &["apply", "paper-light"]);
+    coloris(&config, &state, &["apply", "paper-light"]);
     let before = read(&config.join("out/one.conf"));
 
-    let output = vanadis(&config, &state, &["cycle", "--dry-run"]);
+    let output = coloris(&config, &state, &["cycle", "--dry-run"]);
     assert!(output.status.success(), "{}", stderr(&output));
     assert!(
         stdout(&output).starts_with("would apply nord\n"),
@@ -431,7 +431,7 @@ fn writes_nothing_on_a_dry_run() {
     assert_eq!(read(&config.join("out/one.conf")), before);
 
     // The position did not move either, so the next real cycle still steps to `nord`.
-    let output = vanadis(&config, &state, &["cycle"]);
+    let output = coloris(&config, &state, &["cycle"]);
     assert!(
         stdout(&output).starts_with("applied nord\n"),
         "{}",
@@ -442,7 +442,7 @@ fn writes_nothing_on_a_dry_run() {
 #[test]
 fn says_a_config_that_writes_no_cycle_has_nothing_to_step_through() {
     let (config, state) = workspace("cycle-none", "apply-reload");
-    let output = vanadis(&config, &state, &["cycle"]);
+    let output = coloris(&config, &state, &["cycle"]);
     assert!(!output.status.success());
     assert!(stderr(&output).contains("[cycle]"), "{}", stderr(&output));
 }

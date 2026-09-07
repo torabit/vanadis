@@ -53,9 +53,9 @@ impl Machine {
     }
 
     fn run(&self, args: &[&str], input: &str) -> Output {
-        let mut child = Command::new(env!("CARGO_BIN_EXE_vanadis"))
+        let mut child = Command::new(env!("CARGO_BIN_EXE_coloris"))
             .args(args)
-            .env("VANADIS_CONFIG", &self.config)
+            .env("COLORIS_CONFIG", &self.config)
             .env("XDG_STATE_HOME", &self.state)
             .env("HOME", &self.home)
             .stdin(Stdio::piped())
@@ -443,9 +443,9 @@ fn reports_a_notation_it_cannot_substitute() {
 /// against all eleven real files rather than the two the runs above walk through.
 #[test]
 fn reproduces_every_file_in_the_corpus() {
+    use coloris::init::{Binding, Draft};
+    use coloris::{ThemeId, TokenPath, Variant};
     use std::collections::BTreeMap;
-    use vanadis::init::{Binding, Draft};
-    use vanadis::{ThemeId, TokenPath, Variant};
 
     let expected = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/expected");
     let mut checked = 0;
@@ -454,7 +454,7 @@ fn reproduces_every_file_in_the_corpus() {
 
     for file in files {
         let source = fs::read_to_string(&file).unwrap();
-        let scan = vanadis::init::scan(&source);
+        let scan = coloris::init::scan(&source);
 
         let mut bindings = Vec::new();
         let mut tokens = BTreeMap::new();
@@ -466,9 +466,9 @@ fn reproduces_every_file_in_the_corpus() {
             }
         }
 
-        let name = vanadis::TargetName::parse("target").unwrap();
+        let name = coloris::TargetName::parse("target").unwrap();
         let id = ThemeId::parse("paper-light").unwrap();
-        let planned = vanadis::init::plan(Draft {
+        let planned = coloris::init::plan(Draft {
             directory: Path::new("/config"),
             home: None,
             name: &name,

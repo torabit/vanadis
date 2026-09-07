@@ -1,12 +1,12 @@
 ---
-name: vanadis
-description: Use when adding a CLI tool to vanadis, writing or repairing a vanadis template or theme, moving a dotfiles repository onto one palette, or working out why `vanadis check` exits non-zero. Covers picking a token for a colour, what belongs in `reload`, which files must never be edited by hand, and the colour notations vanadis refuses.
+name: coloris
+description: Use when adding a CLI tool to coloris, writing or repairing a coloris template or theme, moving a dotfiles repository onto one palette, or working out why `coloris check` exits non-zero. Covers picking a token for a colour, what belongs in `reload`, which files must never be edited by hand, and the colour notations coloris refuses.
 license: MIT OR Apache-2.0
 ---
 
-# vanadis
+# coloris
 
-vanadis renders CLI tool configs from one palette. The user writes templates; vanadis
+coloris renders CLI tool configs from one palette. The user writes templates; coloris
 substitutes tokens from a theme, writes each result to the file its tool reads, and runs the
 reload command for the tools that have one.
 
@@ -16,7 +16,7 @@ and that is what this skill carries.
 ## Two rules that never bend
 
 **A generated file is never edited by hand.** It is overwritten by the next apply, and
-`vanadis check` reports it as drift until then. Edit the template.
+`coloris check` reports it as drift until then. Edit the template.
 
 **The template language is `{{token}}` substitution and nothing else.** No conditionals, no
 loops, no filters, no includes, no colour arithmetic. If a template seems to need one of
@@ -25,7 +25,7 @@ those, the answer is a different token, or a second template, or a script the to
 ## Layout
 
 ```
-~/.config/vanadis/          # $XDG_CONFIG_HOME/vanadis; $VANADIS_CONFIG replaces the whole directory
+~/.config/coloris/          # $XDG_CONFIG_HOME/coloris; $COLORIS_CONFIG replaces the whole directory
 ├── config.toml             # [auto], [cycle] and the [[targets]]
 ├── themes/
 │   ├── papercolor-light.toml
@@ -39,7 +39,7 @@ and are never listed in the config. Templates live under the config directory, n
 files they render to — btop enumerates its themes directory, so a `.theme.in` left there turns
 up in btop's theme list.
 
-The theme applied last is recorded under `$XDG_STATE_HOME/vanadis/state.toml`. It is
+The theme applied last is recorded under `$XDG_STATE_HOME/coloris/state.toml`. It is
 deliberately outside the config directory: the config is what gets version controlled and
 copied between machines, and which theme this machine is showing is the one thing that must
 not travel with it.
@@ -48,23 +48,23 @@ not travel with it.
 
 | command | what it does |
 | --- | --- |
-| `vanadis apply <theme>` | renders every target, writes them, runs each `reload` |
-| `vanadis apply --variant dark` | the theme `[auto]` names for dark |
-| `vanadis apply <theme> --only <name>` | writes only these targets and records them, so one theme name stops describing the machine |
-| `vanadis apply <theme> --diff` | shows the change line by line, writes nothing |
-| `vanadis cycle` | applies the theme after the one in use, taken from `[cycle] themes` |
-| `vanadis check` | checks against the applied theme, exits non-zero on any finding |
-| `vanadis check <theme>` | checks against that theme instead — the CI form, since a fresh checkout has no state file |
-| `vanadis check <theme> --only <name>` | one target, which is how a new template is verified |
-| `vanadis list` | the themes in `themes/` |
-| `vanadis current` | the theme applied last, then one line per target `--only` moved off it; prints nothing on stdout and exits non-zero when nothing has been applied |
-| `vanadis get role.bg` | one resolved value and nothing else, so `$(vanadis get role.bg)` is a colour |
-| `vanadis get <token> --theme <id>` | reads that theme instead of the applied one, and is the only way to query before any apply |
-| `vanadis get --json` | the whole resolved theme, flat, keyed by token path |
-| `vanadis render <template> --theme <id>` | one template against one named theme, to stdout. Reads no target and writes no file — this is how a theme is written out as a base16 scheme or any other format |
-| `vanadis init <file>` | interactive. Hand it to the user — see below. |
+| `coloris apply <theme>` | renders every target, writes them, runs each `reload` |
+| `coloris apply --variant dark` | the theme `[auto]` names for dark |
+| `coloris apply <theme> --only <name>` | writes only these targets and records them, so one theme name stops describing the machine |
+| `coloris apply <theme> --diff` | shows the change line by line, writes nothing |
+| `coloris cycle` | applies the theme after the one in use, taken from `[cycle] themes` |
+| `coloris check` | checks against the applied theme, exits non-zero on any finding |
+| `coloris check <theme>` | checks against that theme instead — the CI form, since a fresh checkout has no state file |
+| `coloris check <theme> --only <name>` | one target, which is how a new template is verified |
+| `coloris list` | the themes in `themes/` |
+| `coloris current` | the theme applied last, then one line per target `--only` moved off it; prints nothing on stdout and exits non-zero when nothing has been applied |
+| `coloris get role.bg` | one resolved value and nothing else, so `$(coloris get role.bg)` is a colour |
+| `coloris get <token> --theme <id>` | reads that theme instead of the applied one, and is the only way to query before any apply |
+| `coloris get --json` | the whole resolved theme, flat, keyed by token path |
+| `coloris render <template> --theme <id>` | one template against one named theme, to stdout. Reads no target and writes no file — this is how a theme is written out as a base16 scheme or any other format |
+| `coloris init <file>` | interactive. Hand it to the user — see below. |
 
-`apply` overwrites files the user wrote. Show `vanadis apply <theme> --diff` and get their
+`apply` overwrites files the user wrote. Show `coloris apply <theme> --diff` and get their
 go-ahead before running the real thing.
 
 `apply --only` refuses to write before a whole apply has happened — `--only needs a theme
@@ -75,7 +75,7 @@ it usable on a target added minutes ago.
 
 ## `init` is the user's to run, not yours
 
-`vanadis init` asks for a token name per distinct colour value in the file. Do not drive it
+`coloris init` asks for a token name per distinct colour value in the file. Do not drive it
 from a script of answers. Prompts appear in the order values first occur, answering with two
 names opens a second per-occurrence pass for that value alone, and a misaligned script fails
 silently: the file still renders back byte for byte, so `check` stays clean while the colours
@@ -84,7 +84,7 @@ sit under the wrong names.
 Either tell the user to run it themselves:
 
 ```
-vanadis init ~/.config/hunk/config.toml
+coloris init ~/.config/hunk/config.toml
 ```
 
 or do the same work by hand with the steps below. They are what `init` automates, and they end
@@ -96,9 +96,9 @@ Thirty-three tokens. A template that reads only these plus `meta.*` renders agai
 that defines the core, which is what a converter from an upstream scheme must emit and what a
 hand-written theme is aiming at. That portability is the whole return on the core.
 
-An incomplete theme is not an error and nothing refuses to load it. `vanadis check` is the one
+An incomplete theme is not an error and nothing refuses to load it. `coloris check` is the one
 place the core is enforced: it names every core token the themes a run resolves to leave
-undefined, and exits non-zero. `vanadis init` prints the same list when it finishes.
+undefined, and exits non-zero. `coloris init` prints the same list when it finishes.
 
 `[role]`, seventeen:
 
@@ -183,7 +183,7 @@ what lets `check` say a colour value is well-formed at all.
    is never at risk of being overwritten. If it cannot, the whole file becomes the template and
    the file is generated from then on. See [references/templates.md](references/templates.md).
 3. **Copy, never move.** `cp` the file to `templates/<name>/<basename>.in` under the config
-   directory — `${VANADIS_CONFIG:-~/.config/vanadis}`, and `$VANADIS_CONFIG` is usually unset.
+   directory — `${COLORIS_CONFIG:-~/.config/coloris}`, and `$COLORIS_CONFIG` is usually unset.
    The original stays exactly where it is and becomes the target's `output`.
 4. **Double every `{{` and `}}` already in the copy.** `{{{{` renders as a literal `{{`. Do
    this for every pair, not only the ones that look like a token path — a stray `{{` in front of
@@ -199,17 +199,17 @@ what lets `check` say a colour value is well-formed at all.
 8. **Verify.** This is the step that makes the work checkable:
 
    ```
-   vanadis check <theme> --only <name>
+   coloris check <theme> --only <name>
    ```
 
    The output file is still the user's original, so a clean check means the template renders
    back to it byte for byte and nothing was dropped. Any finding means the template is wrong.
    **Fix the template. Never touch the original file to make the check pass** — that is
    editing the answer key.
-9. **Then show `vanadis apply <theme> --diff`** and let the user decide before you run the
+9. **Then show `coloris apply <theme> --diff`** and let the user decide before you run the
    apply.
 
-**`output` must not be a symlink.** vanadis renames the rendered file over the output, which
+**`output` must not be a symlink.** coloris renames the rendered file over the output, which
 replaces a link with a regular file and leaves the dotfiles repository behind it untouched. If
 the user manages dotfiles with Stow, chezmoi or `ln -s`, the generated config is a build
 artifact: it is not symlinked and not committed, and only `config.toml`, `templates/` and
@@ -233,8 +233,8 @@ directory. `$VAR` is **not** expanded.
 
 **Never encode the theme's name in `output`.** Apply gruvbox over a file called
 `papercolor-light.theme` and it is still called that, and btop lists whatever it finds in its
-themes directory, so the wrong name shows up in the tool's own UI. Name outputs for vanadis:
-`vanadis.theme`, `vanadis.tmTheme`.
+themes directory, so the wrong name shows up in the tool's own UI. Name outputs for coloris:
+`coloris.theme`, `coloris.tmTheme`.
 
 ## Move a dotfiles repository onto one palette
 
@@ -251,29 +251,29 @@ and every later file is matching against names that already exist.
 Templates and generated outputs are supposed to carry hex, so exclude them and look at the rest:
 
 ```bash
-grep -E '^ *output *=' "${VANADIS_CONFIG:-$HOME/.config/vanadis}/config.toml" | cut -d'"' -f2
+grep -E '^ *output *=' "${COLORIS_CONFIG:-$HOME/.config/coloris}/config.toml" | cut -d'"' -f2
 grep -rnIE '#[0-9a-fA-F]{6}' ~/dotfiles --exclude-dir=.git
 ```
 
-Every hit from the second command that is not a path from the first is a colour vanadis does
+Every hit from the second command that is not a path from the first is a colour coloris does
 not control. Hex inside a comment counts: change the palette and the comment is the only thing
 still asserting the old value.
 
 ## Diagnose a failing check
 
-`vanadis check` prints one finding per line and exits non-zero. Five shapes:
+`coloris check` prints one finding per line and exits non-zero. Five shapes:
 
 | line | finding | what it means |
 | --- | --- | --- |
 | `<theme>: N core tokens undefined` | incomplete | a theme the run is on is short of the core |
 | `<name>: <output> does not match <template>` | drift | the file no longer holds what the template renders |
 | `<name>: <output> does not exist` | missing | never applied, or deleted |
-| `<name>: <output>: <io error>` | unreadable | permissions, or a broken symlink. A filesystem problem, not a vanadis one |
+| `<name>: <output>: <io error>` | unreadable | permissions, or a broken symlink. A filesystem problem, not a coloris one |
 | `<name>: <reason>` | unrenderable | an apply would fail here |
 
 ### drift
 
-Two causes, and `vanadis apply <theme> --diff` tells them apart by showing the change.
+Two causes, and `coloris apply <theme> --diff` tells them apart by showing the change.
 
 - **Someone edited the generated file.** Move the edit into the template, then apply. Keeping
   it in the output means losing it on the next apply.
@@ -286,14 +286,14 @@ Do not resolve drift by editing the theme. Drift is a statement about the output
 The reason is one of:
 
 - `themes/ holds no theme named <id>` — the config names a theme that is not in `themes/`. Check
-  `vanadis list`; a theme file that will not load is reported to stderr as a warning and skipped.
+  `coloris list`; a theme file that will not load is reported to stderr as a warning and skipped.
 - `target <name> names no theme for <variant>` — the target's `themes` table has no entry for the
   variant being applied.
 - an unreadable template — a path in `config.toml` that is wrong or a file that is gone.
 - undefined tokens, which print as:
 
   ```
-  lazygit: /home/you/.config/vanadis/templates/lazygit/theme.yml.in: undefined tokens
+  lazygit: /home/you/.config/coloris/templates/lazygit/theme.yml.in: undefined tokens
     line 8: role.inactve
     line 26: colors.purple
   ```
@@ -306,7 +306,7 @@ Work through them by asking whether the token path is one the theme should have:
   the template is bound to the theme it was written for. Either define the token in every theme
   being switched between, or pin the target with `themes = { light = "...", dark = "..." }`.
 
-`vanadis get <token> --theme <other-theme>` answers whether some other theme defines it, and
+`coloris get <token> --theme <other-theme>` answers whether some other theme defines it, and
 gives you the value to copy.
 
 ### incomplete
@@ -323,7 +323,7 @@ missing](#fill-in-what-a-theme-is-missing).
 
 It is asked of the themes the run resolves to — the applied theme, and whatever a target with
 its own `themes` table names — so a half-written theme sitting in `themes/` does not fail a
-check of a machine that is not on it. `vanadis check <that-theme>` is how you ask about one
+check of a machine that is not on it. `coloris check <that-theme>` is how you ask about one
 before switching to it.
 
 An incomplete theme is not otherwise an error. It loads, it lists, and it applies cleanly to
@@ -333,12 +333,12 @@ any target whose templates never read what it is short of.
 
 After a theme swap, `check` reports undefined tokens for the tokens the new theme does not carry.
 
-1. `vanadis get <token> --theme <the-theme-that-has-it>` for the value and to confirm the path.
+1. `coloris get <token> --theme <the-theme-that-has-it>` for the value and to confirm the path.
 2. Add the token to the new theme.
 3. **Point at a colour the theme already carries** — `{{colors.base0e}}` — rather than pasting
    the old theme's hex. A hex lifted from another palette is not part of this one and will read
    as a smudge next to everything around it.
-4. Re-run `vanadis check <theme>`.
+4. Re-run `coloris check <theme>`.
 
 If the missing token is theme-private and only one target needs it, pinning that target with a
 `themes` override is the honest fix. Not every template is meant to survive every theme.
@@ -382,4 +382,4 @@ everything else points at. `[ansi]`, `[role]` and any namespace the author adds 
   per-tool traps: bat selecting a theme by the name inside the file, starship's `[palettes]`
   indirection, outputs that are scripts.
 - [references/reload.md](references/reload.md) — how a change reaches each tool, which ones have
-  a command vanadis can run, and how to work out a tool that is not in the table.
+  a command coloris can run, and how to work out a tool that is not in the table.

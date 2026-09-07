@@ -1,6 +1,6 @@
-//! `vanadis render`, and the export loop it exists for.
+//! `coloris render`, and the export loop it exists for.
 //!
-//! `docs/theme-format.md` states that writing a base16 scheme out of a vanadis theme is a
+//! `docs/theme-format.md` states that writing a base16 scheme out of a coloris theme is a
 //! template and not a feature. `tests/fixtures/export/base16.yaml.in` is that template, and
 //! `round_trips_a_base16_scheme` is what holds the claim to account: a scheme imported, written
 //! back out through the renderer, and imported again carries the same sixteen colours.
@@ -44,11 +44,11 @@ fn copy(from: &Path, to: &Path) {
 }
 
 /// Runs the binary from `root()`, so a relative template resolves against the repository.
-fn vanadis(config: &Path, state: &Path, args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_vanadis"))
+fn coloris(config: &Path, state: &Path, args: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_coloris"))
         .args(args)
         .current_dir(root())
-        .env("VANADIS_CONFIG", config)
+        .env("COLORIS_CONFIG", config)
         .env("XDG_STATE_HOME", state)
         .output()
         .unwrap()
@@ -64,7 +64,7 @@ fn stderr(output: &Output) -> String {
 
 /// The `colors.*` tokens of one theme, read back through `get --json`.
 fn colours(config: &Path, state: &Path, theme: &str) -> Vec<(String, String)> {
-    let output = vanadis(config, state, &["get", "--json", "--theme", theme]);
+    let output = coloris(config, state, &["get", "--json", "--theme", theme]);
     assert!(output.status.success(), "{}", stderr(&output));
     let json: serde_json::Value = serde_json::from_str(&stdout(&output)).unwrap();
     let mut colours: Vec<(String, String)> = json
@@ -89,14 +89,14 @@ fn round_trips_a_base16_scheme() {
 
     // The fixture tree already carries a hand-written `nord.toml`. `--force` replaces it, so
     // what is rendered below is the converter's output and not somebody's palette.
-    let imported = vanadis(
+    let imported = coloris(
         &config,
         &state,
         &["import", scheme.to_str().unwrap(), "--force"],
     );
     assert!(imported.status.success(), "{}", stderr(&imported));
 
-    let rendered = vanadis(
+    let rendered = coloris(
         &config,
         &state,
         &[
@@ -110,7 +110,7 @@ fn round_trips_a_base16_scheme() {
 
     let written = config.join("nord-exported.yaml");
     fs::write(&written, stdout(&rendered)).unwrap();
-    let again = vanadis(&config, &state, &["import", written.to_str().unwrap()]);
+    let again = coloris(&config, &state, &["import", written.to_str().unwrap()]);
     assert!(again.status.success(), "{}", stderr(&again));
 
     let before = colours(&config, &state, "nord");
@@ -124,9 +124,9 @@ fn round_trips_a_base16_scheme() {
 #[test]
 fn renders_the_theme_it_is_given_and_not_the_applied_one() {
     let (config, state) = workspace("named");
-    vanadis(&config, &state, &["apply", "paper-light"]);
+    coloris(&config, &state, &["apply", "paper-light"]);
 
-    let output = vanadis(
+    let output = coloris(
         &config,
         &state,
         &[
@@ -143,11 +143,11 @@ fn renders_the_theme_it_is_given_and_not_the_applied_one() {
 #[test]
 fn leaves_the_targets_and_the_state_alone() {
     let (config, state) = workspace("untouched");
-    vanadis(&config, &state, &["apply", "paper-light"]);
+    coloris(&config, &state, &["apply", "paper-light"]);
     let written = fs::read_to_string(config.join("out/one.conf")).unwrap();
-    let recorded = fs::read_to_string(state.join("vanadis/state.toml")).unwrap();
+    let recorded = fs::read_to_string(state.join("coloris/state.toml")).unwrap();
 
-    vanadis(
+    coloris(
         &config,
         &state,
         &[
@@ -163,7 +163,7 @@ fn leaves_the_targets_and_the_state_alone() {
         written
     );
     assert_eq!(
-        fs::read_to_string(state.join("vanadis/state.toml")).unwrap(),
+        fs::read_to_string(state.join("coloris/state.toml")).unwrap(),
         recorded
     );
 }
@@ -172,7 +172,7 @@ fn leaves_the_targets_and_the_state_alone() {
 #[test]
 fn refuses_to_run_without_a_theme() {
     let (config, state) = workspace("no-theme");
-    let output = vanadis(
+    let output = coloris(
         &config,
         &state,
         &["render", "tests/fixtures/apply/templates/simple.in"],
@@ -193,7 +193,7 @@ fn writes_nothing_when_the_theme_does_not_define_a_token() {
     )
     .unwrap();
 
-    let output = vanadis(
+    let output = coloris(
         &config,
         &state,
         &["render", template.to_str().unwrap(), "--theme", "nord"],
@@ -210,7 +210,7 @@ fn writes_nothing_when_the_theme_does_not_define_a_token() {
 #[test]
 fn reports_a_theme_that_is_not_there() {
     let (config, state) = workspace("unknown-theme");
-    let output = vanadis(
+    let output = coloris(
         &config,
         &state,
         &[
@@ -227,7 +227,7 @@ fn reports_a_theme_that_is_not_there() {
 #[test]
 fn reports_a_template_that_is_not_there() {
     let (config, state) = workspace("unknown-template");
-    let output = vanadis(
+    let output = coloris(
         &config,
         &state,
         &["render", "nowhere.in", "--theme", "nord"],

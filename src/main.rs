@@ -97,14 +97,21 @@ enum Command {
         #[arg(long)]
         force: bool,
     },
-    /// Render one template against one named theme, to stdout.
+    /// Render one template against one named theme, or one target, to stdout.
+    #[command(group(ArgGroup::new("source").required(true)))]
     Render {
         /// The template to render, resolved against the working directory.
-        #[arg(value_name = "TEMPLATE")]
-        template: PathBuf,
-        /// The theme to render it against. Required: this command never reads the applied one.
-        #[arg(long, value_name = "ID")]
-        theme: String,
+        #[arg(value_name = "TEMPLATE", group = "source")]
+        template: Option<PathBuf>,
+        /// The target to render, as `config.toml` names it.
+        #[arg(long, value_name = "NAME", group = "source")]
+        target: Option<String>,
+        /// The theme to render against. Required with `TEMPLATE`, which reads no applied theme.
+        #[arg(long, value_name = "ID", required_unless_present = "target")]
+        theme: Option<String>,
+        /// Render the theme `[auto]` names for this background, instead of the applied one.
+        #[arg(long, conflicts_with_all = ["template", "theme"])]
+        variant: Option<Background>,
     },
     /// Find a cached scheme by identifier, variant, name or author.
     Search {
@@ -199,7 +206,18 @@ fn main() -> anyhow::Result<ExitCode> {
             command: RemoteCommand::Update,
         } => remote_update(&environment),
         Command::Import { source, force } => import(&environment, &source, force),
-        Command::Render { template, theme } => render(&environment, &template, &theme),
+        Command::Render {
+            template,
+            target,
+            theme,
+            variant,
+        } => render(
+            &environment,
+            template.as_deref(),
+            target.as_deref(),
+            theme.as_deref(),
+            variant.map(Variant::from),
+        ),
         Command::Search { query } => search(&environment, &query),
     }
 }
@@ -506,27 +524,88 @@ fn get(
     Ok(ExitCode::SUCCESS)
 }
 
-/// Renders one template against one named theme and writes the result to stdout.
+/// Renders one template, or one target, and writes the result to stdout.
 ///
-/// `docs/config.md` decides that the output is stdout and that `TEMPLATE` is resolved against
-/// the working directory rather than the config directory, which this command never reads.
+/// `docs/config.md` decides that the output is stdout, and decides that what is named settles
+/// the rest: a template is a path with a theme named for it, a target is a `config.toml` entry
+/// rendered the way an apply would render it.
+///
+/// Rendered whole before anything is printed, either way, so a template with an undefined
+/// token leaves stdout empty rather than holding the part of itself that resolved.
+fn render(
+    environment: &Environment,
+    template: Option<&Path>,
+    target: Option<&str>,
+    theme: Option<&str>,
+    variant: Option<Variant>,
+) -> anyhow::Result<ExitCode> {
+    let rendered = match (template, target) {
+        (Some(template), _) => {
+            let theme = theme.context("name a theme with --theme")?;
+            from_template(environment, template, theme)?
+        }
+        (None, Some(target)) => from_target(environment, target, theme, variant)?,
+        (None, None) => anyhow::bail!("name a TEMPLATE or a --target"),
+    };
+
+    let mut out = std::io::stdout().lock();
+    write!(out, "{rendered}")?;
+    Ok(ExitCode::SUCCESS)
+}
+
+/// Renders `template`, resolved against the working directory, against one named theme.
 ///
 /// Only the named theme is loaded, the way `get` loads one: scanning `themes/` would parse
 /// every other file and warn about a broken one, which has nothing to do with this render.
-fn render(environment: &Environment, template: &Path, theme: &str) -> anyhow::Result<ExitCode> {
+/// `config.toml` is not read at all.
+fn from_template(
+    environment: &Environment,
+    template: &Path,
+    theme: &str,
+) -> anyhow::Result<String> {
     let id =
         ThemeId::parse(theme).with_context(|| format!("`{theme}` is not a theme identifier"))?;
     let theme = vanadis::catalog::load(&environment.themes_dir()?, &id)?;
     let source = std::fs::read_to_string(template)
         .with_context(|| format!("{}: cannot be read", template.display()))?;
 
-    // Rendered whole before anything is printed, so a template with an undefined token writes
-    // nothing to stdout rather than the part of itself that resolved.
-    let rendered = Template::new(template, source).render(theme.tokens())?;
+    Ok(Template::new(template, source).render(theme.tokens())?)
+}
 
-    let mut out = std::io::stdout().lock();
-    write!(out, "{rendered}")?;
-    Ok(ExitCode::SUCCESS)
+/// Renders the target `name` from the theme it would be applied from.
+///
+/// The theme resolves the way `check` resolves it: the one named, or the one `[auto]` holds
+/// for a background, or the one the state file records for this target. That last step is why
+/// a partial apply does not send this and `check` to different answers.
+///
+/// This is [`vanadis::render`], which is what an apply calls, so the bytes printed are the
+/// bytes an apply would write. Nothing is written, nothing is reloaded, and the state file is
+/// read and not touched.
+fn from_target(
+    environment: &Environment,
+    name: &str,
+    theme: Option<&str>,
+    variant: Option<Variant>,
+) -> anyhow::Result<String> {
+    let (config, catalog) = load(environment)?;
+    let name = TargetName::parse(name).with_context(|| format!("`{name}` is not a target name"))?;
+    let target = config
+        .targets()
+        .iter()
+        .find(|target| target.name() == &name)
+        .with_context(|| format!("config.toml has no target named `{name}`"))?;
+
+    let id = match wanted(&config, theme, variant)? {
+        Some(id) => id,
+        None => State::load(&environment.state_file()?)?
+            .context("no theme has been applied yet, so name a theme")?
+            .theme_for(&name)
+            .clone(),
+    };
+
+    Ok(vanadis::render(&catalog, target, &id)?
+        .contents()
+        .to_owned())
 }
 
 /// The width of the widest of `values`.

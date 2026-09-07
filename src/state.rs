@@ -96,6 +96,15 @@ impl State {
         &self.targets
     }
 
+    /// The theme `target` is on: the one recorded for it alone, or the applied theme.
+    ///
+    /// A partial apply is the only thing that puts the two apart, and every command that
+    /// renders what is already on the machine has to ask this rather than read `theme`.
+    #[must_use]
+    pub fn theme_for(&self, target: &TargetName) -> &ThemeId {
+        self.targets.get(target).unwrap_or(&self.theme)
+    }
+
     /// Records `theme` as applied to `name` alone.
     ///
     /// A target brought back to the theme every other target carries stops being recorded,

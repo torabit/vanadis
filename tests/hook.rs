@@ -26,6 +26,12 @@ struct Shell {
     hooks: &'static str,
     /// Printing the exit status of the command before it, prefixed `status=`.
     status: &'static str,
+    /// Whether it needs a terminal before it will draw a prompt at all.
+    ///
+    /// fish emits `fish_prompt` only when it is drawing a prompt, and it draws none for a
+    /// pipe, `-i` or not. zsh and bash run their prompt hooks either way, and giving them a
+    /// terminal would only add the escape sequences a redraw writes.
+    terminal: bool,
 }
 
 const ZSH: Shell = Shell {
@@ -35,6 +41,7 @@ const ZSH: Shell = Shell {
     show: "print \"bg=$VANADIS_BG\"",
     hooks: "print -l $precmd_functions",
     status: "print \"status=$?\"",
+    terminal: false,
 };
 
 const BASH: Shell = Shell {
@@ -44,6 +51,7 @@ const BASH: Shell = Shell {
     show: "echo \"bg=$VANADIS_BG\"",
     hooks: "echo \"$PROMPT_COMMAND\" | tr ';' '\\n'",
     status: "echo \"status=$?\"",
+    terminal: false,
 };
 
 const FISH: Shell = Shell {
@@ -53,8 +61,9 @@ const FISH: Shell = Shell {
     // this shape. `eval` would need the output collected into one argument first.
     evaluate: "@vanadis@ hook fish | source",
     show: "echo \"bg=$VANADIS_BG\"",
-    hooks: "functions --handlers-type fish_prompt",
+    hooks: "functions --handlers-type fish_prompt; or functions --handlers",
     status: "echo \"status=$status\"",
+    terminal: true,
 };
 
 /// A copy of the `hook` fixture, and an empty state directory beside it.
@@ -135,8 +144,7 @@ fn drive(shell: &Shell, config: &Path, state: &Path, script: &str) -> String {
     let binary = env!("CARGO_BIN_EXE_vanadis");
     let script = script.replace("@vanadis@", binary);
 
-    let mut child = Command::new(shell.name)
-        .args(shell.arguments)
+    let mut child = started(shell)
         .env("VANADIS_CONFIG", config)
         .env("XDG_STATE_HOME", state)
         .stdin(Stdio::piped())
@@ -152,7 +160,37 @@ fn drive(shell: &Shell, config: &Path, state: &Path, script: &str) -> String {
         .unwrap();
 
     let output = child.wait_with_output().unwrap();
-    stdout(&output)
+    // A terminal ends its lines with a carriage return, and prints the prompt and the echo of
+    // what was typed around them. Only the lines the script printed are read, so the rest is
+    // noise this leaves in place.
+    stdout(&output).replace('\r', "")
+}
+
+/// The command that starts `shell`, under `script` when it needs a terminal.
+///
+/// `script` allocates one and connects the child to it, so the shell runs its reader the way
+/// it does for a person. Its two spellings differ, and neither accepts the other's.
+fn started(shell: &Shell) -> Command {
+    if !shell.terminal {
+        let mut command = Command::new(shell.name);
+        command.args(shell.arguments);
+        return command;
+    }
+
+    let line = std::iter::once(shell.name)
+        .chain(shell.arguments.iter().copied())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let mut command = Command::new("script");
+    if cfg!(target_os = "macos") {
+        command
+            .args(["-q", "/dev/null"])
+            .arg(shell.name)
+            .args(shell.arguments);
+    } else {
+        command.args(["-q", "-c", &line, "/dev/null"]);
+    }
+    command
 }
 
 /// Backdates every file in `directory`, so the write that follows lands on a different mtime.

@@ -91,12 +91,23 @@ is a complete theme, and [`docs/theme-format.md`](docs/theme-format.md) is the f
 ### Step 3. Adopt a config you already have
 
 ```sh
-vanadis init ~/.config/hunk/config.toml
+vanadis init ~/.config/ghostty/config
 ```
 
 `init` reads the file, finds the colours in it, asks which token each one is, and writes three
-things: a template beside your config, the colours into a theme, and a target entry into
-`config.toml`. The file it read is never modified — it becomes the target's output.
+things: a template under `templates/`, the colours into a theme, and a target entry into
+`config.toml`. The file it read is never modified. It becomes the target's output.
+
+<p align="center">
+  <img
+    src="media/init.gif"
+    alt="vanadis init reading a ghostty config and matching each colour to a token the palette already holds"
+    width="820"
+  />
+</p>
+
+A colour the theme already carries is offered by name, so adopting a file into a palette that
+is already there is mostly the return key.
 
 ### Step 4. Apply
 

@@ -63,26 +63,33 @@ Type "export XDG_STATE_HOME=$PWD/demo/home/state" Enter
 # the end. The btop target names a pane by id, so the run has to start from nothing. A
 # socket left behind by a killed recording stops the next nvim from listening on it.
 Type "herdr --session vanadis-demo server stop >/dev/null 2>&1; herdr session delete vanadis-demo >/dev/null 2>&1; rm -f $PWD/demo/home/nvim.sock; true" Enter
-Sleep 2s
+Wait
 
 # The starting state. Nothing is running yet, so every reload fails and apply exits
 # non-zero; the files it would have reloaded are written, which is all this needs.
 Type "vanadis apply papercolor-light >/dev/null 2>&1; true" Enter
-Sleep 1s
+Wait
 
 Type "(setsid herdr --session vanadis-demo server >/dev/null 2>&1 </dev/null &)" Enter
-Sleep 5s
+Wait
+
+# The server takes a moment to open its socket, and `workspace create` is the first command
+# that needs it. Retrying until it answers beats guessing how long that is.
+Type "until herdr --session vanadis-demo pane list >/dev/null 2>&1; do sleep 0.2; done" Enter
+Wait@30s
 
 # A headless server starts with no workspace at all, so the root pane has to be asked for.
 Type "herdr --session vanadis-demo workspace create --cwd $PWD --label vanadis >/dev/null" Enter
-Sleep 1s
+Wait
 
 # Left pane the editor, right column the TUI over the shell.
 Type "herdr --session vanadis-demo pane split w1:p1 --direction right --ratio 0.42 --cwd $PWD --no-focus >/dev/null" Enter
-Sleep 1s
+Wait
 Type "herdr --session vanadis-demo pane split w1:p2 --direction down --ratio 0.55 --cwd $PWD --no-focus >/dev/null" Enter
-Sleep 2s
+Wait
 
+# These four stay on Sleep. `Wait` watches the shell this is typed into, and what has to
+# happen is a program drawing inside a pane, which that shell cannot report.
 Type "herdr --session vanadis-demo pane run w1:p2 demo/bin/demo-env demo/bin/btop-loop" Enter
 Sleep 2s
 Type "herdr --session vanadis-demo pane run w1:p3 demo/bin/demo-env bash --rcfile demo/home/bashrc" Enter
@@ -92,15 +99,19 @@ Sleep 1s
 Type "herdr --session vanadis-demo pane run w1:p1 demo/bin/demo-env nvim --listen $PWD/demo/home/nvim.sock demo/vanadis/config.toml" Enter
 Sleep 3s
 Type "herdr --session vanadis-demo pane focus --pane w1:p2 --direction down >/dev/null" Enter
-Sleep 1s
+Wait
 
 # The terminal's own default colours, which no pane can reach. This has to start here, in
 # the shell that owns the terminal, so that its stdout is the terminal. See the script.
 Type "demo/bin/follow-terminal-bg &" Enter
-Sleep 1s
+Wait
 
+# Not a Sleep. herdr is not interactive for several seconds after the attach, and guessing
+# how many is what lost the splits in two earlier recordings. `grouped` is a label herdr
+# only draws once its sidebar is up.
 Type "clear; herdr session attach vanadis-demo" Enter
-Sleep 7s
+Wait+Screen@30s /grouped/
+Sleep 2s
 
 Show
 

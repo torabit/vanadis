@@ -150,6 +150,17 @@ lost, one full-screen pane is left, and the recorded `vanadis cycle` is typed in
 buffer instead of a shell. Nothing about that failure is visible while recording, because the
 setup is inside `Hide`.
 
+The setup waits on conditions rather than on the clock, which is what stops that class of
+failure coming back. `Wait` blocks until a regexp matches the screen — the default is `/>$/`
+against the last line, which is vhs's own shell prompt, and `Wait+Screen@30s /grouped/` after
+the attach is a label herdr only draws once its sidebar is up. A `Wait` that times out aborts
+the tape with an error instead of producing a plausible-looking GIF. `Sleep` is left only
+where what has to happen is a program drawing inside a pane, which the shell being typed into
+cannot report.
+
+`Wait` is not in the documentation `vhs new` writes into a new tape; it is in the README and
+the parser.
+
 **btop needs 80x24 in its own pane.** Below that it prints "Terminal size too small" and draws
 nothing. The cell is about 9.3px wide at font size 14, not the 8.4 the font size suggests, and
 herdr's sidebar takes 26 columns before either split gets any: `Set Width 1500` left btop 77

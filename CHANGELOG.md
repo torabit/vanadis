@@ -11,6 +11,7 @@ Conventional Commits in the history.
 
 ### Added
 
+- *(apply)* name the file a dry-run's write resolves to
 - *(render)* render one target the way an apply would write it
 - *(render)* render one named theme to stdout
 

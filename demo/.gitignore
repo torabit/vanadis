@@ -1,9 +1,16 @@
 # Rendered by `vanadis apply`. Tracked nowhere: the templates and themes beside them are
 # the source, and a committed output would drift the moment either changes.
-home/tmux/vanadis.conf
+home/herdr/config.toml
 home/nvim/colors/vanadis.lua
 home/btop/themes/vanadis.theme
 home/starship.toml
+home/nvim.sock
 
 # The throwaway config tree init.tape writes into, so a recording leaves demo/vanadis alone.
 .run/
+
+# herdr's sockets, logs and session state, all created by the demo server.
+home/herdr/*.sock
+home/herdr/*.log
+home/herdr/.plugins.lock
+home/herdr/sessions/

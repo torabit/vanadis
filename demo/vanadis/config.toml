@@ -2,6 +2,11 @@
 # points here and `XDG_CONFIG_HOME` points at ../home, so nothing outside demo/ is read
 # or written. See demo/README.md.
 #
+# Every herdr call names `--session vanadis-demo`. It is not decoration. `herdr server`
+# and `herdr status` ignore `XDG_CONFIG_HOME` and resolve to the socket under
+# `~/.config/herdr`, which is whatever herdr the recorder is already running. Naming the
+# session is what keeps an apply here off it.
+#
 # Every template reads core tokens only, so both themes render against all four targets.
 
 [auto]
@@ -13,28 +18,37 @@ dark = "papercolor-dark"
 [cycle]
 themes = ["papercolor-light", "papercolor-dark"]
 
-# tmux redraws on `source-file`, so the pane backgrounds, borders and status bar are the
-# part of the frame that changes with no restart at all.
+# herdr reloads its config in the running server, so the sidebar, the tab bar, the pane
+# borders and the pane backgrounds change with nothing restarting. It is the multiplexer
+# the recording runs inside, and a target rather than a stage: the terminal vhs draws is
+# not a target and its own palette never moves, so herdr is what paints the whole frame.
 [[targets]]
-name = "tmux"
-template = "templates/tmux/vanadis.conf.in"
-output = "../home/tmux/vanadis.conf"
-reload = ["tmux", "source-file", "demo/home/tmux/vanadis.conf"]
+name = "herdr"
+template = "templates/herdr/config.toml.in"
+output = "../home/herdr/config.toml"
+reload = ["herdr", "--session", "vanadis-demo", "server", "reload-config"]
 
-# A running nvim cannot be told to re-read a file from outside, but it can be sent the
-# keys that do it. `:colorscheme vanadis` re-executes the generated file in place.
+# nvim re-executes the generated file on `:colorscheme vanadis`, and its own RPC socket
+# is how to say so from outside. demo.tape starts it with `--listen`.
+#
+# Typing the command into the pane instead does not work. herdr sends pane text as a
+# bracketed paste, and nvim in normal mode pastes into the buffer rather than running it,
+# so the reload silently edits the file on screen. `--remote-send` has no such ambiguity.
 [[targets]]
 name = "nvim"
 template = "templates/nvim/vanadis.lua.in"
 output = "../home/nvim/colors/vanadis.lua"
-reload = ["tmux", "send-keys", "-t", "vanadis-demo:0.0", "Escape", ":colorscheme vanadis", "Enter"]
+reload = ["nvim", "--server", "demo/home/nvim.sock", "--remote-send", "<Esc>:colorscheme vanadis<CR>"]
 
-# btop reads its theme once, at startup. Replacing the pane's process is the reload.
+# btop reads its theme once, at startup. Quitting it and starting it again is the reload,
+# and two calls do not fit in one argv, so a script holds them. It is the one target left
+# that names a pane, and the id only holds on a session with nothing else in it, which is
+# why demo.tape deletes the session before it starts.
 [[targets]]
 name = "btop"
 template = "templates/btop/vanadis.theme.in"
 output = "../home/btop/themes/vanadis.theme"
-reload = ["tmux", "respawn-pane", "-k", "-t", "vanadis-demo:0.1", "btop"]
+reload = ["demo/bin/reload-btop", "w1:p2"]
 
 # starship re-reads its config on every prompt. Nothing to run.
 [[targets]]

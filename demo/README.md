@@ -1,11 +1,12 @@
 # Recording the README's GIFs
 
 Two recordings, both driven by [vhs](https://github.com/charmbracelet/vhs). Everything they
-read and write lives under `demo/`, so a recording touches nothing in `~/.config`.
+read and write lives under `demo/`, so a recording touches nothing in `~/.config` and nothing
+in the herdr you are already running.
 
 | tape | output | what it shows |
 | --- | --- | --- |
-| `demo.tape` | `media/demo.gif` | one `vanadis cycle`, and a terminal, an editor and a TUI all change |
+| `demo.tape` | `media/demo.gif` | one `vanadis cycle`, and a multiplexer, an editor and a TUI all change |
 | `init.tape` | `media/init.gif` | `vanadis init` turning a ghostty config into a template, a theme and a target |
 
 ## What has to be installed
@@ -13,16 +14,16 @@ read and write lives under `demo/`, so a recording touches nothing in `~/.config
 `vhs`, and the four programs the hero GIF puts on screen.
 
 ```sh
-brew install vhs tmux neovim btop starship
+brew install vhs
 ```
 
-A Nerd Font is required too. The tapes name `JetBrainsMono Nerd Font`; change
-`Set FontFamily` if a different one is installed.
+herdr, nvim, btop and starship are the other four. A Nerd Font is required too; the tapes
+name `JetBrainsMono Nerd Font`, so change `Set FontFamily` if a different one is installed.
 
 ## Recording
 
-From the repository root, and only from there. The tapes use relative paths, and the reload
-commands in `demo/vanadis/config.toml` do too.
+From the repository root, and only from there. The tapes use relative paths, and so do the
+reload commands in `demo/vanadis/config.toml`.
 
 ```sh
 cargo build --release
@@ -30,15 +31,13 @@ PATH="$PWD/target/release:$PATH" vhs demo/demo.tape
 PATH="$PWD/target/release:$PATH" vhs demo/init.tape
 ```
 
-`demo.tape` kills any tmux server on the machine before it starts. Detach from anything that
-matters first.
-
 ## How it is wired
 
 ```
 demo/
   vanadis/          VANADIS_CONFIG. config.toml, four templates, two themes
-  home/             XDG_CONFIG_HOME. nvim, btop and the shell read from here
+  home/             XDG_CONFIG_HOME. herdr, nvim, btop and the shell read from here
+  bin/reload-btop   the one reload that needs two calls
   adopt/ghostty/    the config init.tape adopts
   .run/             a copy of the two above, written into by init.tape, gitignored
 ```
@@ -59,19 +58,36 @@ done
 theme would render, so naming the theme that is not applied reports drift on all four, which
 is the correct answer and not a failure.
 
-The four targets reload differently, and that difference is the point of the hero GIF.
+The four targets follow a theme differently, and that difference is the point of the hero GIF.
 
 | target | how it follows a theme |
 | --- | --- |
 | starship | re-reads its config on every prompt, so nothing runs at all |
-| tmux | `tmux source-file`, which redraws every pane |
-| nvim | `tmux send-keys` sends `:colorscheme vanadis`, which re-executes the generated file |
-| btop | `tmux respawn-pane`, because btop reads a theme once, at startup |
+| herdr | `herdr server reload-config`, and the sidebar, tab bar, borders and pane backgrounds redraw |
+| nvim | `nvim --server … --remote-send` over its own RPC socket, which re-executes the colorscheme |
+| btop | quit and start again, because btop reads a theme once, at startup |
 
-tmux is a target and not just a stage. It paints `window-style`, the pane borders and the
-status bar, which is what makes the whole frame change rather than the programs inside it.
-The terminal vhs draws is not a target and its own palette never moves, so `Set Padding 0`
-in `demo.tape` keeps it out of the frame.
+herdr is a target and not just a stage. The terminal vhs draws is not a target and its palette
+never moves, so without herdr painting `panel_bg`, `sidebar_bg` and the rest, the frame around
+the panes would sit still while the panes flipped. `Set Padding 0` keeps the terminal itself
+out of shot.
+
+## Three things that will bite
+
+**Name the session on every herdr call.** `herdr server` and `herdr status` ignore
+`XDG_CONFIG_HOME` and resolve to the socket under `~/.config/herdr`, which is the herdr you
+are running right now. A bare `herdr server stop` will stop it. `herdr session list` and
+`herdr session delete` do honour `XDG_CONFIG_HOME`, so the two disagree; `--session
+vanadis-demo` names the socket outright and settles it.
+
+**Delete the session before recording.** A stopped session keeps its panes, so a second run
+splits three more onto the end and `w1:p2` is no longer btop. `demo.tape` deletes it first and
+again at the end.
+
+**btop needs 80x24 in its own pane.** Below that it prints "Terminal size too small" and draws
+nothing. `Set Width 1500` and `Set Height 950` at font size 14 is about 178x56 cells, which
+leaves btop 88x30 once herdr's sidebar and the two splits have taken theirs. Shrinking the
+recording without checking that pane is how the TUI ends up blank.
 
 ## Putting them in the README
 
@@ -80,7 +96,7 @@ of `README.md`, above `## 🚀 Installation`:
 
 ```html
 <p align="center">
-  <img src="media/demo.gif" alt="One vanadis cycle, and tmux, Neovim, btop and the prompt all change together" width="900" />
+  <img src="media/demo.gif" alt="One vanadis cycle, and herdr, Neovim, btop and the prompt all change together" width="900" />
 </p>
 ```
 
@@ -93,4 +109,4 @@ and `media/init.gif` goes under Step 3, below the sentence explaining what `init
 ```
 
 Keep each file under about 3MB. Lowering `Set Framerate` or trimming a `Sleep` is the first
-thing to try; `Set Width` and `Set Height` are the second.
+thing to try; the width and height are the last, for the reason above.

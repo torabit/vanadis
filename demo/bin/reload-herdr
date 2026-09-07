@@ -1,0 +1,7 @@
+#!/bin/sh
+# `herdr server reload-config` prints its JSON reply on stdout, and vanadis does not
+# capture a reload's output, so without this the reply lands in the middle of the frame.
+#
+# `--session` is required, not stylistic. See the header of demo/vanadis/config.toml.
+set -eu
+exec herdr --session vanadis-demo server reload-config >/dev/null

@@ -1,10 +1,15 @@
 # The README's hero GIF. Run from the repository root:
 #
 #   cargo build --release
-#   PATH="$PWD/target/release:$PATH" vhs demo/demo.tape
+#   VHS_NO_SANDBOX=true PATH="$PWD/target/release:$PATH" vhs demo/demo.tape
 #
 # Everything before `Show` builds the herdr session and is not recorded. What is recorded
 # is two `vanadis cycle` runs: light to dark and back, so the loop has no seam.
+#
+# The whole layout is built against a headless server and attached to at the very end.
+# Typing the setup into the attached TUI instead loses it: herdr takes a while to become
+# interactive, and keys sent before then go nowhere, which leaves one full-screen pane and
+# sends the recorded `vanadis cycle` into nvim's buffer.
 
 Output media/demo.gif
 
@@ -15,7 +20,11 @@ Require btop
 Require starship
 
 Set Shell "bash"
-Set FontFamily "JetBrainsMono Nerd Font"
+
+# Not `JetBrainsMono Nerd Font` unless one is installed. fontconfig answers a name it does
+# not have with whatever it does have, and here that is a Japanese font whose glyphs are
+# full width, which doubles every cell and halves the grid without any error at all.
+Set FontFamily "JetBrains Mono"
 Set FontSize 14
 Set Width 1500
 Set Height 950
@@ -42,36 +51,42 @@ Type "export STARSHIP_CONFIG=$PWD/demo/home/starship.toml" Enter
 Type "export HERDR_CONFIG_PATH=$PWD/demo/home/herdr/config.toml" Enter
 
 # A session that already exists keeps its panes, and every new run splits three more onto
-# the end. The btop target names a pane by id, so the run has to start from nothing.
-Type "herdr session delete vanadis-demo >/dev/null 2>&1; true" Enter
-
-# A socket left behind by a killed recording stops the next nvim from listening on it.
-Type "rm -f $PWD/demo/home/nvim.sock" Enter
+# the end. The btop target names a pane by id, so the run has to start from nothing. A
+# socket left behind by a killed recording stops the next nvim from listening on it.
+Type "herdr --session vanadis-demo server stop >/dev/null 2>&1; herdr session delete vanadis-demo >/dev/null 2>&1; rm -f $PWD/demo/home/nvim.sock; true" Enter
+Sleep 2s
 
 # The starting state. Nothing is running yet, so every reload fails and apply exits
 # non-zero; the files it would have reloaded are written, which is all this needs.
 Type "vanadis apply papercolor-light >/dev/null 2>&1; true" Enter
 Sleep 1s
 
-Type "herdr --session vanadis-demo" Enter
-Sleep 6s
+Type "(setsid herdr --session vanadis-demo server >/dev/null 2>&1 </dev/null &)" Enter
+Sleep 5s
+
+# A headless server starts with no workspace at all, so the root pane has to be asked for.
+Type "herdr --session vanadis-demo workspace create --cwd $PWD --label vanadis >/dev/null" Enter
+Sleep 1s
 
 # Left pane the editor, right column the TUI over the shell.
-Type "herdr --session vanadis-demo pane split w1:p1 --direction right --ratio 0.42 --no-focus" Enter
-Sleep 1500ms
-Type "herdr --session vanadis-demo pane split w1:p2 --direction down --ratio 0.55 --no-focus" Enter
-Sleep 1500ms
+Type "herdr --session vanadis-demo pane split w1:p1 --direction right --ratio 0.42 --cwd $PWD --no-focus >/dev/null" Enter
+Sleep 1s
+Type "herdr --session vanadis-demo pane split w1:p2 --direction down --ratio 0.55 --cwd $PWD --no-focus >/dev/null" Enter
+Sleep 2s
+
 Type "herdr --session vanadis-demo pane run w1:p2 btop" Enter
-Sleep 3s
+Sleep 2s
 Type "herdr --session vanadis-demo pane run w1:p3 bash --rcfile demo/home/bashrc" Enter
 Sleep 2s
 Type "herdr --session vanadis-demo pane run w1:p3 clear" Enter
-Sleep 1500ms
+Sleep 1s
+Type "herdr --session vanadis-demo pane run w1:p1 nvim --listen $PWD/demo/home/nvim.sock demo/vanadis/config.toml" Enter
+Sleep 3s
+Type "herdr --session vanadis-demo pane focus --pane w1:p2 --direction down >/dev/null" Enter
+Sleep 1s
 
-# One line, because after the focus moves there is no shell here left to type into. The
-# rest of it still runs: this pane's shell already has the whole command.
-Type "herdr --session vanadis-demo pane focus --pane w1:p2 --direction down; clear; exec nvim --listen $PWD/demo/home/nvim.sock demo/vanadis/config.toml" Enter
-Sleep 5s
+Type "clear; herdr session attach vanadis-demo" Enter
+Sleep 7s
 
 Show
 

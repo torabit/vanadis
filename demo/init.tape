@@ -11,7 +11,7 @@ Output media/init.gif
 Require vanadis
 
 Set Shell "bash"
-Set FontFamily "JetBrainsMono Nerd Font"
+Set FontFamily "JetBrains Mono"
 Set FontSize 17
 Set Width 1100
 Set Height 640

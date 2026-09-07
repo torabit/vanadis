@@ -26,7 +26,7 @@ themes = ["papercolor-light", "papercolor-dark"]
 name = "herdr"
 template = "templates/herdr/config.toml.in"
 output = "../home/herdr/config.toml"
-reload = ["herdr", "--session", "vanadis-demo", "server", "reload-config"]
+reload = ["demo/bin/reload-herdr"]
 
 # nvim re-executes the generated file on `:colorscheme vanadis`, and its own RPC socket
 # is how to say so from outside. demo.tape starts it with `--listen`.

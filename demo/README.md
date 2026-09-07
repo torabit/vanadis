@@ -17,8 +17,14 @@ in the herdr you are already running.
 brew install vhs
 ```
 
-herdr, nvim, btop and starship are the other four. A Nerd Font is required too; the tapes
-name `JetBrainsMono Nerd Font`, so change `Set FontFamily` if a different one is installed.
+herdr, nvim, btop and starship are the other four. The tapes name `JetBrains Mono`, and
+naming a font that is not installed is worth avoiding: fontconfig answers with whatever it
+does have rather than an error, and on this machine that is a Japanese font whose glyphs are
+full width, which doubles every cell, halves the grid and says nothing.
+
+```sh
+fc-match "JetBrains Mono"   # should not answer with something else
+```
 
 ## Recording
 
@@ -80,6 +86,11 @@ The four targets follow a theme differently, and that difference is the point of
 | nvim | `nvim --server … --remote-send` over its own RPC socket, which re-executes the colorscheme |
 | btop | quit and start again, because btop reads a theme once, at startup |
 
+Two of them go through `demo/bin/` rather than straight into `reload`. btop needs two calls
+and `reload` is an argv with no shell. herdr needs one, but it prints its JSON reply on
+stdout and vanadis does not capture a reload's output, so the reply would land in the middle
+of the frame.
+
 herdr is a target and not just a stage. The terminal vhs draws is not a target and its palette
 never moves, so without herdr painting `panel_bg`, `sidebar_bg` and the rest, the frame around
 the panes would sit still while the panes flipped. `Set Padding 0` keeps the terminal itself
@@ -96,6 +107,14 @@ vanadis-demo` names the socket outright and settles it.
 **Delete the session before recording.** A stopped session keeps its panes, so a second run
 splits three more onto the end and `w1:p2` is no longer btop. `demo.tape` deletes it first and
 again at the end.
+
+**Build the layout before attaching, not after.** `demo.tape` starts a headless server, asks
+it for a workspace, makes the splits and starts the three programs, and only then runs `herdr
+session attach`. Typing the same commands into an attached TUI does not work: herdr takes
+several seconds to become interactive and keys sent before then go nowhere, so the splits are
+lost, one full-screen pane is left, and the recorded `vanadis cycle` is typed into nvim's
+buffer instead of a shell. Nothing about that failure is visible while recording, because the
+setup is inside `Hide`.
 
 **btop needs 80x24 in its own pane.** Below that it prints "Terminal size too small" and draws
 nothing. `Set Width 1500` and `Set Height 950` at font size 14 is about 178x56 cells, which

@@ -20,8 +20,9 @@ themes = ["papercolor-light", "papercolor-dark"]
 
 # herdr reloads its config in the running server, so the sidebar, the tab bar, the pane
 # borders and the pane backgrounds change with nothing restarting. It is the multiplexer
-# the recording runs inside, and a target rather than a stage: the terminal vhs draws is
-# not a target and its own palette never moves, so herdr is what paints the whole frame.
+# the recording runs inside, and a target rather than a stage: it paints most of the frame,
+# and the cells no program has painted are the terminal's own, which demo/bin/follow-terminal-bg
+# handles because vhs reads no config file.
 [[targets]]
 name = "herdr"
 template = "templates/herdr/config.toml.in"

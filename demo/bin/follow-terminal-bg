@@ -1,0 +1,30 @@
+#!/bin/sh
+# Keeps the terminal's own default colours following the applied theme.
+#
+# In a real setup the terminal emulator is a vanadis target like any other: it reads a config
+# file and the palette lands in it. The terminal here is vhs, which reads no config, and its
+# `Set Theme` is applied once at startup and ignored for the rest of the tape.
+#
+# What it does honour is OSC. vhs draws through ttyd and xterm.js, and xterm.js has handled
+# OSC 10, 11 and 12 (default foreground, background and cursor) from the output stream since
+# v5.0. So this is the terminal's reload command, written the only way this terminal accepts.
+#
+# It has to run in the shell that owns the terminal, before `herdr session attach`, so that
+# its stdout is the terminal itself. Sending the same sequences from inside a pane does
+# nothing: herdr does not forward a pane's OSC to the host terminal.
+#
+# Why a poll and not a target's `reload`: vanadis runs inside a pane and has no handle on the
+# terminal the recording is drawn on.
+set -eu
+
+last=""
+while :; do
+  bg=$(vanadis get role.bg 2>/dev/null || true)
+  if [ -n "$bg" ] && [ "$bg" != "$last" ]; then
+    fg=$(vanadis get role.fg)
+    cursor=$(vanadis get role.accent)
+    printf '\033]11;%s\007\033]10;%s\007\033]12;%s\007' "$bg" "$fg" "$cursor"
+    last=$bg
+  fi
+  sleep 0.2
+done

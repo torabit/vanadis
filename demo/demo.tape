@@ -37,8 +37,9 @@ Set TypingSpeed 70ms
 # is about 9.3px, not the 8.4 the font size suggests, and herdr's sidebar takes 26 columns
 # before the split gets any. 1700 leaves btop about 90 columns.
 
-# The terminal vhs draws is not a target, so its own palette never changes. herdr paints
-# over all of it, but the seed is papercolor-light so nothing flashes before the attach.
+# The seed, so nothing flashes before the attach. `Set Theme` is applied once and ignored
+# for the rest of the tape, which is why demo/bin/follow-terminal-bg exists: the terminal
+# does follow the theme, over OSC, and not from here.
 Set Theme { "name": "papercolor-light", "background": "#eeeeee", "foreground": "#444444", "cursor": "#d70087", "selection": "#d7d7af", "black": "#eeeeee", "red": "#af0000", "green": "#008700", "yellow": "#5f8700", "blue": "#0087af", "magenta": "#878787", "cyan": "#005f87", "white": "#444444", "brightBlack": "#bcbcbc", "brightRed": "#d70000", "brightGreen": "#d70087", "brightYellow": "#8700af", "brightBlue": "#d75f00", "brightMagenta": "#d75f00", "brightCyan": "#005faf", "brightWhite": "#005f87" }
 
 Hide
@@ -93,6 +94,11 @@ Sleep 3s
 Type "herdr --session vanadis-demo pane focus --pane w1:p2 --direction down >/dev/null" Enter
 Sleep 1s
 
+# The terminal's own default colours, which no pane can reach. This has to start here, in
+# the shell that owns the terminal, so that its stdout is the terminal. See the script.
+Type "demo/bin/follow-terminal-bg &" Enter
+Sleep 1s
+
 Type "clear; herdr session attach vanadis-demo" Enter
 Sleep 7s
 
@@ -108,6 +114,7 @@ Type "vanadis cycle" Sleep 500ms Enter
 Sleep 5s
 
 Hide
+Type "kill %1" Enter
 Type "herdr --session vanadis-demo server stop" Enter
 Sleep 3s
 Type "herdr session delete vanadis-demo" Enter

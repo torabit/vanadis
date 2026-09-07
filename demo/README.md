@@ -113,10 +113,22 @@ the template's `[ui]` block. Each of them is an area herdr leaves unpainted, and
 through is the terminal's own background, which vhs fixes to one colour for the whole
 recording. On the dark theme that is a light frame drawn around every pane.
 
-herdr is a target and not just a stage. The terminal vhs draws is not a target and its palette
-never moves, so without herdr painting `panel_bg`, `sidebar_bg` and the rest, the frame around
-the panes would sit still while the panes flipped. `Set Padding 0` keeps the terminal itself
-out of shot.
+herdr is a target and not just a stage. Without it painting `panel_bg`, `sidebar_bg` and the
+rest, the frame around the panes would sit still while the panes flipped. `Set Padding 0`
+keeps the terminal's own edge out of shot.
+
+**The terminal follows too, over OSC.** Every cell no program has painted — the empty part of
+the shell pane, and the plain text `vanadis cycle` prints — is drawn in the terminal's default
+colours. In a real setup the terminal emulator is a vanadis target and reads a config file
+like anything else. vhs reads none, and its `Set Theme` is applied once at startup and ignored
+for the rest of the tape. What it does honour is OSC: vhs draws through ttyd and xterm.js,
+which has handled OSC 10, 11 and 12 from the output stream since v5.0.
+
+`demo/bin/follow-terminal-bg` is that reload command, written the only way this terminal takes
+one. It has to run in the shell that owns the terminal, started before `herdr session attach`,
+so that its stdout is the terminal. Sending the same sequences from inside a pane does nothing:
+herdr does not forward a pane's OSC to the host terminal, which is measurable — zero
+occurrences of the sequence in the client's output.
 
 ## Three things that will bite
 

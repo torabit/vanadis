@@ -1,0 +1,9 @@
+# release-plz decides the next version from the Conventional Commits since the last tag,
+# writes CHANGELOG.md, opens the release pull request, and on merge publishes to crates.io and
+# pushes the tag. See the issue this landed under for why it owns the version rather than dist.
+
+[workspace]
+# dist creates the GitHub Release, from the tag release-plz pushes, with a body taken from
+# CHANGELOG.md. Two tools creating one release would race, and the one that builds the binaries
+# is the one that has to own the release they are attached to.
+git_release_enable = false

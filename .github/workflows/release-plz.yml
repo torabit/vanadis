@@ -1,0 +1,56 @@
+# Opens a release pull request naming the next version, and on merge publishes to crates.io and
+# pushes the tag. `.github/workflows/release.yml`, which dist generates, takes over from there.
+#
+# RELEASE_PLZ_TOKEN is a personal access token and not GITHUB_TOKEN on purpose: a tag pushed
+# with GITHUB_TOKEN does not start another workflow, so the release would publish to crates.io
+# and never build a binary. It needs `contents: write` and `pull-requests: write` on this
+# repository and nothing else.
+name: release-plz
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    name: publish and tag
+    runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'torabit' }}
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: release-plz/action@v0.5
+        with:
+          command: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  pull-request:
+    name: open the release pull request
+    runs-on: ubuntu-latest
+    if: ${{ github.repository_owner == 'torabit' }}
+    permissions:
+      contents: write
+      pull-requests: write
+    concurrency:
+      group: release-plz-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: release-plz/action@v0.5
+        with:
+          command: release-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

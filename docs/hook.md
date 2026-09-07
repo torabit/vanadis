@@ -41,6 +41,13 @@ Prints a snippet to stdout, to be evaluated by the shell it names:
 eval "$(vanadis hook zsh)"
 ```
 
+fish reads it the way fish reads every tool in this shape, because `eval` there would need the
+output collected into one argument first:
+
+```fish
+vanadis hook fish | source
+```
+
 The snippet sources the outputs of the targets that name that shell, once at evaluation, and
 registers a prompt hook that sources each of them again when its file has changed. This is the
 shape `direnv hook zsh`, `mise activate zsh`, `starship init zsh` and `zoxide init zsh` already

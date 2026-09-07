@@ -63,6 +63,7 @@ not travel with it.
 | `vanadis get --json` | the whole resolved theme, flat, keyed by token path |
 | `vanadis render <template> --theme <id>` | one template against one named theme, to stdout. Reads no target and writes no file — this is how a theme is written out as a base16 scheme or any other format |
 | `vanadis render --target <name>` | what an apply would write for that target, to stdout, writing no file. The theme resolves the way `check` resolves it, so `render --target x > <its output>` leaves `check --only x` clean |
+| `vanadis hook <zsh\|fish\|bash>` | the snippet a shell evaluates to follow an apply, for a target marked `shell` — `eval "$(vanadis hook zsh)"`, or `vanadis hook fish \| source` |
 | `vanadis init <file>` | interactive. Hand it to the user — see below. |
 
 `apply` overwrites files the user wrote. Show `vanadis apply <theme> --diff` and get their
@@ -196,7 +197,8 @@ what lets `check` say a colour value is well-formed at all.
 6. **Add the values to the theme** under the names you chose, as lowercase `#rrggbb` literals
    or as `{{colors.x}}` references to colours it already carries.
 7. **Append the `[[targets]]` entry.** `name`, `template`, `output`. Leave `reload` out unless
-   you know the command — see [references/reload.md](references/reload.md).
+   you know the command, and add `shell` when the output is a file a shell sources rather than
+   a config a tool reads — see [references/reload.md](references/reload.md).
 8. **Verify.** This is the step that makes the work checkable:
 
    ```
@@ -230,6 +232,7 @@ first apply of a target you just wrote.
 | `template` | yes | path to the template |
 | `output` | yes | path to write |
 | `reload` | no | argv to run after writing, as an array — no shell |
+| `shell` | no | `zsh`, `fish` or `bash`: the shell whose `vanadis hook` sources this output — see [references/reload.md](references/reload.md) |
 | `themes` | no | `{ light = "...", dark = "..." }`, this target's own themes |
 
 `name` identifies the target, not the tool. One program with three config files is three

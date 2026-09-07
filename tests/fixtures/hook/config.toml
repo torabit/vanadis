@@ -1,0 +1,36 @@
+# The tree tests/hook.rs drives. Outputs are relative, so they land in the copy of this
+# directory the test makes rather than anywhere on the machine.
+#
+# One target per shell, and one that names no shell at all, so a `hook` can be asked for a
+# shell nothing sources.
+
+[auto]
+light = "paper-light"
+dark = "nord"
+
+[cycle]
+themes = ["paper-light", "nord"]
+
+[[targets]]
+name = "zsh"
+template = "templates/posix.in"
+output = "out/colours.zsh"
+shell = "zsh"
+
+[[targets]]
+name = "bash"
+template = "templates/posix.in"
+output = "out/colours.bash"
+shell = "bash"
+
+[[targets]]
+name = "fish"
+template = "templates/fish.in"
+output = "out/colours.fish"
+shell = "fish"
+
+# Reached by no `hook`, so an apply of this target alone re-sources nothing.
+[[targets]]
+name = "plain"
+template = "templates/posix.in"
+output = "out/plain.conf"

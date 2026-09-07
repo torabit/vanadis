@@ -29,7 +29,7 @@ There is no `pre` counterpart and no hook system.
 | btop | system monitor | restart | not a command |
 | hunk | diff viewer | restart | not a command |
 | lazygit | git UI | restart | not a command |
-| zsh with fzf | shell and fuzzy finder | `exec zsh` — fzf reads its colours from the environment | **no**: it replaces the user's shell, and vanadis is a child process |
+| zsh with fzf | shell and fuzzy finder | the shell sources the output again — fzf reads its colours from the environment | **no**: mark the target `shell = "zsh"` and use [the prompt hook](#a-target-a-shell-sources) |
 | rio | terminal emulator | rereads its config; note it runs on the machine the terminal is on, which over SSH is not the machine vanadis runs on | nothing to run |
 
 Two of these nine have a command vanadis can usefully run. That ratio is the normal case, not a
@@ -38,6 +38,49 @@ gap in the format.
 `bat` is the one to remember. It is the only entry where skipping the reload leaves the tool
 showing the old theme with no error anywhere — the file on disk is correct and `vanadis check`
 is clean.
+
+## A target a shell sources
+
+`reload` cannot reach a tool configured through the environment. The shell holding the stale
+colours is vanadis's parent, and no process replaces its parent's image, so `exec zsh` is
+unreachable however it is written. `reload = ["exec", "zsh"]` fails before that: `exec` is a
+shell builtin and `reload` takes no shell.
+
+Mark the target with the shell that sources its output:
+
+```toml
+[[targets]]
+name = "zsh"
+template = "templates/zsh/palette.zsh.in"
+output = "~/.config/zsh/palette.zsh"
+shell = "zsh"
+```
+
+`zsh`, `fish` and `bash`. The value names the shell whose syntax the output is written in, so a
+zsh target and a fish target sit side by side, each rendered from its own template.
+
+Then the user adds one line to their rc file:
+
+```zsh
+eval "$(vanadis hook zsh)"
+```
+
+```fish
+vanadis hook fish | source
+```
+
+That registers a prompt hook which sources the output again whenever the file changes, so an
+`apply` or a `cycle` run in another terminal reaches this shell at its next prompt. The paths
+are written into the snippet, so the line has to be re-run after an `output` moves or a target
+is added.
+
+`shell` does not replace `reload`. Both may be present: `reload` runs a command after the
+write, and `shell` reaches a shell vanadis cannot run a command in.
+
+**What belongs in such a template.** Exports and variable assignments. The file is sourced in
+every new shell and again on every change, so a template that starts a program or writes a file
+does that each time. A template that renders invalid shell syntax breaks every shell started
+after the next apply.
 
 ## Working out a tool that is not in the table
 

@@ -9,10 +9,11 @@ use std::process::ExitCode;
 
 use anyhow::Context as _;
 use clap::{ArgGroup, Parser, Subcommand, ValueEnum};
+use vanadis::hook::snippet;
 use vanadis::init::{Answer, Binding, Colour, Draft};
 use vanadis::{
-    Cache, Catalog, Config, Disk, Environment, Paint, Plan, State, System, TargetName, Template,
-    Theme, ThemeId, TokenPath, Tokens, Variant,
+    Cache, Catalog, Config, Disk, Environment, Paint, Plan, Shell, Stat, State, System, Target,
+    TargetName, Template, Theme, ThemeId, TokenPath, Tokens, Variant,
 };
 
 #[derive(Parser)]
@@ -113,6 +114,11 @@ enum Command {
         #[arg(long, conflicts_with_all = ["template", "theme"])]
         variant: Option<Background>,
     },
+    /// Print the snippet a shell evaluates to follow an apply, for `eval`.
+    Hook {
+        /// The shell to print for.
+        shell: ShellArg,
+    },
     /// Find a cached scheme by identifier, variant, name or author.
     Search {
         /// What to look for, compared without case against every column printed.
@@ -137,6 +143,26 @@ enum Command {
 enum RemoteCommand {
     /// Download the collection, replacing what is cached.
     Update,
+}
+
+/// [`Shell`], spelled as a command line argument.
+///
+/// A name that is not one of these is refused by the parser, before any file is read.
+#[derive(Clone, Copy, ValueEnum)]
+enum ShellArg {
+    Zsh,
+    Fish,
+    Bash,
+}
+
+impl From<ShellArg> for Shell {
+    fn from(shell: ShellArg) -> Self {
+        match shell {
+            ShellArg::Zsh => Self::Zsh,
+            ShellArg::Fish => Self::Fish,
+            ShellArg::Bash => Self::Bash,
+        }
+    }
 }
 
 /// [`Variant`], spelled as a command line argument.
@@ -219,6 +245,7 @@ fn main() -> anyhow::Result<ExitCode> {
             theme.as_deref(),
             variant.map(Variant::from),
         ),
+        Command::Hook { shell } => hook(&environment, Shell::from(shell)),
         Command::Search { query } => search(&environment, &query),
     }
 }
@@ -530,6 +557,34 @@ fn current(environment: &Environment) -> anyhow::Result<ExitCode> {
     for (name, theme) in state.targets() {
         writeln!(out, "{:width$}  {theme}", name.as_str())?;
     }
+    Ok(ExitCode::SUCCESS)
+}
+
+/// Prints the snippet `shell` evaluates to follow an apply.
+///
+/// Only `config.toml` is read: the snippet holds paths and no colours, so no theme is
+/// resolved, no state file is read and `themes/` is not scanned. `docs/hook.md` decides the
+/// rest.
+///
+/// Nothing reaches stdout unless the whole snippet was built, so a config that will not load
+/// cannot leave half of one in the user's shell. A config that loads and names no target for
+/// this shell is not a failure: it reports on stderr and exits zero, because `eval` reads
+/// stdout and the shell it is starting is otherwise fine.
+fn hook(environment: &Environment, shell: Shell) -> anyhow::Result<ExitCode> {
+    let config = Config::load(&environment.config_dir()?, environment.home())?;
+    let outputs: Vec<&Path> = config
+        .targets()
+        .iter()
+        .filter(|target| target.shell() == Some(shell))
+        .map(Target::output)
+        .collect();
+
+    if outputs.is_empty() {
+        eprintln!("no target is marked `shell = \"{shell}\"`, so there is nothing to source");
+        return Ok(ExitCode::SUCCESS);
+    }
+
+    print!("{}", snippet(shell, &outputs, Stat::HOST));
     Ok(ExitCode::SUCCESS)
 }
 

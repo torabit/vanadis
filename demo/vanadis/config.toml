@@ -1,0 +1,64 @@
+# The config the README's GIFs are recorded against. Self-contained: `VANADIS_CONFIG`
+# points here and `XDG_CONFIG_HOME` points at ../home, so nothing outside demo/ is read
+# or written. See demo/README.md.
+#
+# Every herdr call names `--session vanadis-demo`. It is not decoration. `herdr server`
+# and `herdr status` ignore `XDG_CONFIG_HOME` and resolve to the socket under
+# `~/.config/herdr`, which is whatever herdr the recorder is already running. Naming the
+# session is what keeps an apply here off it.
+#
+# Every template reads core tokens only, so both themes render against all four targets.
+
+[auto]
+light = "papercolor-light"
+dark = "papercolor-dark"
+
+# What `vanadis cycle` walks. The GIF runs it twice and lands back where it started, so
+# the loop has no seam.
+[cycle]
+themes = ["papercolor-light", "papercolor-dark"]
+
+# herdr reloads its config in the running server, so the sidebar, the tab bar, the pane
+# borders and the pane backgrounds change with nothing restarting. It is the multiplexer
+# the recording runs inside, and a target rather than a stage: it paints most of the frame,
+# and the cells no program has painted are the terminal's own, which demo/bin/follow-terminal-bg
+# handles because vhs reads no config file.
+[[targets]]
+name = "herdr"
+template = "templates/herdr/config.toml.in"
+output = "../home/herdr/config.toml"
+reload = ["demo/bin/reload-herdr"]
+
+# nvim re-executes the generated file on `:colorscheme vanadis`, and its own RPC socket
+# is how to say so from outside. demo.tape starts it with `--listen`.
+#
+# Typing the command into the pane instead does not work. herdr sends pane text as a
+# bracketed paste, and nvim in normal mode pastes into the buffer rather than running it,
+# so the reload silently edits the file on screen. `--remote-send` has no such ambiguity.
+[[targets]]
+name = "nvim"
+template = "templates/nvim/vanadis.lua.in"
+output = "../home/nvim/colors/vanadis.lua"
+reload = ["nvim", "--server", "demo/home/nvim.sock", "--remote-send", "<Esc>:colorscheme vanadis<CR>"]
+
+# btop reads its theme once, at startup, so quitting it is the reload. demo.tape runs it
+# inside `demo/bin/btop-loop`, which is what makes that one keystroke enough: btop
+# exits, the loop starts it again, and the new process reads the new theme.
+#
+# Quitting and then running it again from here instead needs two calls, and the second one
+# raced the first: on the second cycle the command text arrived while btop was still on
+# screen, so btop kept the theme it already had while everything else changed.
+#
+# It is the one target that names a pane, and the id only holds on a session with nothing
+# else in it, which is why demo.tape deletes the session before it starts.
+[[targets]]
+name = "btop"
+template = "templates/btop/vanadis.theme.in"
+output = "../home/btop/themes/vanadis.theme"
+reload = ["herdr", "--session", "vanadis-demo", "pane", "send-keys", "w1:p2", "q"]
+
+# starship re-reads its config on every prompt. Nothing to run.
+[[targets]]
+name = "starship"
+template = "templates/starship/starship.toml.in"
+output = "../home/starship.toml"

@@ -35,6 +35,17 @@ and they drift apart; switching between light and dark means editing them all ag
 can reload.** You write the templates and you choose the token names. There is no spec to
 conform to and no template repository to maintain.
 
+<p align="center">
+  <img
+    src="media/demo.gif"
+    alt="One vanadis cycle, and herdr, Neovim, btop and the shell prompt all change together"
+    width="900"
+  />
+</p>
+
+One `vanadis cycle`, and the multiplexer, the editor, the process viewer and the prompt all
+follow. Four config files, four different ways of picking a change up, one palette.
+
 - **Yours:** your templates, your vocabulary. `role.accent` or `colors.mauve` — vanadis does
   not have a list of names to squeeze into.
 - **Checked:** `vanadis check` re-renders every target and names the ones that no longer match.
@@ -80,12 +91,23 @@ is a complete theme, and [`docs/theme-format.md`](docs/theme-format.md) is the f
 ### Step 3. Adopt a config you already have
 
 ```sh
-vanadis init ~/.config/hunk/config.toml
+vanadis init ~/.config/ghostty/config
 ```
 
 `init` reads the file, finds the colours in it, asks which token each one is, and writes three
-things: a template beside your config, the colours into a theme, and a target entry into
-`config.toml`. The file it read is never modified — it becomes the target's output.
+things: a template under `templates/`, the colours into a theme, and a target entry into
+`config.toml`. The file it read is never modified. It becomes the target's output.
+
+<p align="center">
+  <img
+    src="media/init.gif"
+    alt="vanadis init reading a ghostty config and matching each colour to a token the palette already holds"
+    width="820"
+  />
+</p>
+
+A colour the theme already carries is offered by name, so adopting a file into a palette that
+is already there is mostly the return key.
 
 ### Step 4. Apply
 

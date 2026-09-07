@@ -1,0 +1,90 @@
+# imported by vanadis from base24/papercolor-dark
+[meta]
+format = 1
+name = "PaperColor Dark"
+variant = "dark"
+author = "Nguyen Nguyen (https://github.com/NLKNguyen/papercolor-theme)"
+
+[ansi]
+0 = "{{colors.base00}}"
+1 = "{{colors.base08}}"
+2 = "{{colors.base0b}}"
+3 = "{{colors.base0a}}"
+4 = "{{colors.base0d}}"
+5 = "{{colors.base0e}}"
+6 = "{{colors.base0c}}"
+7 = "{{colors.base05}}"
+8 = "{{colors.base03}}"
+9 = "{{colors.base12}}"
+10 = "{{colors.base14}}"
+11 = "{{colors.base13}}"
+12 = "{{colors.base16}}"
+13 = "{{colors.base17}}"
+14 = "{{colors.base15}}"
+15 = "{{colors.base07}}"
+
+[colors]
+base00 = "#1c1c1c"
+base01 = "#303030"
+base02 = "#3a3a3a"
+base03 = "#808080"
+base04 = "#585858"
+base05 = "#d0d0d0"
+base06 = "#bcbcbc"
+base07 = "#c6c6c6"
+base08 = "#af005f"
+base09 = "#5faf5f"
+base0a = "#d7af5f"
+base0b = "#5faf00"
+base0c = "#ffaf00"
+base0d = "#5fafd7"
+base0e = "#af87d7"
+base0f = "#ff5faf"
+base10 = "#121212"
+base11 = "#080808"
+base12 = "#d7005f"
+base13 = "#87d75f"
+base14 = "#ffd75f"
+base15 = "#87d700"
+base16 = "#ffd700"
+base17 = "#87d7ff"
+
+# import が持ってこないぶん。テンプレートが見た目の名前で読む 3 色を、
+# この配色が既に持つ色に向ける。
+purple = "{{colors.base0e}}"
+brown = "{{colors.base0a}}"    # nvim の LineNr
+slate = "{{colors.base04}}"    # nvim の TabLineFill
+
+[role]
+accent = "{{colors.base0d}}"
+accent-alt = "{{colors.base0c}}"
+accent-warm = "{{colors.base09}}"
+bg = "{{colors.base00}}"
+border = "{{colors.base02}}"
+comment = "{{colors.base03}}"
+error = "{{colors.base08}}"
+fg = "{{colors.base05}}"
+hover-bg = "{{colors.base01}}"
+inactive = "{{colors.base03}}"
+keyword = "{{colors.base0e}}"
+linenr = "{{colors.base04}}"
+ok = "{{colors.base0b}}"
+selection-bg = "{{colors.base02}}"
+string = "{{colors.base0b}}"
+visual = "{{colors.base0d}}"
+warn = "{{colors.base0a}}"
+
+# どの原色でもないティント。light 側と同じ xterm-256 の系列から、
+# 背景に沈む側の 4 つを取る。
+[diff]
+added-bg = "#005f00"
+added-emph = "#008700"
+removed-bg = "#5f0000"
+removed-emph = "#870000"
+
+# 色ではない文字列。各ツールが自前で持つテーマ名なので、値はバイナリで確認した。
+[text]
+delta-syntax-theme = "gruvbox-dark"
+hunk-base = "github-dark-default"
+# `herdr --default-config` lists the built-in names. `catppuccin` is the dark one.
+herdr-base = "catppuccin"

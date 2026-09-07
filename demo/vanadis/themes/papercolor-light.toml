@@ -1,0 +1,88 @@
+# tests/fixtures/palette.json rewritten in the format decided in docs/theme-format.md.
+# Derived from PaperColor by Nikyle Nguyen (https://github.com/NLKNguyen/papercolor-theme).
+
+[meta]
+format = 1
+name = "PaperColor Light"
+variant = "light"
+author = "torabit"
+
+# Named by appearance. By convention the primitives everything else points at.
+[colors]
+paper = "#eeeeee"
+ink = "#444444"
+red = "#af0000"
+crimson = "#d70000"
+green = "#008700"
+olive = "#5f8700"
+azure = "#0087af"
+teal = "#005f87"
+blue = "#005faf"
+gray = "#878787"
+silver = "#bcbcbc"
+ash = "#b2b2b2"
+slate = "#767676"
+pink = "#d70087"
+purple = "#8700af"
+orange = "#d75f00"
+brown = "#af5f00"
+sand = "#d7d7af"
+mist = "#e4e4e4"
+
+# The terminal's 16 slots. Assigned independently of the semantic layer:
+# slot 10 is nominally Bright Green and holds pink, 11 is Bright Yellow and
+# holds purple, 12 is Bright Blue and holds orange.
+[ansi]
+0 = "{{colors.paper}}"
+1 = "{{colors.red}}"
+2 = "{{colors.green}}"
+3 = "{{colors.olive}}"
+4 = "{{colors.azure}}"
+5 = "{{colors.gray}}"
+6 = "{{colors.teal}}"
+7 = "{{colors.ink}}"
+8 = "{{colors.silver}}"
+9 = "{{colors.crimson}}"
+10 = "{{colors.pink}}"
+11 = "{{colors.purple}}"
+12 = "{{colors.orange}}"
+13 = "{{colors.orange}}"
+14 = "{{colors.blue}}"
+15 = "{{colors.teal}}"
+
+# Semantic layer, named by use.
+[role]
+bg = "{{colors.paper}}"
+fg = "{{colors.ink}}"
+comment = "{{colors.gray}}"
+keyword = "{{colors.blue}}"
+string = "{{colors.olive}}"
+error = "{{colors.red}}"
+ok = "{{colors.green}}"
+warn = "{{colors.orange}}"
+visual = "{{colors.azure}}"
+linenr = "{{colors.ash}}"
+accent = "{{colors.pink}}"
+accent-alt = "{{colors.teal}}"
+accent-warm = "{{colors.orange}}"
+inactive = "{{colors.gray}}"
+border = "{{colors.silver}}"
+selection-bg = "{{colors.sand}}"
+hover-bg = "{{colors.mist}}"
+
+# A second semantic namespace. These four are the only tints in the palette
+# that no primitive carries, so they are written as literals.
+[diff]
+added-bg = "#d7ffd7"
+added-emph = "#afffaf"
+removed-bg = "#ffd7d7"
+removed-emph = "#ffafaf"
+
+# Strings that are not colours. Read by templates that need a target's own
+# theme name rather than a colour.
+[text]
+delta-syntax-theme = "gruvbox-light"
+hunk-base = "github-light-default"
+# The built-in herdr theme anything [theme.custom] does not name falls back to. A dark base
+# under a light palette leaves a dark line wherever a token was missed.
+herdr-base = "catppuccin-latte"

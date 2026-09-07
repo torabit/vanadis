@@ -1,0 +1,17 @@
+# ~/.config/ghostty/config
+#
+# ghostty shipped in 2024 and has no base16 template repository. This is the case vanadis
+# is for: ten lines of template, written the day the tool ships.
+
+font-family = "JetBrainsMono Nerd Font"
+font-size = 13
+window-padding-x = 8
+window-padding-y = 8
+
+background = #eeeeee
+foreground = #444444
+cursor-color = #d70087
+selection-background = #d7d7af
+selection-foreground = #444444
+split-divider-color = #bcbcbc
+unfocused-split-fill = #e4e4e4

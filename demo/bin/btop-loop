@@ -1,0 +1,9 @@
+#!/bin/sh
+# btop reads its theme once, at startup, and has no reload signal, so the reload is the
+# single keystroke `q`. Running it in a loop is what makes one keystroke enough: btop exits,
+# this starts it again, and the new process reads the theme vanadis has just written.
+#
+# The loop lives in a file because `herdr pane run` joins its arguments into one command
+# line, so quoting a `sh -c` on the command line does not survive.
+set -eu
+while btop; do :; done

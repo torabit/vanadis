@@ -42,7 +42,7 @@ output = "../home/nvim/colors/vanadis.lua"
 reload = ["nvim", "--server", "demo/home/nvim.sock", "--remote-send", "<Esc>:colorscheme vanadis<CR>"]
 
 # btop reads its theme once, at startup, so quitting it is the reload. demo.tape runs it
-# inside `while true; do btop; done`, which is what makes that one keystroke enough: btop
+# inside `demo/bin/btop-loop`, which is what makes that one keystroke enough: btop
 # exits, the loop starts it again, and the new process reads the new theme.
 #
 # Quitting and then running it again from here instead needs two calls, and the second one

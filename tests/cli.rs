@@ -66,6 +66,15 @@ fn lists_every_theme_with_its_variant_and_display_name() {
 }
 
 #[test]
+fn lists_without_an_escape_sequence_when_its_output_is_not_a_terminal() {
+    // A row carries a strip of the theme's `role` colours on a terminal that says truecolor.
+    // This run is a pipe, so the row is the one a run before the strip existed produced.
+    let state = state_home("list-no-escape");
+    let output = vanadis(&config(), &state, &["list"]);
+    assert!(!stdout(&output).contains('\x1b'), "{}", stdout(&output));
+}
+
+#[test]
 fn lists_a_theme_that_does_not_define_the_whole_core() {
     // Both themes in this fixture define one `role` token and no `[ansi]` at all. `check` is
     // the only place the core is enforced, so an unfinished theme costs the user that theme

@@ -3,7 +3,7 @@
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used))]
 
 use std::collections::BTreeMap;
-use std::io::{BufRead as _, Write as _};
+use std::io::{BufRead as _, IsTerminal as _, Write as _};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
@@ -11,8 +11,8 @@ use anyhow::Context as _;
 use clap::{ArgGroup, Parser, Subcommand, ValueEnum};
 use vanadis::init::{Answer, Binding, Colour, Draft};
 use vanadis::{
-    Cache, Catalog, Config, Disk, Environment, Plan, State, System, TargetName, Template, Theme,
-    ThemeId, TokenPath, Tokens, Variant,
+    Cache, Catalog, Config, Disk, Environment, Paint, Plan, State, System, TargetName, Template,
+    Theme, ThemeId, TokenPath, Tokens, Variant,
 };
 
 #[derive(Parser)]
@@ -185,7 +185,7 @@ fn main() -> anyhow::Result<ExitCode> {
             &only,
         ),
         Command::Cycle { dry_run, diff } => cycle(&environment, dry_run || diff, diff),
-        Command::List { variant } => list(&environment, variant.map(Variant::from)),
+        Command::List { variant } => list(&environment, variant.map(Variant::from), painting()),
         Command::Current => current(&environment),
         Command::Get { token, json, theme } => {
             get(&environment, token.as_deref(), json, theme.as_deref())
@@ -201,6 +201,7 @@ fn main() -> anyhow::Result<ExitCode> {
             theme.as_deref(),
             name.as_deref(),
             variant.map(Variant::from),
+            painting(),
         ),
         Command::Remote {
             command: RemoteCommand::Update,
@@ -220,6 +221,21 @@ fn main() -> anyhow::Result<ExitCode> {
         ),
         Command::Search { query } => search(&environment, &query),
     }
+}
+
+/// What the terminal on the other end of stdout will show.
+///
+/// Read here and handed to the commands that paint, so [`Paint::wanted`] answers the
+/// question once for the whole run.
+fn painting() -> Paint {
+    let read = |name| std::env::var(name).ok();
+    let (no_color, term, colorterm) = (read("NO_COLOR"), read("TERM"), read("COLORTERM"));
+    Paint::wanted(
+        std::io::stdout().is_terminal(),
+        no_color.as_deref(),
+        term.as_deref(),
+        colorterm.as_deref(),
+    )
 }
 
 /// The config and the themes it names, with every unloadable theme reported.
@@ -429,12 +445,31 @@ fn names(targets: &[TargetName]) -> String {
         .join(" ")
 }
 
+/// The `role` tokens a theme's row shows a block of, in the order they are shown.
+///
+/// A background, a foreground, the three accents and the three states: enough of a signature
+/// to tell two themes apart at a glance, and short enough to sit in a row beside the name.
+const STRIP: [&str; 8] = [
+    "role.bg",
+    "role.fg",
+    "role.accent",
+    "role.accent-alt",
+    "role.accent-warm",
+    "role.ok",
+    "role.warn",
+    "role.error",
+];
+
 /// Prints every theme, or every theme written for `variant`.
 ///
 /// A file that is not a theme is reported and skipped: a broken theme costs the user that
 /// theme, not the command. So does a state file that cannot be read, which only costs the
 /// marker naming the applied theme.
-fn list(environment: &Environment, variant: Option<Variant>) -> anyhow::Result<ExitCode> {
+fn list(
+    environment: &Environment,
+    variant: Option<Variant>,
+    paint: Paint,
+) -> anyhow::Result<ExitCode> {
     let catalog = Catalog::scan(&environment.themes_dir()?)?;
     for error in catalog.broken() {
         eprintln!("warning: {error}");
@@ -456,6 +491,10 @@ fn list(environment: &Environment, variant: Option<Variant>) -> anyhow::Result<E
     let id = width(themes.iter().map(|theme| theme.id().as_str()));
     let background = width(themes.iter().map(|theme| theme.variant().as_str()));
 
+    let strip: Vec<TokenPath> = STRIP
+        .iter()
+        .filter_map(|path| TokenPath::parse(path))
+        .collect();
     let mut out = std::io::stdout().lock();
     for theme in themes {
         let marker = if applied.as_ref() == Some(theme.id()) {
@@ -463,11 +502,13 @@ fn list(environment: &Environment, variant: Option<Variant>) -> anyhow::Result<E
         } else {
             ' '
         };
+        let values: Vec<Option<&str>> = strip.iter().map(|path| theme.tokens().get(path)).collect();
         writeln!(
             out,
-            "{marker} {:id$}  {:background$}  {}",
+            "{marker} {:id$}  {:background$}  {}{}",
             theme.id().as_str(),
             theme.variant().as_str(),
+            paint.strip(&values),
             theme.name()
         )?;
     }
@@ -641,6 +682,7 @@ fn init(
     theme: Option<&str>,
     name: Option<&str>,
     variant: Option<Variant>,
+    paint: Paint,
 ) -> anyhow::Result<ExitCode> {
     let directory = environment.config_dir()?;
     let output = std::path::absolute(file)
@@ -664,7 +706,7 @@ fn init(
     }
 
     let scan = vanadis::init::scan(&source);
-    let mut dialogue = Dialogue::new();
+    let mut dialogue = Dialogue::new(paint);
     Dialogue::found(&scan)?;
 
     let id = match theme {
@@ -885,12 +927,14 @@ fn read(path: &Path) -> anyhow::Result<Option<String>> {
 /// with no input attached skips every value rather than hanging.
 struct Dialogue {
     input: std::io::Lines<std::io::StdinLock<'static>>,
+    paint: Paint,
 }
 
 impl Dialogue {
-    fn new() -> Self {
+    fn new(paint: Paint) -> Self {
         Self {
             input: std::io::stdin().lock().lines(),
+            paint,
         }
     }
 
@@ -1031,7 +1075,8 @@ impl Dialogue {
         let count = colour.occurrences().len();
         let default = offered(known, colour.value());
         let prompt = format!(
-            "  {}  {count} {}   token name?{} > ",
+            "  {}{}  {count} {}   token name?{} > ",
+            self.paint.swatch(colour.value()),
             colour.value(),
             plural(count, "occurrence"),
             default
@@ -1057,15 +1102,17 @@ impl Dialogue {
             several => colour
                 .occurrences()
                 .iter()
-                .map(|occurrence| self.which(source, occurrence, several))
+                .map(|occurrence| self.which(source, colour.value(), occurrence, several))
                 .collect(),
         }
     }
 
-    /// Asks which of `names` one occurrence takes, showing the line it sits on.
+    /// Asks which of `names` one occurrence takes, showing the line it sits on and, on a
+    /// terminal that paints, the colour that line holds.
     fn which(
         &mut self,
         source: &str,
+        value: &str,
         occurrence: &vanadis::Occurrence,
         names: &[TokenPath],
     ) -> anyhow::Result<Option<TokenPath>> {
@@ -1073,7 +1120,8 @@ impl Dialogue {
         let mut out = std::io::stdout().lock();
         writeln!(
             out,
-            "    line {}  {}",
+            "    {}line {}  {}",
+            self.paint.swatch(value),
             occurrence.line(),
             occurrence.context(source)
         )?;

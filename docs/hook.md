@@ -41,6 +41,13 @@ Prints a snippet to stdout, to be evaluated by the shell it names:
 eval "$(vanadis hook zsh)"
 ```
 
+fish reads it the way fish reads every tool in this shape, because `eval` there would need the
+output collected into one argument first:
+
+```fish
+vanadis hook fish | source
+```
+
 The snippet sources the outputs of the targets that name that shell, once at evaluation, and
 registers a prompt hook that sources each of them again when its file has changed. This is the
 shape `direnv hook zsh`, `mise activate zsh`, `starship init zsh` and `zoxide init zsh` already
@@ -210,6 +217,13 @@ alone does not; and the exit status of the command before the prompt survives.
 
 This is also what fixes the versions claimed. `path mtime` is not in every fish that is
 installed anywhere, and the fish CI runs on is the fish this document claims.
+
+**fish needs a terminal before any of that can be asked.** It emits `fish_prompt` only while
+drawing a prompt, and it draws none when its input is a pipe, `-i` or not, so a piped fish
+answers every prompt question with the state the evaluation itself left. zsh and bash run
+`precmd` and `PROMPT_COMMAND` either way. The fish run is therefore given one, and what comes
+back carries the prompt and the echo of what was typed around what the script printed, which is
+why the assertion reads its marker out of the text rather than off the start of a line.
 
 ## Rejected alternatives
 

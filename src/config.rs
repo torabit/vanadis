@@ -36,6 +36,52 @@ impl fmt::Display for TargetName {
     }
 }
 
+/// A shell that sources a target's output.
+///
+/// `vanadis hook <shell>` prints the snippet that sources every target carrying this shell,
+/// and sources it again when its output changes. See `docs/hook.md`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Shell {
+    /// zsh, which reads an mtime with `zstat` and hooks `precmd`.
+    Zsh,
+    /// fish, which reads an mtime with `path mtime` and hooks the `fish_prompt` event.
+    Fish,
+    /// bash, which forks `stat` and appends to `PROMPT_COMMAND`.
+    Bash,
+}
+
+impl Shell {
+    /// Every shell `hook` emits for, in the order `--help` lists them.
+    pub const ALL: [Self; 3] = [Self::Zsh, Self::Fish, Self::Bash];
+
+    /// Parses `text` as a shell name, returning `None` when it names none of them.
+    #[must_use]
+    pub fn parse(text: &str) -> Option<Self> {
+        match text {
+            "zsh" => Some(Self::Zsh),
+            "fish" => Some(Self::Fish),
+            "bash" => Some(Self::Bash),
+            _ => None,
+        }
+    }
+
+    /// The name the config file and the command line both write.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Zsh => "zsh",
+            Self::Fish => "fish",
+            Self::Bash => "bash",
+        }
+    }
+}
+
+impl fmt::Display for Shell {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// The themes a bare `vanadis apply --variant` resolves through.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Auto {
@@ -110,6 +156,7 @@ pub struct Target {
     template: PathBuf,
     output: PathBuf,
     reload: Vec<String>,
+    shell: Option<Shell>,
     themes: Option<Themes>,
 }
 
@@ -136,6 +183,12 @@ impl Target {
     #[must_use]
     pub fn reload(&self) -> &[String] {
         &self.reload
+    }
+
+    /// The shell whose `hook` sources this output, or `None` when no shell does.
+    #[must_use]
+    pub fn shell(&self) -> Option<Shell> {
+        self.shell
     }
 
     /// The target's own themes, or `None` when it follows the theme being applied.
@@ -222,6 +275,14 @@ pub enum Problem {
         /// The value, as the file writes it.
         value: String,
     },
+    /// A `shell` naming a shell `hook` does not emit for.
+    #[error("line {line}: targets.shell is `{value}`, and the shells are zsh, fish and bash")]
+    Shell {
+        /// The value, as the file writes it.
+        value: String,
+        /// The line the key is written on.
+        line: usize,
+    },
     /// A path starting with `~` when there is no home directory to expand it to.
     #[error("line {line}: {key} starts with `~`, and there is no home directory")]
     Home {
@@ -245,6 +306,7 @@ impl Problem {
             | Self::Repeated { line, .. }
             | Self::Short { line, .. }
             | Self::Theme { line, .. }
+            | Self::Shell { line, .. }
             | Self::Home { line, .. } => *line,
         }
     }
@@ -530,7 +592,7 @@ impl Parse<'_> {
         for (key, item) in table {
             let at = self.line_of(table.key(key));
             match key {
-                "name" | "template" | "output" | "reload" => {}
+                "name" | "template" | "output" | "reload" | "shell" => {}
                 "themes" => {
                     if let Some(inner) = item.as_table_like() {
                         themes = Some(self.themes(inner));
@@ -549,12 +611,14 @@ impl Parse<'_> {
         let template = self.path(table, "template", line);
         let output = self.path(table, "output", line);
         let reload = self.reload(table);
+        let shell = self.shell(table);
 
         Some(Target {
             name: name?,
             template: template?,
             output: output?,
             reload,
+            shell,
             themes,
         })
     }
@@ -596,6 +660,28 @@ impl Parse<'_> {
             }
         }
         reload
+    }
+
+    /// Reads a target's `shell`, which is `None` when the target has none.
+    ///
+    /// A value that names no shell is a problem rather than a `None`, so a typo is a config
+    /// error and not a target that silently never sources.
+    fn shell(&mut self, table: &Table) -> Option<Shell> {
+        let item = table.get("shell")?;
+        let at = self.line_of(table.key("shell"));
+        let Some(text) = item.as_str() else {
+            self.wrong_type("targets.shell", at, item);
+            return None;
+        };
+
+        let shell = Shell::parse(text);
+        if shell.is_none() {
+            self.problems.push(Problem::Shell {
+                value: text.to_owned(),
+                line: at,
+            });
+        }
+        shell
     }
 
     /// Reads a target's `themes`, which names a theme for one mode or both.
@@ -790,6 +876,30 @@ mod tests {
     #[test]
     fn leaves_reload_empty_when_a_target_has_none() {
         assert!(target(TARGET).reload().is_empty());
+    }
+
+    #[test]
+    fn reads_the_shell_whose_hook_sources_a_target() {
+        let source = format!("{TARGET}shell = \"fish\"\n");
+        assert_eq!(target(&source).shell(), Some(Shell::Fish));
+    }
+
+    #[test]
+    fn leaves_a_target_no_shell_sources_unmarked() {
+        assert_eq!(target(TARGET).shell(), None);
+    }
+
+    #[test]
+    fn reports_a_shell_hook_does_not_emit_for() {
+        // A typo is a config error rather than a target that silently never sources.
+        let source = format!("{TARGET}shell = \"nu\"\n");
+        assert_eq!(
+            problems(&source),
+            vec![Problem::Shell {
+                value: "nu".to_owned(),
+                line: 5,
+            }]
+        );
     }
 
     #[test]

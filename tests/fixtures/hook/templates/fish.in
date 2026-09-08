@@ -1,0 +1,1 @@
+set -g VANADIS_BG '{{colors.bg}}'

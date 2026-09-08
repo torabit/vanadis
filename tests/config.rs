@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use vanadis::{Config, TargetName, Variant};
+use vanadis::{Config, Shell, TargetName, Variant};
 
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).to_owned()
@@ -58,4 +58,17 @@ fn expands_an_output_path_against_the_home_directory() {
         config.targets()[0].output(),
         Path::new("/home/ada/.config/bat/themes/vanadis.tmTheme")
     );
+}
+
+#[test]
+fn marks_the_target_a_shell_sources() {
+    // The zsh palette is the reference config's one target read from the environment, which
+    // is what `vanadis hook zsh` exists for. See `docs/hook.md`.
+    let config = reference();
+    let zsh = config
+        .targets()
+        .iter()
+        .find(|target| target.name() == &TargetName::parse("zsh").unwrap())
+        .unwrap();
+    assert_eq!(zsh.shell(), Some(Shell::Zsh));
 }

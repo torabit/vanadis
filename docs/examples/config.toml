@@ -80,10 +80,12 @@ name = "starship"
 template = "templates/starship/starship.toml.in"
 output = "~/.config/starship.toml"
 
-# fzf reads these colours from the environment, so the shell has to be replaced for a change
-# to show. `exec zsh` replaces the user's shell and vanadis runs as a child process, so it
-# cannot be a reload command.
+# fzf reads these colours from the environment, so a write is not enough on its own: the
+# shell has to source the file again. No `reload` can do that, because the shell that needs
+# fixing is vanadis's parent. `shell` marks the target instead, and the prompt hook that
+# `eval "$(vanadis hook zsh)"` registers sources the file again whenever it changes.
 [[targets]]
 name = "zsh"
 template = "templates/zsh/palette.zsh.in"
 output = "~/.config/zsh/palette.zsh"
+shell = "zsh"

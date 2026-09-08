@@ -24,6 +24,11 @@ jobs:
       - name: clippy
         run: cargo clippy --all-targets -- -D warnings
 
+      # tests/hook.rs evaluates the emitted snippet in each shell `vanadis hook` claims, and
+      # refuses to skip a shell when `CI` is set.
+      - name: shells
+        run: sudo apt-get update && sudo apt-get install -y zsh fish
+
       - name: test
         run: cargo test --all-targets
 

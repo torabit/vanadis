@@ -210,6 +210,18 @@ fn age(directory: &Path) {
     }
 }
 
+/// Every colour the script printed, in the order it printed them.
+///
+/// The marker is read out of the text rather than off the start of a line, because a terminal
+/// writes the prompt and the echo of what was typed around it. `bg=$VANADIS_BG`, which is the
+/// echo of the command itself, does not match: the marker is `bg=` followed by a colour.
+fn colours(printed: &str) -> Vec<String> {
+    printed
+        .match_indices("bg=#")
+        .map(|(at, _)| printed[at + 3..].chars().take(7).collect())
+        .collect()
+}
+
 /// The colour the fixture's themes carry, so a test can name the one it expects.
 const NORD: &str = "#2e3440";
 const PAPER: &str = "#eeeeee";
@@ -225,11 +237,7 @@ fn sources_the_output_when_the_snippet_is_evaluated() {
 
         let script = format!("{}\n{}\n", shell.evaluate, shell.show);
         let printed = drive(&shell, &config, &state, &script);
-        assert!(
-            printed.contains(&format!("bg={NORD}")),
-            "{}: {printed}",
-            shell.name
-        );
+        assert_eq!(colours(&printed), [NORD], "{}: {printed}", shell.name);
     }
 }
 
@@ -247,11 +255,7 @@ fn sources_again_at_the_next_prompt_when_a_cycle_moves_the_output() {
         // hook has run at, which is the whole claim.
         let script = format!("{}\n@vanadis@ cycle\n{}\n", shell.evaluate, shell.show);
         let printed = drive(&shell, &config, &state, &script);
-        assert!(
-            printed.contains(&format!("bg={PAPER}")),
-            "{}: {printed}",
-            shell.name
-        );
+        assert_eq!(colours(&printed), [PAPER], "{}: {printed}", shell.name);
     }
 }
 
@@ -306,13 +310,9 @@ fn sources_nothing_when_an_apply_names_no_shell_target() {
             shell.evaluate, shell.show
         );
         let printed = drive(&shell, &config, &state, &script);
-        let seen: Vec<&str> = printed
-            .lines()
-            .filter(|line| line.starts_with("bg="))
-            .collect();
         assert_eq!(
-            seen,
-            [format!("bg={NORD}"), format!("bg={PAPER}")],
+            colours(&printed),
+            [NORD, PAPER],
             "{}: {printed}",
             shell.name
         );

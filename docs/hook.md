@@ -218,6 +218,13 @@ alone does not; and the exit status of the command before the prompt survives.
 This is also what fixes the versions claimed. `path mtime` is not in every fish that is
 installed anywhere, and the fish CI runs on is the fish this document claims.
 
+**fish needs a terminal before any of that can be asked.** It emits `fish_prompt` only while
+drawing a prompt, and it draws none when its input is a pipe, `-i` or not, so a piped fish
+answers every prompt question with the state the evaluation itself left. zsh and bash run
+`precmd` and `PROMPT_COMMAND` either way. The fish run is therefore given one, and what comes
+back carries the prompt and the echo of what was typed around what the script printed, which is
+why the assertion reads its marker out of the text rather than off the start of a line.
+
 ## Rejected alternatives
 
 The state file as the signal, a top-level table naming shell targets, and a config read at

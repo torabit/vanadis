@@ -7,6 +7,16 @@ All notable changes to this project are documented here. The format is
 Entries below 0.4.0 were written by hand. Everything after is written by release-plz from the
 Conventional Commits in the history.
 
+## [0.4.0](https://github.com/torabit/vanadis/compare/v0.3.5...v0.4.0) - 2026-09-08
+
+### Added
+
+- *(hook)* print the snippet a shell evaluates to follow an apply ([#80](https://github.com/torabit/vanadis/pull/80))
+
+### Other
+
+- *(hook)* decide how a sourced target follows an apply ([#79](https://github.com/torabit/vanadis/pull/79))
+
 ## [0.3.5](https://github.com/torabit/vanadis/compare/v0.3.4...v0.3.5) - 2026-09-07
 
 ### Other
